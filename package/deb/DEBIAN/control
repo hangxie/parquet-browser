@@ -1,0 +1,7 @@
+Package: parquet-browser
+Version: CHANGEME
+Section: development
+Priority: optional
+Architecture: CHANGEME
+Maintainer: 7977860+hangxie@users.noreply.github.com
+Description: Browse parquet file content in an interactive way, for change log visit https://github.com/hangxie/parquet-browser/releases
