@@ -259,22 +259,10 @@ func (app *BrowseApp) readPageContent(rgIndex, colIndex, pageIndex int, allPages
 		return nil, fmt.Errorf("cannot read content of %s page - only DATA_PAGE and DATA_PAGE_V2 are supported", pageInfo.PageType)
 	}
 
-	// Strategy: Read all values up to and including this page from the column chunk,
-	// then return only the values for this specific page.
-	// This is simpler and more reliable than trying to skip to exact positions.
-
-	// Calculate how many values we need to skip to get to this page
-	// We need to sum up all the values in previous DATA pages within this column chunk
-	var valuesToSkip int64 = 0
-	for i := 0; i < pageIndex; i++ {
-		// Only count data pages (dictionary pages don't contain row values)
-		if allPages[i].PageType == "DATA_PAGE" || allPages[i].PageType == "DATA_PAGE_V2" {
-			valuesToSkip += int64(allPages[i].NumValues)
-		}
-	}
-
-	// If this is the first data page (valuesToSkip == 0), we can just read directly
-	// Otherwise we need to read from the beginning and slice
+	// Strategy: For columns with nested/repeated fields, we cannot reliably skip by "NumValues"
+	// because NumValues refers to physical values in the page, not logical rows.
+	// Instead, we read ALL values from the entire column chunk and then slice to extract
+	// just the values for the requested page.
 
 	// Calculate which row in the file to start from
 	// First, we need to skip all rows in previous row groups
@@ -305,20 +293,34 @@ func (app *BrowseApp) readPageContent(rgIndex, colIndex, pageIndex int, allPages
 		}
 	}
 
-	// Now we're positioned at the start of the row group
-	// If we need to skip values within this column chunk, read and discard them
-	if valuesToSkip > 0 {
-		_, _, _, err = freshReader.ReadColumnByIndex(int64(colIndex), valuesToSkip)
-		if err != nil {
-			return nil, fmt.Errorf("failed to skip %d values in column: %w", valuesToSkip, err)
+	// Read ALL values from this column chunk
+	allValues, _, _, err := freshReader.ReadColumnByIndex(int64(colIndex), meta.NumValues)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read all %d values from column: %w", meta.NumValues, err)
+	}
+
+	// Now slice the allValues array to extract only the values for the requested page
+	// Calculate the start and end indices by summing up NumValues from previous pages
+	var startIdx int64 = 0
+	for i := 0; i < pageIndex; i++ {
+		// Only count data pages (dictionary pages don't contain row values)
+		if allPages[i].PageType == "DATA_PAGE" || allPages[i].PageType == "DATA_PAGE_V2" {
+			startIdx += int64(allPages[i].NumValues)
 		}
 	}
 
-	// Now read the actual page values
-	pageValues, _, _, err := freshReader.ReadColumnByIndex(int64(colIndex), int64(pageInfo.NumValues))
-	if err != nil {
-		return nil, fmt.Errorf("failed to read %d values for page: %w", pageInfo.NumValues, err)
+	endIdx := startIdx + int64(pageInfo.NumValues)
+
+	// Validate indices
+	if startIdx >= int64(len(allValues)) {
+		return []interface{}{}, nil // Page starts beyond available values
 	}
+	if endIdx > int64(len(allValues)) {
+		endIdx = int64(len(allValues)) // Clamp to available values
+	}
+
+	// Extract the slice for this page
+	pageValues := allValues[startIdx:endIdx]
 
 	return pageValues, nil
 }
