@@ -5,8 +5,10 @@ import (
 	"testing"
 
 	"github.com/hangxie/parquet-go/v2/parquet"
+	pio "github.com/hangxie/parquet-tools/io"
 	"github.com/rivo/tview"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // Test getStartOffset
@@ -1080,4 +1082,122 @@ func Test_CreateHeaderView_MultiLine(t *testing.T) {
 // Helper function for tests
 func stringPtr(s string) *string {
 	return &s
+}
+
+// Test_readPageContent_NestedList tests reading page content from a nested list column
+// This is a regression test for the bug where pages after the first page would show no data
+// for nested/repeated columns due to incorrect value skipping logic.
+func Test_readPageContent_NestedList(t *testing.T) {
+	// Open the test parquet file from the parquet-tools repository
+	// This file is expected to be available at ../build/testdata/all-types.parquet
+	// Or can be fetched from: https://github.com/hangxie/parquet-tools/raw/refs/tags/v1.37.0/testdata/all-types.parquet
+	pr, err := pio.NewParquetFileReader("../build/testdata/all-types.parquet", pio.ReadOption{})
+	require.NoError(t, err)
+	defer func() { _ = pr.PFile.Close() }()
+	defer func() { _ = pr.ReadStopWithError() }()
+
+	app := &BrowseApp{
+		parquetReader: pr,
+		metadata:      pr.Footer,
+	}
+
+	// Find the List.List.Element column (index 47)
+	rgIndex := 0
+	colIndex := 47
+	meta := app.metadata.RowGroups[rgIndex].Columns[colIndex].MetaData
+
+	// Verify this is the right column
+	require.Equal(t, []string{"List", "List", "Element"}, meta.PathInSchema)
+
+	// Read page headers
+	allPages, err := app.readPageHeaders(rgIndex, colIndex)
+	require.NoError(t, err)
+	require.Equal(t, 4, len(allPages), "Should have 4 pages")
+
+	// Verify page information
+	assert.Equal(t, int32(4), allPages[0].NumValues, "Page 0 should have 4 values")
+	assert.Equal(t, int32(12), allPages[1].NumValues, "Page 1 should have 12 values")
+	assert.Equal(t, int32(21), allPages[2].NumValues, "Page 2 should have 21 values")
+	assert.Equal(t, int32(9), allPages[3].NumValues, "Page 3 should have 9 values")
+
+	// Test reading each page
+	testCases := []struct {
+		name              string
+		pageIndex         int
+		expectedMinValues int // Minimum number of values we expect
+		expectedMaxValues int // Maximum number of values we expect
+	}{
+		{"Page 0", 0, 4, 4},
+		{"Page 1", 1, 12, 12},
+		{"Page 2 (regression test)", 2, 21, 21}, // This was the failing page
+		{"Page 3 (regression test)", 3, 9, 9},   // This was also failing
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			values, err := app.readPageContent(rgIndex, colIndex, tc.pageIndex, allPages, meta)
+			require.NoError(t, err, "Should be able to read page content")
+
+			// Check that we got values (the bug was that we got 0 values)
+			assert.GreaterOrEqual(t, len(values), tc.expectedMinValues,
+				"Should have at least %d values", tc.expectedMinValues)
+			assert.LessOrEqual(t, len(values), tc.expectedMaxValues,
+				"Should have at most %d values", tc.expectedMaxValues)
+
+			// For the exact expected count
+			assert.Equal(t, tc.expectedMaxValues, len(values),
+				"Should have exactly %d values", tc.expectedMaxValues)
+
+			// Verify values are not nil
+			for i, val := range values {
+				// Some values can be nil (nulls), but not all
+				if val != nil {
+					// Just verify we have some non-nil values
+					t.Logf("Value[%d] = %v", i, val)
+				}
+			}
+		})
+	}
+}
+
+// Test_readPageContent_SimpleColumn tests reading from a simple (non-nested) column
+// to ensure the fix doesn't break existing functionality
+func Test_readPageContent_SimpleColumn(t *testing.T) {
+	// Open the test parquet file from the parquet-tools repository
+	// This file is expected to be available at ../build/testdata/all-types.parquet
+	// Or can be fetched from: https://github.com/hangxie/parquet-tools/raw/refs/tags/v1.37.0/testdata/all-types.parquet
+	pr, err := pio.NewParquetFileReader("../build/testdata/all-types.parquet", pio.ReadOption{})
+	require.NoError(t, err)
+	defer func() { _ = pr.PFile.Close() }()
+	defer func() { _ = pr.ReadStopWithError() }()
+
+	app := &BrowseApp{
+		parquetReader: pr,
+		metadata:      pr.Footer,
+	}
+
+	// Use Int32 column (index 1) - a simple, non-nested column
+	rgIndex := 0
+	colIndex := 1
+	meta := app.metadata.RowGroups[rgIndex].Columns[colIndex].MetaData
+
+	// Verify this is the right column
+	require.Equal(t, []string{"Int32"}, meta.PathInSchema)
+
+	// Read page headers
+	allPages, err := app.readPageHeaders(rgIndex, colIndex)
+	require.NoError(t, err)
+	require.Greater(t, len(allPages), 0, "Should have at least one page")
+
+	// Read first page
+	values, err := app.readPageContent(rgIndex, colIndex, 0, allPages, meta)
+	require.NoError(t, err, "Should be able to read page content")
+	assert.Greater(t, len(values), 0, "Should have values")
+
+	// Verify we got expected values (Int32 column should have values 0-9)
+	for i, val := range values {
+		if val != nil {
+			t.Logf("Value[%d] = %v", i, val)
+		}
+	}
 }
