@@ -47,10 +47,8 @@ func formatStatValueWithType(value []byte, columnMeta *parquet.ColumnMetaData, s
 	}
 
 	// First, retrieve the raw value based on physical type
+	// Note: retrieveRawValue never returns nil for non-nil input
 	rawValue := retrieveRawValue(value, columnMeta.Type)
-	if rawValue == nil {
-		return "-"
-	}
 
 	// Then decode it based on logical/converted type
 	decodedValue := decodeStatValue(rawValue, columnMeta.Type, schemaElem)

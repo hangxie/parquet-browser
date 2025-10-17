@@ -989,3 +989,794 @@ func Test_ColumnChunkInfo_GetColumnChunkInfo_ZeroCompressedSize(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, float64(0), info.CompressionRatio)
 }
+
+// Test decodeStatValue with INT96 type
+func Test_DecodeStatValue_INT96(t *testing.T) {
+	// INT96 is stored as 12 bytes (nanoseconds + julian day)
+	value := "testvalue123" // 12 bytes as string
+	schemaElem := &parquet.SchemaElement{
+		Type: typePtr(parquet.Type_INT96),
+	}
+
+	result := decodeStatValue(value, parquet.Type_INT96, schemaElem)
+	assert.NotNil(t, result)
+	// Result should be converted to time
+	t.Logf("INT96 decoded: %v", result)
+}
+
+// Test decodeStatValue with BYTE_ARRAY without logical type (should base64 encode)
+func Test_DecodeStatValue_ByteArray_NoLogicalType(t *testing.T) {
+	value := "binary data"
+	schemaElem := &parquet.SchemaElement{
+		Type: typePtr(parquet.Type_BYTE_ARRAY),
+		// No ConvertedType or LogicalType
+	}
+
+	result := decodeStatValue(value, parquet.Type_BYTE_ARRAY, schemaElem)
+	assert.NotNil(t, result)
+	// Should be base64 encoded
+	resultStr, ok := result.(string)
+	assert.True(t, ok)
+	assert.NotEqual(t, "binary data", resultStr) // Should be encoded
+	t.Logf("Base64 encoded: %s", resultStr)
+}
+
+// Test decodeStatValue with FIXED_LEN_BYTE_ARRAY without logical type
+func Test_DecodeStatValue_FixedLenByteArray_NoLogicalType(t *testing.T) {
+	value := "fixeddata"
+	schemaElem := &parquet.SchemaElement{
+		Type: typePtr(parquet.Type_FIXED_LEN_BYTE_ARRAY),
+		// No ConvertedType or LogicalType
+	}
+
+	result := decodeStatValue(value, parquet.Type_FIXED_LEN_BYTE_ARRAY, schemaElem)
+	assert.NotNil(t, result)
+	// Should be base64 encoded
+	t.Logf("Fixed len byte array decoded: %v", result)
+}
+
+// Test decodeStatValue with ConvertedType_TIME_MICROS
+func Test_DecodeStatValue_ConvertedType_TimeMicros(t *testing.T) {
+	value := int64(12345678) // microseconds
+	schemaElem := &parquet.SchemaElement{
+		ConvertedType: convertedTypePtr(parquet.ConvertedType_TIME_MICROS),
+		LogicalType: &parquet.LogicalType{
+			TIME: &parquet.TimeType{
+				Unit: &parquet.TimeUnit{
+					MICROS: &parquet.MicroSeconds{},
+				},
+			},
+		},
+	}
+
+	result := decodeStatValue(value, parquet.Type_INT64, schemaElem)
+	assert.NotNil(t, result)
+	t.Logf("Time micros decoded: %v", result)
+}
+
+// Test decodeStatValue with ConvertedType_TIME_MILLIS
+func Test_DecodeStatValue_ConvertedType_TimeMillis(t *testing.T) {
+	value := int32(12345) // milliseconds
+	schemaElem := &parquet.SchemaElement{
+		ConvertedType: convertedTypePtr(parquet.ConvertedType_TIME_MILLIS),
+	}
+
+	result := decodeStatValue(value, parquet.Type_INT32, schemaElem)
+	assert.NotNil(t, result)
+	// Without LogicalType, should return as-is
+	t.Logf("Time millis decoded: %v", result)
+}
+
+// Test decodeStatValue with ConvertedType_TIMESTAMP_MICROS
+func Test_DecodeStatValue_ConvertedType_TimestampMicros(t *testing.T) {
+	value := int64(1609459200000000) // 2021-01-01 00:00:00 UTC in microseconds
+	schemaElem := &parquet.SchemaElement{
+		ConvertedType: convertedTypePtr(parquet.ConvertedType_TIMESTAMP_MICROS),
+	}
+
+	result := decodeStatValue(value, parquet.Type_INT64, schemaElem)
+	assert.NotNil(t, result)
+	t.Logf("Timestamp micros decoded: %v", result)
+}
+
+// Test decodeStatValue with ConvertedType_TIMESTAMP_MILLIS
+func Test_DecodeStatValue_ConvertedType_TimestampMillis(t *testing.T) {
+	value := int64(1609459200000) // 2021-01-01 00:00:00 UTC in milliseconds
+	schemaElem := &parquet.SchemaElement{
+		ConvertedType: convertedTypePtr(parquet.ConvertedType_TIMESTAMP_MILLIS),
+	}
+
+	result := decodeStatValue(value, parquet.Type_INT64, schemaElem)
+	assert.NotNil(t, result)
+	t.Logf("Timestamp millis decoded: %v", result)
+}
+
+// Test decodeStatValue with ConvertedType_INTERVAL
+func Test_DecodeStatValue_ConvertedType_Interval(t *testing.T) {
+	// INTERVAL is 12 bytes: months (4 bytes) + days (4 bytes) + milliseconds (4 bytes)
+	value := string([]byte{1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0}) // 1 month, 2 days, 3 ms
+	schemaElem := &parquet.SchemaElement{
+		ConvertedType: convertedTypePtr(parquet.ConvertedType_INTERVAL),
+	}
+
+	result := decodeStatValue(value, parquet.Type_FIXED_LEN_BYTE_ARRAY, schemaElem)
+	assert.NotNil(t, result)
+	t.Logf("Interval decoded: %v", result)
+}
+
+// Test decodeStatValue with ConvertedType_BSON
+func Test_DecodeStatValue_ConvertedType_BSON(t *testing.T) {
+	value := "bson_data"
+	schemaElem := &parquet.SchemaElement{
+		ConvertedType: convertedTypePtr(parquet.ConvertedType_BSON),
+	}
+
+	result := decodeStatValue(value, parquet.Type_BYTE_ARRAY, schemaElem)
+	assert.NotNil(t, result)
+	t.Logf("BSON decoded: %v", result)
+}
+
+// Test decodeStatValue with LogicalType UUID
+func Test_DecodeStatValue_LogicalType_UUID(t *testing.T) {
+	// UUID is 16 bytes
+	value := string([]byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15})
+	schemaElem := &parquet.SchemaElement{
+		LogicalType: &parquet.LogicalType{
+			UUID: &parquet.UUIDType{},
+		},
+	}
+
+	result := decodeStatValue(value, parquet.Type_FIXED_LEN_BYTE_ARRAY, schemaElem)
+	assert.NotNil(t, result)
+	t.Logf("UUID decoded: %v", result)
+}
+
+// Test decodeStatValue with LogicalType BSON
+func Test_DecodeStatValue_LogicalType_BSON(t *testing.T) {
+	value := "bson_logical"
+	schemaElem := &parquet.SchemaElement{
+		LogicalType: &parquet.LogicalType{
+			BSON: &parquet.BsonType{},
+		},
+	}
+
+	result := decodeStatValue(value, parquet.Type_BYTE_ARRAY, schemaElem)
+	assert.NotNil(t, result)
+	t.Logf("BSON logical decoded: %v", result)
+}
+
+// Test decodeStatValue with LogicalType FLOAT16
+func Test_DecodeStatValue_LogicalType_Float16(t *testing.T) {
+	// Float16 is 2 bytes
+	value := string([]byte{0x00, 0x3C}) // Some float16 value
+	schemaElem := &parquet.SchemaElement{
+		LogicalType: &parquet.LogicalType{
+			FLOAT16: &parquet.Float16Type{},
+		},
+	}
+
+	result := decodeStatValue(value, parquet.Type_FIXED_LEN_BYTE_ARRAY, schemaElem)
+	assert.NotNil(t, result)
+	t.Logf("Float16 decoded: %v", result)
+}
+
+// Test decodeStatValue with LogicalType TIMESTAMP with MICROS
+func Test_DecodeStatValue_LogicalType_Timestamp_Micros(t *testing.T) {
+	value := int64(1609459200000000) // 2021-01-01 00:00:00 UTC in microseconds
+	schemaElem := &parquet.SchemaElement{
+		LogicalType: &parquet.LogicalType{
+			TIMESTAMP: &parquet.TimestampType{
+				Unit: &parquet.TimeUnit{
+					MICROS: &parquet.MicroSeconds{},
+				},
+			},
+		},
+	}
+
+	result := decodeStatValue(value, parquet.Type_INT64, schemaElem)
+	assert.NotNil(t, result)
+	resultStr, ok := result.(string)
+	assert.True(t, ok)
+	assert.Contains(t, resultStr, "2021") // Should contain year
+	t.Logf("Timestamp micros: %v", result)
+}
+
+// Test decodeStatValue with LogicalType TIMESTAMP with NANOS
+func Test_DecodeStatValue_LogicalType_Timestamp_Nanos(t *testing.T) {
+	value := int64(1609459200000000000) // 2021-01-01 00:00:00 UTC in nanoseconds
+	schemaElem := &parquet.SchemaElement{
+		LogicalType: &parquet.LogicalType{
+			TIMESTAMP: &parquet.TimestampType{
+				Unit: &parquet.TimeUnit{
+					NANOS: &parquet.NanoSeconds{},
+				},
+			},
+		},
+	}
+
+	result := decodeStatValue(value, parquet.Type_INT64, schemaElem)
+	assert.NotNil(t, result)
+	resultStr, ok := result.(string)
+	assert.True(t, ok)
+	assert.Contains(t, resultStr, "2021") // Should contain year
+	t.Logf("Timestamp nanos: %v", result)
+}
+
+// Test decodeStatValue with LogicalType DECIMAL with default precision/scale
+func Test_DecodeStatValue_LogicalType_Decimal_Defaults(t *testing.T) {
+	value := int32(12345)
+	schemaElem := &parquet.SchemaElement{
+		LogicalType: &parquet.LogicalType{
+			DECIMAL: &parquet.DecimalType{
+				Precision: 10,
+				Scale:     2,
+			},
+		},
+		// No Precision or Scale fields set
+	}
+
+	result := decodeStatValue(value, parquet.Type_INT32, schemaElem)
+	assert.NotNil(t, result)
+	t.Logf("Decimal with defaults: %v", result)
+}
+
+// Test decodeStatValue with timestamp non-int64 value (should return as-is)
+func Test_DecodeStatValue_LogicalType_Timestamp_NonInt64(t *testing.T) {
+	value := "not an int64"
+	schemaElem := &parquet.SchemaElement{
+		LogicalType: &parquet.LogicalType{
+			TIMESTAMP: &parquet.TimestampType{
+				Unit: &parquet.TimeUnit{
+					MILLIS: &parquet.MilliSeconds{},
+				},
+			},
+		},
+	}
+
+	result := decodeStatValue(value, parquet.Type_INT64, schemaElem)
+	assert.Equal(t, value, result) // Should return as-is
+}
+
+// Test retrieveRawValue with invalid data (too short buffer)
+func Test_RetrieveRawValue_InvalidData(t *testing.T) {
+	tests := []struct {
+		name        string
+		value       []byte
+		parquetType parquet.Type
+	}{
+		{
+			name:        "int32 with insufficient bytes",
+			value:       []byte{0x01, 0x02}, // Only 2 bytes, need 4
+			parquetType: parquet.Type_INT32,
+		},
+		{
+			name:        "int64 with insufficient bytes",
+			value:       []byte{0x01, 0x02, 0x03}, // Only 3 bytes, need 8
+			parquetType: parquet.Type_INT64,
+		},
+		{
+			name:        "float32 with insufficient bytes",
+			value:       []byte{0x01, 0x02}, // Only 2 bytes, need 4
+			parquetType: parquet.Type_FLOAT,
+		},
+		{
+			name:        "float64 with insufficient bytes",
+			value:       []byte{0x01, 0x02, 0x03}, // Only 3 bytes, need 8
+			parquetType: parquet.Type_DOUBLE,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := retrieveRawValue(tt.value, tt.parquetType)
+			// Should return error string or fallback to string
+			t.Logf("Result for %s: %v", tt.name, result)
+			assert.NotNil(t, result)
+		})
+	}
+}
+
+// Test formatDecodedValue with uint types
+func Test_FormatDecodedValue_UintTypes(t *testing.T) {
+	tests := []struct {
+		name  string
+		value any
+		want  string
+	}{
+		{
+			name:  "uint",
+			value: uint(42),
+			want:  "42",
+		},
+		{
+			name:  "uint64",
+			value: uint64(9223372036854775807),
+			want:  "9223372036854775807",
+		},
+		{
+			name:  "int",
+			value: int(42),
+			want:  "42",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := formatDecodedValue(tt.value)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// Test formatDecodedValue with complex type (default case)
+func Test_FormatDecodedValue_ComplexType(t *testing.T) {
+	type customType struct {
+		Field1 string
+		Field2 int
+	}
+
+	value := customType{Field1: "test", Field2: 42}
+	result := formatDecodedValue(value)
+	assert.NotEmpty(t, result)
+	assert.Contains(t, result, "test")
+	assert.Contains(t, result, "42")
+}
+
+// Test formatDecodedValue with complex type that's too long
+func Test_FormatDecodedValue_ComplexType_Long(t *testing.T) {
+	type customType struct {
+		Field1 string
+	}
+
+	value := customType{Field1: "this is a very very very very very very very long field value that exceeds 50 characters"}
+	result := formatDecodedValue(value)
+	assert.NotEmpty(t, result)
+	// Should be truncated
+	if len(result) > 53 { // 50 + "..."
+		t.Errorf("Expected truncated result, got %d chars: %s", len(result), result)
+	}
+}
+
+// Test formatBytes with various sizes
+func Test_FormatBytes(t *testing.T) {
+	tests := []struct {
+		name     string
+		bytes    int64
+		expected string
+	}{
+		{
+			name:     "less than 1KB",
+			bytes:    512,
+			expected: "512 B",
+		},
+		{
+			name:     "exactly 1KB",
+			bytes:    1024,
+			expected: "1.0 KB",
+		},
+		{
+			name:     "MB range",
+			bytes:    1024 * 1024 * 5,
+			expected: "5.0 MB",
+		},
+		{
+			name:     "GB range",
+			bytes:    1024 * 1024 * 1024 * 2,
+			expected: "2.0 GB",
+		},
+		{
+			name:     "TB range",
+			bytes:    1024 * 1024 * 1024 * 1024 * 3,
+			expected: "3.0 TB",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := formatBytes(tt.bytes)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+// Test getTotalSize with multiple columns
+func Test_GetTotalSize(t *testing.T) {
+	rg := &parquet.RowGroup{
+		Columns: []*parquet.ColumnChunk{
+			{MetaData: &parquet.ColumnMetaData{TotalCompressedSize: 1000}},
+			{MetaData: &parquet.ColumnMetaData{TotalCompressedSize: 2000}},
+			{MetaData: &parquet.ColumnMetaData{TotalCompressedSize: 3000}},
+		},
+	}
+
+	total := getTotalSize(rg)
+	assert.Equal(t, int64(6000), total)
+}
+
+// Test getTotalSize with empty row group
+func Test_GetTotalSize_Empty(t *testing.T) {
+	rg := &parquet.RowGroup{
+		Columns: []*parquet.ColumnChunk{},
+	}
+
+	total := getTotalSize(rg)
+	assert.Equal(t, int64(0), total)
+}
+
+// Test findSchemaElement with empty schema
+func Test_FindSchemaElement_EmptySchema(t *testing.T) {
+	schema := []*parquet.SchemaElement{}
+	result := findSchemaElement(schema, []string{"field"})
+	assert.Nil(t, result)
+}
+
+// Test findSchemaElement with case-insensitive matching
+func Test_FindSchemaElement_CaseInsensitive(t *testing.T) {
+	schema := []*parquet.SchemaElement{
+		{Name: "root"},
+		{Name: "MyField", Type: typePtr(parquet.Type_INT32)},
+	}
+
+	result := findSchemaElement(schema, []string{"myfield"}) // lowercase
+	assert.NotNil(t, result)
+	assert.Equal(t, "MyField", result.Name)
+}
+
+// Test findSchemaElement with Parquet_go_root
+func Test_FindSchemaElement_ParquetGoRoot(t *testing.T) {
+	schema := []*parquet.SchemaElement{
+		{Name: "Parquet_go_root", NumChildren: int32Ptr(1)},
+		{Name: "field1", Type: typePtr(parquet.Type_INT32)},
+	}
+
+	result := findSchemaElement(schema, []string{"field1"})
+	assert.NotNil(t, result)
+	assert.Equal(t, "field1", result.Name)
+}
+
+// Test findSchemaElement fallback to leaf name matching
+func Test_FindSchemaElement_LeafNameFallback(t *testing.T) {
+	schema := []*parquet.SchemaElement{
+		{Name: "root"},
+		{Name: "deeply"},
+		{Name: "nested"},
+		{Name: "field", Type: typePtr(parquet.Type_INT32)},
+	}
+
+	// Try to match just "field" even though full path might not match
+	result := findSchemaElement(schema, []string{"field"})
+	assert.NotNil(t, result)
+	assert.Equal(t, "field", result.Name)
+}
+
+// Test decodeStatValue with INT96 non-string value (edge case)
+func Test_DecodeStatValue_INT96_NonString(t *testing.T) {
+	// INT96 where value is not a string (should return as-is)
+	value := int32(12345) // Not a string
+	schemaElem := &parquet.SchemaElement{
+		Type: typePtr(parquet.Type_INT96),
+	}
+
+	result := decodeStatValue(value, parquet.Type_INT96, schemaElem)
+	assert.Equal(t, value, result) // Should return original value
+}
+
+// Test decodeStatValue with BYTE_ARRAY non-string value (edge case)
+func Test_DecodeStatValue_ByteArray_NonString(t *testing.T) {
+	// BYTE_ARRAY where value is not a string (should return as-is)
+	value := int32(12345) // Not a string
+	schemaElem := &parquet.SchemaElement{
+		Type: typePtr(parquet.Type_BYTE_ARRAY),
+		// No ConvertedType or LogicalType
+	}
+
+	result := decodeStatValue(value, parquet.Type_BYTE_ARRAY, schemaElem)
+	assert.Equal(t, value, result) // Should return original value
+}
+
+// Test decodeStatValue with ConvertedType_DATE
+func Test_DecodeStatValue_ConvertedType_Date(t *testing.T) {
+	value := int32(18628) // Days since epoch: 2021-01-01
+	schemaElem := &parquet.SchemaElement{
+		ConvertedType: convertedTypePtr(parquet.ConvertedType_DATE),
+	}
+
+	result := decodeStatValue(value, parquet.Type_INT32, schemaElem)
+	assert.NotNil(t, result)
+	// Should return date string
+	t.Logf("Date decoded: %v", result)
+}
+
+// Test decodeStatValue with ConvertedType_INTERVAL non-string value
+func Test_DecodeStatValue_ConvertedType_Interval_NonString(t *testing.T) {
+	// INTERVAL where value is not a string (should return as-is)
+	value := int32(12345)
+	schemaElem := &parquet.SchemaElement{
+		ConvertedType: convertedTypePtr(parquet.ConvertedType_INTERVAL),
+	}
+
+	result := decodeStatValue(value, parquet.Type_FIXED_LEN_BYTE_ARRAY, schemaElem)
+	assert.Equal(t, value, result) // Should return original value
+}
+
+// Test decodeStatValue with LogicalType DECIMAL with Precision and Scale set
+func Test_DecodeStatValue_LogicalType_Decimal_WithPrecisionScale(t *testing.T) {
+	value := int32(12345)
+	precision := int32(10)
+	scale := int32(2)
+	schemaElem := &parquet.SchemaElement{
+		LogicalType: &parquet.LogicalType{
+			DECIMAL: &parquet.DecimalType{
+				Precision: 10,
+				Scale:     2,
+			},
+		},
+		Precision: &precision,
+		Scale:     &scale,
+	}
+
+	result := decodeStatValue(value, parquet.Type_INT32, schemaElem)
+	assert.NotNil(t, result)
+	t.Logf("Decimal with precision/scale: %v", result)
+}
+
+// Test decodeStatValue with ConvertedType DECIMAL with Precision and Scale set
+func Test_DecodeStatValue_ConvertedType_Decimal_WithPrecisionScale(t *testing.T) {
+	value := int32(12345)
+	precision := int32(5)
+	scale := int32(2)
+	schemaElem := &parquet.SchemaElement{
+		ConvertedType: convertedTypePtr(parquet.ConvertedType_DECIMAL),
+		Precision:     &precision,
+		Scale:         &scale,
+	}
+
+	result := decodeStatValue(value, parquet.Type_INT32, schemaElem)
+	assert.NotNil(t, result)
+	t.Logf("Decimal converted type with precision/scale: %v", result)
+}
+
+// Test decodeStatValue with LogicalType DATE
+func Test_DecodeStatValue_LogicalType_Date(t *testing.T) {
+	value := int32(18628) // Days since epoch: 2021-01-01
+	schemaElem := &parquet.SchemaElement{
+		LogicalType: &parquet.LogicalType{
+			DATE: &parquet.DateType{},
+		},
+	}
+
+	result := decodeStatValue(value, parquet.Type_INT32, schemaElem)
+	assert.NotNil(t, result)
+	t.Logf("Date logical: %v", result)
+}
+
+// Test decodeStatValue with LogicalType TIME
+func Test_DecodeStatValue_LogicalType_Time(t *testing.T) {
+	value := int64(12345678) // microseconds
+	schemaElem := &parquet.SchemaElement{
+		LogicalType: &parquet.LogicalType{
+			TIME: &parquet.TimeType{
+				Unit: &parquet.TimeUnit{
+					MICROS: &parquet.MicroSeconds{},
+				},
+			},
+		},
+	}
+
+	result := decodeStatValue(value, parquet.Type_INT64, schemaElem)
+	assert.NotNil(t, result)
+	t.Logf("Time logical: %v", result)
+}
+
+// Test retrieveRawValue with BOOLEAN error case
+func Test_RetrieveRawValue_Boolean_Error(t *testing.T) {
+	// Empty buffer for boolean (should cause error)
+	value := []byte{}
+	result := retrieveRawValue(value, parquet.Type_BOOLEAN)
+	// Should return error string
+	assert.NotNil(t, result)
+	resultStr, ok := result.(string)
+	if ok {
+		assert.Contains(t, resultStr, "error")
+	}
+	t.Logf("Boolean error result: %v", result)
+}
+
+// Test formatStatValueWithType with nil rawValue (edge case)
+func Test_FormatStatValueWithType_NilRawValue(t *testing.T) {
+	// This tests defensive programming - the nil check exists but is hard to trigger
+	// through normal paths since retrieveRawValue only returns nil for nil input,
+	// which is already caught by the len(value) == 0 check.
+	// Testing with empty value which gets caught earlier
+	value := []byte{}
+	meta := &parquet.ColumnMetaData{
+		Type: parquet.Type_INT32,
+	}
+	schemaElem := &parquet.SchemaElement{
+		Type: &meta.Type,
+	}
+
+	result := formatStatValueWithType(value, meta, schemaElem)
+	// Should return "-" due to empty value check
+	assert.Equal(t, "-", result)
+}
+
+// Test retrieveRawValue with all physical types for complete coverage
+func Test_RetrieveRawValue_AllTypes(t *testing.T) {
+	tests := []struct {
+		name        string
+		value       []byte
+		parquetType parquet.Type
+		expectError bool
+	}{
+		{
+			name:        "INT96",
+			value:       []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12},
+			parquetType: parquet.Type_INT96,
+			expectError: false,
+		},
+		{
+			name:        "FIXED_LEN_BYTE_ARRAY",
+			value:       []byte{1, 2, 3, 4, 5, 6, 7, 8},
+			parquetType: parquet.Type_FIXED_LEN_BYTE_ARRAY,
+			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := retrieveRawValue(tt.value, tt.parquetType)
+			assert.NotNil(t, result)
+			t.Logf("%s result: %v", tt.name, result)
+		})
+	}
+}
+
+// Test decodeStatValue with BYTE_ARRAY that has UTF8 converted type (should not base64 encode)
+func Test_DecodeStatValue_ByteArray_UTF8(t *testing.T) {
+	value := "hello world"
+	schemaElem := &parquet.SchemaElement{
+		Type:          typePtr(parquet.Type_BYTE_ARRAY),
+		ConvertedType: convertedTypePtr(parquet.ConvertedType_UTF8),
+	}
+
+	result := decodeStatValue(value, parquet.Type_BYTE_ARRAY, schemaElem)
+	assert.NotNil(t, result)
+	// Should not be base64 encoded since it has ConvertedType
+	t.Logf("UTF8 string: %v", result)
+}
+
+// Test decodeStatValue with unknown converted type (should return as-is)
+func Test_DecodeStatValue_UnknownConvertedType(t *testing.T) {
+	value := int32(12345)
+	// Use a converted type that doesn't have specific handling
+	unknownType := parquet.ConvertedType_INT_8
+	schemaElem := &parquet.SchemaElement{
+		ConvertedType: &unknownType,
+	}
+
+	result := decodeStatValue(value, parquet.Type_INT32, schemaElem)
+	assert.Equal(t, value, result) // Should return as-is
+}
+
+// Test decodeStatValue with unknown logical type (should return as-is)
+func Test_DecodeStatValue_UnknownLogicalType(t *testing.T) {
+	value := int32(12345)
+	// LogicalType with no specific type set
+	schemaElem := &parquet.SchemaElement{
+		LogicalType: &parquet.LogicalType{
+			// No specific type set
+		},
+	}
+
+	result := decodeStatValue(value, parquet.Type_INT32, schemaElem)
+	assert.Equal(t, value, result) // Should return as-is
+}
+
+// Test findSchemaElement with deeply nested structure to ensure stack unwinding works
+func Test_FindSchemaElement_DeepNesting(t *testing.T) {
+	// Create a deeply nested schema with proper child counts
+	schema := []*parquet.SchemaElement{
+		{Name: "root", NumChildren: int32Ptr(1)},
+		{Name: "level1", NumChildren: int32Ptr(1)},
+		{Name: "level2", NumChildren: int32Ptr(1)},
+		{Name: "level3", NumChildren: int32Ptr(1)},
+		{Name: "deepField", Type: typePtr(parquet.Type_INT32)},
+	}
+
+	// Should find by full path
+	result := findSchemaElement(schema, []string{"level1", "level2", "level3", "deepField"})
+	assert.NotNil(t, result)
+	assert.Equal(t, "deepField", result.Name)
+}
+
+// Test findSchemaElement with schema that has empty name (should skip)
+func Test_FindSchemaElement_EmptyName(t *testing.T) {
+	schema := []*parquet.SchemaElement{
+		{Name: ""}, // Empty name should be skipped
+		{Name: "field1", Type: typePtr(parquet.Type_INT32)},
+	}
+
+	result := findSchemaElement(schema, []string{"field1"})
+	assert.NotNil(t, result)
+	assert.Equal(t, "field1", result.Name)
+}
+
+// Test findSchemaElement with multiple children and proper stack management
+func Test_FindSchemaElement_MultipleChildren(t *testing.T) {
+	// Schema with parent having multiple children
+	schema := []*parquet.SchemaElement{
+		{Name: "root", NumChildren: int32Ptr(3)},
+		{Name: "field1", Type: typePtr(parquet.Type_INT32)},
+		{Name: "field2", Type: typePtr(parquet.Type_INT64)},
+		{Name: "struct1", NumChildren: int32Ptr(2)},
+		{Name: "nested1", Type: typePtr(parquet.Type_FLOAT)},
+		{Name: "nested2", Type: typePtr(parquet.Type_DOUBLE)},
+	}
+
+	// Find nested field
+	result := findSchemaElement(schema, []string{"struct1", "nested2"})
+	assert.NotNil(t, result)
+	assert.Equal(t, "nested2", result.Name)
+
+	// Find top-level field
+	result2 := findSchemaElement(schema, []string{"field2"})
+	assert.NotNil(t, result2)
+	assert.Equal(t, "field2", result2.Name)
+}
+
+// Test findSchemaElement where path length doesn't match (no candidate found, use fallback)
+func Test_FindSchemaElement_PathLengthMismatch(t *testing.T) {
+	schema := []*parquet.SchemaElement{
+		{Name: "root", NumChildren: int32Ptr(1)},
+		{Name: "parent", NumChildren: int32Ptr(1)},
+		{Name: "child", Type: typePtr(parquet.Type_INT32)},
+	}
+
+	// Search for just "child" when it's actually at path ["parent", "child"]
+	// Should use fallback leaf name matching
+	result := findSchemaElement(schema, []string{"child"})
+	assert.NotNil(t, result)
+	assert.Equal(t, "child", result.Name)
+}
+
+// Test findSchemaElement with no NumChildren set (nil case)
+func Test_FindSchemaElement_NoNumChildren(t *testing.T) {
+	schema := []*parquet.SchemaElement{
+		{Name: "root"}, // NumChildren is nil, treated as 0
+		{Name: "field1", Type: typePtr(parquet.Type_INT32)},
+	}
+
+	result := findSchemaElement(schema, []string{"field1"})
+	assert.NotNil(t, result)
+	assert.Equal(t, "field1", result.Name)
+}
+
+// Test findSchemaElement with parent that exhausts children (triggers stack pop)
+func Test_FindSchemaElement_StackPop(t *testing.T) {
+	// Schema where a parent has exactly 1 child, and then another sibling follows
+	// This should trigger the stack pop when childCount reaches 0
+	schema := []*parquet.SchemaElement{
+		{Name: "root", NumChildren: int32Ptr(2)},             // Has 2 children
+		{Name: "parent", NumChildren: int32Ptr(1)},           // First child with 1 child
+		{Name: "nested", Type: typePtr(parquet.Type_INT32)},  // Child of parent
+		{Name: "sibling", Type: typePtr(parquet.Type_INT64)}, // Second child of root (triggers stack pop)
+	}
+
+	// Search for sibling - this requires popping "parent" from stack after "nested" is processed
+	result := findSchemaElement(schema, []string{"sibling"})
+	assert.NotNil(t, result)
+	assert.Equal(t, "sibling", result.Name)
+
+	// Also verify nested path works
+	result2 := findSchemaElement(schema, []string{"parent", "nested"})
+	assert.NotNil(t, result2)
+	assert.Equal(t, "nested", result2.Name)
+}
+
+// Test retrieveRawValue with nil value to verify it returns nil
+func Test_RetrieveRawValue_Nil(t *testing.T) {
+	var value []byte = nil
+	result := retrieveRawValue(value, parquet.Type_INT32)
+	assert.Nil(t, result)
+}

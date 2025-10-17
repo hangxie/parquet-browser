@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"io"
 	"strings"
 	"testing"
 
@@ -1200,4 +1201,198 @@ func Test_readPageContent_SimpleColumn(t *testing.T) {
 			t.Logf("Value[%d] = %v", i, val)
 		}
 	}
+}
+
+// Test_readSinglePageHeader_Success tests successful page header reading
+func Test_readSinglePageHeader_Success(t *testing.T) {
+	// Open the test parquet file
+	pr, err := pio.NewParquetFileReader("../build/testdata/all-types.parquet", pio.ReadOption{})
+	require.NoError(t, err)
+	defer func() { _ = pr.PFile.Close() }()
+	defer func() { _ = pr.ReadStopWithError() }()
+
+	app := &BrowseApp{
+		parquetReader: pr,
+		metadata:      pr.Footer,
+	}
+
+	// Get the first column chunk metadata
+	rgIndex := 0
+	colIndex := 0
+	meta := app.metadata.RowGroups[rgIndex].Columns[colIndex].MetaData
+
+	// Calculate the start offset for the first page
+	startOffset := app.getStartOffset(meta)
+
+	// Read the first page header
+	pageHeader, headerSize, err := app.readSinglePageHeader(pr.PFile, startOffset)
+
+	// Verify success
+	require.NoError(t, err, "Should successfully read page header")
+	assert.NotNil(t, pageHeader, "Page header should not be nil")
+	assert.Greater(t, headerSize, int64(0), "Header size should be positive")
+
+	// Verify page header has expected fields
+	assert.NotNil(t, pageHeader.Type, "Page type should be set")
+	assert.Greater(t, pageHeader.CompressedPageSize, int32(0), "Compressed size should be positive")
+	assert.Greater(t, pageHeader.UncompressedPageSize, int32(0), "Uncompressed size should be positive")
+}
+
+// Test_readSinglePageHeader_InvalidOffset tests reading with invalid offset
+func Test_readSinglePageHeader_InvalidOffset(t *testing.T) {
+	// Open the test parquet file
+	pr, err := pio.NewParquetFileReader("../build/testdata/all-types.parquet", pio.ReadOption{})
+	require.NoError(t, err)
+	defer func() { _ = pr.PFile.Close() }()
+	defer func() { _ = pr.ReadStopWithError() }()
+
+	app := &BrowseApp{
+		parquetReader: pr,
+		metadata:      pr.Footer,
+	}
+
+	// Try to read from a negative offset (should fail on seek)
+	_, _, err = app.readSinglePageHeader(pr.PFile, -100)
+	assert.Error(t, err, "Should fail with negative offset")
+	assert.Contains(t, err.Error(), "failed to seek to page", "Error should mention seek failure")
+}
+
+// Test_readSinglePageHeader_BeyondEOF tests reading beyond end of file
+func Test_readSinglePageHeader_BeyondEOF(t *testing.T) {
+	// Open the test parquet file
+	pr, err := pio.NewParquetFileReader("../build/testdata/all-types.parquet", pio.ReadOption{})
+	require.NoError(t, err)
+	defer func() { _ = pr.PFile.Close() }()
+	defer func() { _ = pr.ReadStopWithError() }()
+
+	app := &BrowseApp{
+		parquetReader: pr,
+		metadata:      pr.Footer,
+	}
+
+	// Get file size (approximate by seeking to end)
+	size, err := pr.PFile.Seek(0, io.SeekEnd)
+	require.NoError(t, err)
+
+	// Try to read from an offset well beyond the file size
+	// This should either fail on seek or on thrift read
+	_, _, err = app.readSinglePageHeader(pr.PFile, size+10000)
+	// We expect an error - either from seek or from thrift read
+	// The exact error depends on the implementation, but we should get an error
+	assert.Error(t, err, "Should fail when reading beyond EOF")
+}
+
+// Test_readSinglePageHeader_MultiplePages tests reading multiple page headers sequentially
+func Test_readSinglePageHeader_MultiplePages(t *testing.T) {
+	// Open the test parquet file
+	pr, err := pio.NewParquetFileReader("../build/testdata/all-types.parquet", pio.ReadOption{})
+	require.NoError(t, err)
+	defer func() { _ = pr.PFile.Close() }()
+	defer func() { _ = pr.ReadStopWithError() }()
+
+	app := &BrowseApp{
+		parquetReader: pr,
+		metadata:      pr.Footer,
+	}
+
+	// Get the first column chunk metadata with multiple pages
+	rgIndex := 0
+	colIndex := 1 // Int32 column should have at least one page
+	meta := app.metadata.RowGroups[rgIndex].Columns[colIndex].MetaData
+
+	// Read first page header
+	startOffset := app.getStartOffset(meta)
+	pageHeader1, headerSize1, err := app.readSinglePageHeader(pr.PFile, startOffset)
+	require.NoError(t, err, "Should successfully read first page header")
+	assert.NotNil(t, pageHeader1)
+	assert.Greater(t, headerSize1, int64(0))
+
+	// Calculate offset for next page
+	nextOffset := startOffset + headerSize1 + int64(pageHeader1.CompressedPageSize)
+
+	// Only try to read second page if we're within the column chunk bounds
+	endOffset := startOffset + meta.TotalCompressedSize
+	if nextOffset < endOffset {
+		pageHeader2, headerSize2, err := app.readSinglePageHeader(pr.PFile, nextOffset)
+		// This might succeed or fail depending on whether there's another page
+		// If it succeeds, verify the results
+		if err == nil {
+			assert.NotNil(t, pageHeader2, "Second page header should not be nil if read succeeds")
+			assert.Greater(t, headerSize2, int64(0), "Second header size should be positive if read succeeds")
+		}
+	}
+}
+
+// Test_readPageHeaders_Success tests successful reading of all page headers
+func Test_readPageHeaders_Success(t *testing.T) {
+	// Open the test parquet file
+	pr, err := pio.NewParquetFileReader("../build/testdata/all-types.parquet", pio.ReadOption{})
+	require.NoError(t, err)
+	defer func() { _ = pr.PFile.Close() }()
+	defer func() { _ = pr.ReadStopWithError() }()
+
+	app := &BrowseApp{
+		parquetReader: pr,
+		metadata:      pr.Footer,
+	}
+
+	// Read page headers for a simple column
+	rgIndex := 0
+	colIndex := 1 // Int32 column
+	pages, err := app.readPageHeaders(rgIndex, colIndex)
+
+	require.NoError(t, err, "Should successfully read page headers")
+	assert.Greater(t, len(pages), 0, "Should have at least one page")
+
+	// Verify each page has valid information
+	for i, page := range pages {
+		assert.Greater(t, page.CompressedSize, int32(0), "Page %d should have positive compressed size", i)
+		assert.Greater(t, page.UncompressedSize, int32(0), "Page %d should have positive uncompressed size", i)
+		assert.NotEmpty(t, page.PageType, "Page %d should have a type", i)
+	}
+}
+
+// Test_readPageHeaders_CorruptedMetadata tests error handling with invalid metadata
+func Test_readPageHeaders_CorruptedMetadata(t *testing.T) {
+	// Open the test parquet file
+	pr, err := pio.NewParquetFileReader("../build/testdata/all-types.parquet", pio.ReadOption{})
+	require.NoError(t, err)
+	defer func() { _ = pr.PFile.Close() }()
+	defer func() { _ = pr.ReadStopWithError() }()
+
+	app := &BrowseApp{
+		parquetReader: pr,
+		metadata:      pr.Footer,
+	}
+
+	// Create a fake column metadata with invalid offset that will cause read errors
+	// We'll manually construct metadata that points to an invalid location
+	fakeMetadata := &parquet.FileMetaData{
+		RowGroups: []*parquet.RowGroup{
+			{
+				Columns: []*parquet.ColumnChunk{
+					{
+						MetaData: &parquet.ColumnMetaData{
+							Type:                parquet.Type_INT32,
+							PathInSchema:        []string{"fake_column"},
+							DataPageOffset:      -1000, // Invalid negative offset
+							NumValues:           100,
+							TotalCompressedSize: 1000,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// Replace app metadata with fake corrupted metadata
+	app.metadata = fakeMetadata
+
+	// Try to read page headers - should handle error gracefully
+	pages, err := app.readPageHeaders(0, 0)
+
+	// The function should return successfully but with 0 pages
+	// because it breaks on error
+	require.NoError(t, err, "readPageHeaders should not return error, just break on read failure")
+	assert.Equal(t, 0, len(pages), "Should have 0 pages when read fails immediately")
 }
