@@ -30,6 +30,8 @@ LDFLAGS		:= -w -s \
 .PHONY: all
 all: deps tools format lint test build  ## Build all common targets
 
+
+
 .PHONY: format
 format: tools  ## Format source codes
 	@echo "==> Formatting source codes"

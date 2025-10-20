@@ -1,0 +1,522 @@
+openapi: 3.0.0
+info:
+  title: Parquet Browser API
+  description: This document describes the HTTP API endpoints provided by the Parquet Browser service.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080
+paths:
+  /info:
+    get:
+      summary: Get File Metadata
+      description: Returns file-level metadata including version, number of row groups, total rows, compression info, etc.
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileInfo'
+  /schema/go:
+    get:
+      summary: Get Schema (Go Format)
+      description: Returns the Parquet schema as a Go struct definition.
+      responses:
+        '200':
+          description: Successful response
+          content:
+            text/plain:
+              schema:
+                type: string
+  /schema/json:
+    get:
+      summary: Get Schema (JSON Format)
+      description: Returns the Parquet schema in JSON format.
+      parameters:
+        - name: pretty
+          in: query
+          description: If "true", returns pretty-printed JSON with indentation
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+  /schema/raw:
+    get:
+      summary: Get Schema (Raw Format)
+      description: Returns the complete internal schema tree structure showing all fields of the SchemaNode.
+      parameters:
+        - name: pretty
+          in: query
+          description: If "true", returns pretty-printed JSON with indentation
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+  /schema/csv:
+    get:
+      summary: Get Schema (CSV Format)
+      description: Returns the Parquet schema in CSV format.
+      responses:
+        '200':
+          description: Successful response
+          content:
+            text/csv:
+              schema:
+                type: string
+  /rowgroups:
+    get:
+      summary: List All Row Groups
+      description: Returns an array of all row groups with their metadata.
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RowGroupInfo'
+  /rowgroups/{rgIndex}:
+    get:
+      summary: Get Row Group Info
+      description: Returns metadata for a specific row group.
+      parameters:
+        - name: rgIndex
+          in: path
+          required: true
+          description: Row group index (0-based)
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RowGroupInfo'
+        '400':
+          description: Invalid row group index
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Row group not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /rowgroups/{rgIndex}/columnchunks:
+    get:
+      summary: List All Column Chunks
+      description: Returns an array of all column chunks for a specific row group.
+      parameters:
+        - name: rgIndex
+          in: path
+          required: true
+          description: Row group index (0-based)
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ColumnChunkInfo'
+        '400':
+          description: Invalid row group index
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Row group not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /rowgroups/{rgIndex}/columnchunks/{colIndex}:
+    get:
+      summary: Get Column Chunk Info
+      description: Returns metadata for a specific column chunk.
+      parameters:
+        - name: rgIndex
+          in: path
+          required: true
+          description: Row group index (0-based)
+          schema:
+            type: integer
+        - name: colIndex
+          in: path
+          required: true
+          description: Column index (0-based)
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ColumnChunkInfo'
+        '400':
+          description: Invalid index
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /rowgroups/{rgIndex}/columnchunks/{colIndex}/pages:
+    get:
+      summary: List All Pages
+      description: Returns an array of all pages for a specific column chunk.
+      parameters:
+        - name: rgIndex
+          in: path
+          required: true
+          description: Row group index (0-based)
+          schema:
+            type: integer
+        - name: colIndex
+          in: path
+          required: true
+          description: Column index (0-based)
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PageMetadata'
+        '400':
+          description: Invalid index
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /rowgroups/{rgIndex}/columnchunks/{colIndex}/pages/{pageIndex}:
+    get:
+      summary: Get Page Info
+      description: Returns metadata for a specific page.
+      parameters:
+        - name: rgIndex
+          in: path
+          required: true
+          description: Row group index (0-based)
+          schema:
+            type: integer
+        - name: colIndex
+          in: path
+          required: true
+          description: Column index (0-based)
+          schema:
+            type: integer
+        - name: pageIndex
+          in: path
+          required: true
+          description: Page index (0-based)
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageMetadata'
+        '400':
+          description: Invalid index
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /rowgroups/{rgIndex}/columnchunks/{colIndex}/pages/{pageIndex}/content:
+    get:
+      summary: Get Page Content
+      description: Returns the actual data values from a specific page. Supports all page types - DATA_PAGE and DATA_PAGE_V2 return decoded row data, DICTIONARY_PAGE returns the decoded dictionary values, and other page types (INDEX_PAGE, etc.) return empty arrays.
+      parameters:
+        - name: rgIndex
+          in: path
+          required: true
+          description: Row group index (0-based)
+          schema:
+            type: integer
+        - name: colIndex
+          in: path
+          required: true
+          description: Column index (0-based)
+          schema:
+            type: integer
+        - name: pageIndex
+          in: path
+          required: true
+          description: Page index (0-based)
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PageContent'
+        '400':
+          description: Invalid index
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    FileInfo:
+      type: object
+      properties:
+        Version:
+          type: integer
+          format: int32
+          description: Parquet format version
+        NumRowGroups:
+          type: integer
+          description: Number of row groups in the file
+        NumRows:
+          type: integer
+          format: int64
+          description: Total number of rows in the file
+        NumLeafColumns:
+          type: integer
+          description: Number of leaf columns in the schema
+        TotalCompressedSize:
+          type: integer
+          format: int64
+          description: Total compressed size in bytes
+        TotalUncompressedSize:
+          type: integer
+          format: int64
+          description: Total uncompressed size in bytes
+        CompressionRatio:
+          type: number
+          format: double
+          description: Ratio of uncompressed to compressed size
+        CreatedBy:
+          type: string
+          description: Tool that created this Parquet file
+
+    RowGroupInfo:
+      type: object
+      properties:
+        Index:
+          type: integer
+          description: Row group index (0-based)
+        NumRows:
+          type: integer
+          format: int64
+          description: Number of rows in this row group
+        NumColumns:
+          type: integer
+          description: Number of columns in this row group
+        CompressedSize:
+          type: integer
+          format: int64
+          description: Compressed size in bytes
+        UncompressedSize:
+          type: integer
+          format: int64
+          description: Uncompressed size in bytes
+        CompressionRatio:
+          type: number
+          format: double
+          description: Ratio of uncompressed to compressed size
+
+    ColumnChunkInfo:
+      type: object
+      properties:
+        Index:
+          type: integer
+          description: Column index (0-based)
+        PathInSchema:
+          type: array
+          items:
+            type: string
+          description: Path to this column in the schema tree
+        Name:
+          type: string
+          description: Display name of the column
+        PhysicalType:
+          type: string
+          description: Physical type (e.g., INT32, BYTE_ARRAY)
+        LogicalType:
+          type: string
+          description: Logical type annotation
+        ConvertedType:
+          type: string
+          description: Legacy converted type annotation
+        Codec:
+          type: string
+          description: Compression codec used
+        NumValues:
+          type: integer
+          format: int64
+          description: Number of values in this column chunk
+        NullCount:
+          type: integer
+          format: int64
+          nullable: true
+          description: Number of null values
+        CompressedSize:
+          type: integer
+          format: int64
+          description: Compressed size in bytes
+        UncompressedSize:
+          type: integer
+          format: int64
+          description: Uncompressed size in bytes
+        CompressionRatio:
+          type: number
+          format: double
+          description: Ratio of uncompressed to compressed size
+        MinValue:
+          type: string
+          format: byte
+          description: Minimum value (raw bytes)
+        MaxValue:
+          type: string
+          format: byte
+          description: Maximum value (raw bytes)
+        CompressedSizeFormatted:
+          type: string
+          description: Human-readable compressed size
+        UncompressedSizeFormatted:
+          type: string
+          description: Human-readable uncompressed size
+        MinValueFormatted:
+          type: string
+          description: Formatted minimum value for display
+        MaxValueFormatted:
+          type: string
+          description: Formatted maximum value for display
+
+    PageMetadata:
+      type: object
+      properties:
+        Index:
+          type: integer
+          description: Page index (0-based)
+        Offset:
+          type: integer
+          format: int64
+          description: Byte offset of page in file
+        PageType:
+          type: string
+          description: Type of page (DATA_PAGE, DATA_PAGE_V2, DICTIONARY_PAGE, etc.)
+        CompressedSize:
+          type: integer
+          format: int32
+          description: Compressed size in bytes
+        UncompressedSize:
+          type: integer
+          format: int32
+          description: Uncompressed size in bytes
+        NumValues:
+          type: integer
+          format: int32
+          description: Number of values in this page
+        Encoding:
+          type: string
+          description: Encoding used for values
+        DefLevelEncoding:
+          type: string
+          description: Encoding used for definition levels
+        RepLevelEncoding:
+          type: string
+          description: Encoding used for repetition levels
+        HasStatistics:
+          type: boolean
+          description: Whether this page has statistics
+        HasCRC:
+          type: boolean
+          description: Whether this page has a CRC checksum
+        MinValue:
+          type: string
+          format: byte
+          description: Minimum value in page (raw bytes)
+        MaxValue:
+          type: string
+          format: byte
+          description: Maximum value in page (raw bytes)
+        NullCount:
+          type: integer
+          format: int64
+          nullable: true
+          description: Number of null values in page
+        CompressedSizeFormatted:
+          type: string
+          description: Human-readable compressed size
+        UncompressedSizeFormatted:
+          type: string
+          description: Human-readable uncompressed size
+        MinValueFormatted:
+          type: string
+          description: Formatted minimum value for display
+        MaxValueFormatted:
+          type: string
+          description: Formatted maximum value for display
+
+    PageContent:
+      type: object
+      properties:
+        values:
+          type: array
+          items:
+            type: string
+          description: Array of formatted string values from the page
+        count:
+          type: integer
+          description: Number of values in the array
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message

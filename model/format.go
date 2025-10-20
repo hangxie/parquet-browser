@@ -1,11 +1,10 @@
-package cmd
+package model
 
 import (
 	"bytes"
 	"encoding/base64"
 	"encoding/binary"
 	"fmt"
-	"strings"
 	"unicode"
 	"unicode/utf8"
 
@@ -13,35 +12,23 @@ import (
 	"github.com/hangxie/parquet-go/v2/types"
 )
 
-// formatStatValue formats statistics values (min/max) for display
-// This is a simple version for backward compatibility - use formatStatValueWithType for proper type interpretation
-func formatStatValue(value []byte) string {
-	if len(value) == 0 {
-		return "-"
+// FormatBytes formats bytes as human readable size
+func FormatBytes(bytes int64) string {
+	const unit = 1024
+	if bytes < unit {
+		return fmt.Sprintf("%d B", bytes)
 	}
-
-	// Try to interpret as UTF-8 string
-	str := string(value)
-
-	// Check if it's valid UTF-8 and printable
-	if !isValidUTF8(str) {
-		// If not valid UTF-8, show as hex for small values, or just indicate binary
-		if len(value) <= 8 {
-			return fmt.Sprintf("0x%X", value)
-		}
-		return fmt.Sprintf("<binary:%d bytes>", len(value))
+	div, exp := int64(unit), 0
+	for n := bytes / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
 	}
-
-	// Limit to 50 chars for display
-	if len(str) > 50 {
-		return str[:50] + "..."
-	}
-	return str
+	return fmt.Sprintf("%.1f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
 }
 
-// formatStatValueWithType formats statistics values (min/max) based on column type information
+// FormatStatValue formats statistics values (min/max) based on column type information
 // This mimics how parquet-tools interprets min/max values
-func formatStatValueWithType(value []byte, columnMeta *parquet.ColumnMetaData, schemaElem *parquet.SchemaElement) string {
+func FormatStatValue(value []byte, columnMeta *parquet.ColumnMetaData, schemaElem *parquet.SchemaElement) string {
 	if len(value) == 0 {
 		return "-"
 	}
@@ -228,8 +215,8 @@ func formatDecodedValue(value any) string {
 	}
 }
 
-// isValidUTF8 checks if a string contains valid and mostly printable UTF-8
-func isValidUTF8(s string) bool {
+// IsValidUTF8 checks if a string contains valid and mostly printable UTF-8
+func IsValidUTF8(s string) bool {
 	// Check if valid UTF-8
 	if !utf8.ValidString(s) {
 		return false
@@ -247,130 +234,4 @@ func isValidUTF8(s string) bool {
 
 	// Require at least 80% printable characters
 	return total > 0 && (printable*100/total >= 80)
-}
-
-func formatBytes(bytes int64) string {
-	const unit = 1024
-	if bytes < unit {
-		return fmt.Sprintf("%d B", bytes)
-	}
-	div, exp := int64(unit), 0
-	for n := bytes / unit; n >= unit; n /= unit {
-		div *= unit
-		exp++
-	}
-	return fmt.Sprintf("%.1f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
-}
-
-func getTotalSize(rg *parquet.RowGroup) int64 {
-	total := int64(0)
-	for _, col := range rg.Columns {
-		total += col.MetaData.TotalCompressedSize
-	}
-	return total
-}
-
-// countLeafColumns counts only leaf columns (columns with Type field) in the schema
-// This excludes group nodes like LIST, MAP, and STRUCT which don't have actual data
-func countLeafColumns(schema []*parquet.SchemaElement) int {
-	count := 0
-	for _, elem := range schema {
-		// Leaf columns have a Type field set
-		if elem.Type != nil {
-			count++
-		}
-	}
-	return count
-}
-
-// formatPathInSchema formats a path in schema for display
-func formatPathInSchema(pathInSchema []string) string {
-	return strings.Join(pathInSchema, ".")
-}
-
-// findSchemaElement finds the schema element for a given path
-//
-//nolint:gocognit // Complex path matching with stack-based tree traversal - inherent complexity
-func findSchemaElement(schema []*parquet.SchemaElement, pathInSchema []string) *parquet.SchemaElement {
-	if len(pathInSchema) == 0 || len(schema) == 0 {
-		return nil
-	}
-
-	// The schema is stored as a flat list in depth-first pre-order traversal
-	// We need to reconstruct paths to find the correct element
-
-	// Build a stack-based traversal to match the full path
-	type stackEntry struct {
-		path       []string
-		childCount int
-	}
-
-	var stack []stackEntry
-	var candidates []*parquet.SchemaElement
-
-	for _, elem := range schema {
-		// Skip root element
-		if elem.Name == "Parquet_go_root" || elem.Name == "" {
-			continue
-		}
-
-		// Pop completed parent nodes from stack
-		for len(stack) > 0 {
-			top := &stack[len(stack)-1]
-			if top.childCount > 0 {
-				top.childCount--
-				break
-			}
-			stack = stack[:len(stack)-1]
-		}
-
-		// Build current path
-		currentPath := make([]string, 0, len(stack)+1)
-		for _, entry := range stack {
-			currentPath = append(currentPath, entry.path[len(entry.path)-1])
-		}
-		currentPath = append(currentPath, elem.Name)
-
-		// Check if this matches our target path
-		if len(currentPath) == len(pathInSchema) {
-			match := true
-			for i := range pathInSchema {
-				// Case-insensitive match to handle Key_value vs key_value
-				if !strings.EqualFold(pathInSchema[i], currentPath[i]) {
-					match = false
-					break
-				}
-			}
-			if match {
-				candidates = append(candidates, elem)
-			}
-		}
-
-		// Push current element to stack if it has children
-		childCount := 0
-		if elem.NumChildren != nil {
-			childCount = int(*elem.NumChildren)
-		}
-		if childCount > 0 {
-			stack = append(stack, stackEntry{
-				path:       currentPath,
-				childCount: childCount,
-			})
-		}
-	}
-
-	// Return the first matching candidate
-	if len(candidates) > 0 {
-		return candidates[0]
-	}
-
-	// Fallback: match just the leaf name (for backward compatibility with simple schemas)
-	leafName := pathInSchema[len(pathInSchema)-1]
-	for _, elem := range schema {
-		if strings.EqualFold(elem.Name, leafName) {
-			return elem
-		}
-	}
-
-	return nil
 }
