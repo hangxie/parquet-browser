@@ -1,6 +1,8 @@
 # parquet-browser
 
-A Terminal User Interface (TUI) application to browse and inspect Apache Parquet files interactively.
+A dual-mode tool for browsing and inspecting Apache Parquet files:
+- **TUI Mode**: Interactive Terminal User Interface for file browsing
+- **Server Mode**: HTTP API server for programmatic access and web UI integration
 
 This tool is built upon [`github.com/hangxie/parquet-tools`](https://github.com/hangxie/parquet-tools) and [`github.com/hangxie/parquet-go`](https://github.com/hangxie/parquet-go). For batch processing or command-line operations on Parquet files, it is recommended to use `parquet-tools` directly.
 
@@ -19,6 +21,13 @@ For URLs for different object store and access options, please refer to [Parquet
 
 ## Features
 
+### Dual-Mode Operation
+- **TUI Mode**: Interactive terminal interface with embedded HTTP server
+- **Server Mode**: Standalone HTTP API server for programmatic access
+- **HTTP API**: Complete RESTful API with JSON responses
+- **OpenAPI Documentation**: Swagger/OpenAPI 3.0 specification included ([swagger.yaml](swagger.yaml))
+
+### TUI Features
 - **Interactive File Browser**: Open parquet files through command line with loading progress and cancellation support (ESC or Ctrl+C)
 - **File Summary View**: Quick overview of file metadata:
   - Version, row groups, total rows, leaf columns
@@ -71,29 +80,55 @@ go install github.com/hangxie/parquet-browser@latest
 
 ## Usage
 
-### Open a file directly:
+### TUI Mode (Interactive Browser)
+
+Open a file directly in the TUI:
 
 ```bash
-./parquet-browser path/to/file.parquet
+./parquet-browser tui path/to/file.parquet
 ```
 
 The application will show a loading modal and then display the file contents. Press ESC during loading to cancel.
 
-### Open remote files:
+**How it works:**
+- Starts an embedded HTTP server on a random localhost port
+- Server runs in "quiet mode" (no console logging)
+- TUI communicates with the server via HTTP
+- Server shuts down automatically when TUI exits
+
+### Server Mode (HTTP API)
+
+Run as a standalone HTTP API server:
+
+```bash
+# Start server on default port (:8080)
+./parquet-browser serve file.parquet
+
+# Start server on custom port
+./parquet-browser serve -a :9090 file.parquet
+```
+
+The server provides RESTful endpoints for programmatic access. See [API Documentation](#http-api) below.
+
+### Open Remote Files
+
+Works in both TUI and server modes:
 
 ```bash
 # S3
-./parquet-browser s3://bucket/path/to/file.parquet
+./parquet-browser tui s3://bucket/path/to/file.parquet
+./parquet-browser serve s3://bucket/path/to/file.parquet
 
 # HTTP/HTTPS
-./parquet-browser https://example.com/data.parquet
+./parquet-browser tui https://example.com/data.parquet
+./parquet-browser serve https://example.com/data.parquet
 
 # With additional options
-./parquet-browser --anonymous wasbs://laborstatisticscontainer@azureopendatastorage.blob.core.windows.net/lfs/part-00000-tid-6312913918496818658-3a88e4f5-ebeb-4691-bfb6-e7bd5d4f2dd0-63558-c000.snappy.parquet
-./parquet-browser --http-ignore-tls-error https://example.com/file.parquet
+./parquet-browser tui --anonymous wasbs://laborstatisticscontainer@azureopendatastorage.blob.core.windows.net/lfs/part-00000-tid-6312913918496818658-3a88e4f5-ebeb-4691-bfb6-e7bd5d4f2dd0-63558-c000.snappy.parquet
+./parquet-browser tui --http-ignore-tls-error https://example.com/file.parquet
 ```
 
-### Help:
+### Help
 
 ```bash
 ./parquet-browser --help
@@ -247,6 +282,82 @@ Each format supports:
 - Copy to clipboard with 'c' key
 - Full scrolling support
 
+## HTTP API
+
+The HTTP API provides programmatic access to all Parquet file metadata and content.
+
+### Quick Examples
+
+```bash
+# Get file metadata
+curl http://localhost:8080/info
+
+# Get schema in different formats
+curl http://localhost:8080/schema/go
+curl "http://localhost:8080/schema/json?pretty=true"
+curl http://localhost:8080/schema/csv
+
+# Get all row groups
+curl http://localhost:8080/rowgroups
+
+# Get column chunks for row group 0
+curl http://localhost:8080/rowgroups/0/columnchunks
+
+# Get pages for a column chunk
+curl http://localhost:8080/rowgroups/0/columnchunks/0/pages
+
+# Get page content (actual data values)
+curl http://localhost:8080/rowgroups/0/columnchunks/0/pages/0/content
+```
+
+### Available Endpoints
+
+- `GET /info` - File metadata
+- `GET /schema/{format}` - Schema in Go, JSON, Raw, or CSV format
+- `GET /rowgroups` - All row groups
+- `GET /rowgroups/{rgIndex}` - Specific row group
+- `GET /rowgroups/{rgIndex}/columnchunks` - All column chunks
+- `GET /rowgroups/{rgIndex}/columnchunks/{colIndex}` - Specific column chunk
+- `GET /rowgroups/{rgIndex}/columnchunks/{colIndex}/pages` - All pages
+- `GET /rowgroups/{rgIndex}/columnchunks/{colIndex}/pages/{pageIndex}` - Page info
+- `GET /rowgroups/{rgIndex}/columnchunks/{colIndex}/pages/{pageIndex}/content` - Page content
+
+### OpenAPI/Swagger Documentation
+
+The API is documented using OpenAPI 3.0 specification in [swagger.yaml](swagger.yaml). You can:
+- Import it into API testing tools like Postman or Insomnia
+- Generate client libraries using OpenAPI generators
+- View it in Swagger UI or similar tools
+
+## Architecture
+
+The tool follows a clean three-layer architecture:
+
+```
+┌──────────────────────┐
+│   TUI (cmd/)         │  ← Terminal UI or external HTTP clients
+│  Uses HTTP Client    │
+└──────────┬───────────┘
+           │ HTTP
+           ↓
+┌──────────────────────┐
+│  HTTP Service        │  ← RESTful API endpoints
+│  (service/)          │     (embedded or standalone)
+└──────────┬───────────┘
+           │
+           ↓
+┌──────────────────────┐
+│  Model Layer         │  ← Pure business logic
+│  (model/)            │     (no UI or HTTP dependencies)
+└──────────────────────┘
+```
+
+**Benefits:**
+- Model layer is reusable and testable in isolation
+- HTTP API can be consumed by any client (TUI, web UI, CLI tools, etc.)
+- TUI and server modes share the same codebase
+- Clean separation of concerns
+
 ## Dependencies
 
 ### Core Dependencies
@@ -256,6 +367,9 @@ Each format supports:
 - [**parquet-tools**](https://github.com/hangxie/parquet-tools) - Parquet schema utilities and file I/O
 - [**thrift**](https://github.com/apache/thrift) - Apache Thrift for reading Parquet page headers
 - [**clipboard**](https://github.com/atotto/clipboard) - Cross-platform clipboard support
+
+### HTTP & API
+- [**gorilla/mux**](https://github.com/gorilla/mux) - HTTP router for RESTful API endpoints
 
 ### CLI & Utilities
 - [**kong**](https://github.com/alecthomas/kong) - Command-line parser

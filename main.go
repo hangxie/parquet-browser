@@ -11,7 +11,8 @@ import (
 )
 
 var cli struct {
-	cmd.BrowseCmd
+	TUI   cmd.TUICmd   `cmd:"" help:"Browse Parquet file with TUI."`
+	Serve cmd.ServeCmd `cmd:"" help:"Start HTTP API server for Parquet file."`
 }
 
 func main() {

@@ -1,21 +1,17 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
-	"go/format"
 	"strings"
 
 	"github.com/atotto/clipboard"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
-
-	pschema "github.com/hangxie/parquet-tools/schema"
 )
 
 // schemaViewer encapsulates schema viewing functionality
 type schemaViewer struct {
-	app           *BrowseApp
+	app           *TUIApp
 	schemaFormats []string
 	currentFormat int
 	isPretty      bool
@@ -89,13 +85,29 @@ func (sv *schemaViewer) copyToClipboard() {
 func (sv *schemaViewer) updateDisplay() {
 	sv.updateTitle()
 
-	schemaRoot, err := pschema.NewSchemaTree(sv.app.parquetReader, pschema.SchemaOption{FailOnInt96: false})
+	// Fetch schema from HTTP API
+	var schemaText string
+	var err error
+
+	format := sv.schemaFormats[sv.currentFormat]
+	switch format {
+	case "go":
+		schemaText, err = sv.app.httpClient.GetSchemaGo()
+	case "json":
+		schemaText, err = sv.app.httpClient.GetSchemaJSON(sv.isPretty)
+	case "csv":
+		schemaText, err = sv.app.httpClient.GetSchemaCSV()
+	case "raw":
+		schemaText, err = sv.app.httpClient.GetSchemaRaw(sv.isPretty)
+	default:
+		schemaText, err = sv.app.httpClient.GetSchemaGo()
+	}
+
 	if err != nil {
-		sv.textView.SetText(fmt.Sprintf("Error creating schema tree: %v", err))
+		sv.textView.SetText(fmt.Sprintf("Error fetching schema: %v", err))
 		return
 	}
 
-	schemaText := sv.formatSchema(schemaRoot)
 	sv.textView.SetText(schemaText)
 }
 
@@ -118,72 +130,4 @@ func (sv *schemaViewer) updateTitle() {
 	}
 
 	sv.titleBar.SetText(titleText)
-}
-
-func (sv *schemaViewer) formatSchema(schemaRoot *pschema.SchemaNode) string {
-	format := sv.schemaFormats[sv.currentFormat]
-
-	switch format {
-	case "json":
-		return sv.formatJSONSchema(schemaRoot)
-	case "raw":
-		return sv.formatRawSchema(schemaRoot)
-	case "go":
-		return sv.formatGoSchema(schemaRoot)
-	case "csv":
-		return sv.formatCSVSchema(schemaRoot)
-	default:
-		return ""
-	}
-}
-
-func (sv *schemaViewer) formatJSONSchema(schemaRoot *pschema.SchemaNode) string {
-	jsonSchema := schemaRoot.JSONSchema()
-	var jsonObj interface{}
-
-	if err := json.Unmarshal([]byte(jsonSchema), &jsonObj); err != nil {
-		return jsonSchema
-	}
-
-	if sv.isPretty {
-		prettyBytes, _ := json.MarshalIndent(jsonObj, "", "  ")
-		return string(prettyBytes)
-	}
-
-	compactBytes, _ := json.Marshal(jsonObj)
-	return string(compactBytes)
-}
-
-func (sv *schemaViewer) formatRawSchema(schemaRoot *pschema.SchemaNode) string {
-	if sv.isPretty {
-		rawSchema, _ := json.MarshalIndent(*schemaRoot, "", "  ")
-		return string(rawSchema)
-	}
-
-	rawSchema, _ := json.Marshal(*schemaRoot)
-	return string(rawSchema)
-}
-
-func (sv *schemaViewer) formatGoSchema(schemaRoot *pschema.SchemaNode) string {
-	goStruct, err := schemaRoot.GoStruct(false)
-	if err != nil {
-		return fmt.Sprintf("Error generating Go struct: %v", err)
-	}
-
-	// Format the Go code using go/format
-	formatted, err := format.Source([]byte(goStruct))
-	if err != nil {
-		// If formatting fails, return the original unformatted code
-		return goStruct
-	}
-
-	return string(formatted)
-}
-
-func (sv *schemaViewer) formatCSVSchema(schemaRoot *pschema.SchemaNode) string {
-	csvSchema, err := schemaRoot.CSVSchema()
-	if err != nil {
-		return fmt.Sprintf("Error generating CSV schema: %v", err)
-	}
-	return csvSchema
 }
