@@ -1,0 +1,69 @@
+{{define "rowgroups"}}
+<div class="breadcrumb">
+    <a href="/ui/main" hx-get="/ui/main" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="true">Home</a>
+    <span>/</span>
+    <span>Row Groups</span>
+</div>
+
+<div class="card">
+    <h2>Row Groups ({{.TotalRowGroups}})</h2>
+    <div class="info-grid">
+        <div class="info-item">
+            <strong>Total Rows</strong>
+            <span>{{.TotalRows}}</span>
+        </div>
+        <div class="info-item">
+            <strong>Total Compressed</strong>
+            <span>{{.TotalCompressed}}</span>
+        </div>
+        <div class="info-item">
+            <strong>Total Uncompressed</strong>
+            <span>{{.TotalUncompressed}}</span>
+        </div>
+        <div class="info-item">
+            <strong>Overall Compression</strong>
+            <span>{{.OverallRatio}}</span>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <table>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Rows</th>
+                <th>Columns</th>
+                <th>Compressed Size</th>
+                <th>Uncompressed Size</th>
+                <th>Ratio</th>
+                <th>File Offset</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range $index, $rg := .RowGroups}}
+            <tr>
+                <td>{{$rg.Index}}</td>
+                <td>{{$rg.NumRows}}</td>
+                <td>{{$rg.NumColumns}}</td>
+                <td>{{$rg.CompressedSize}}</td>
+                <td>{{$rg.UncompressedSize}}</td>
+                <td>{{$rg.CompressionRatio}}</td>
+                <td>{{$rg.FileOffset}}</td>
+                <td>
+                    <button hx-get="/ui/rowgroups/{{$rg.Index}}/columns"
+                            hx-target="#content-area"
+                            hx-swap="innerHTML"
+                            hx-push-url="true">View Columns</button>
+                </td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+
+<div class="card">
+    <button class="btn-secondary" hx-get="/ui/main" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="true">Back to Home</button>
+</div>
+{{end}}

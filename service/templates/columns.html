@@ -1,0 +1,87 @@
+{{define "columns"}}
+<div class="breadcrumb">
+    <a href="/ui/main" hx-get="/ui/main" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="true">Home</a>
+    <span>/</span>
+    <a href="/ui/rowgroups" hx-get="/ui/rowgroups" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="true">Row Groups</a>
+    <span>/</span>
+    <span>Row Group {{.RowGroupIndex}}</span>
+</div>
+
+<div class="card">
+    <h2>Column Chunks - Row Group {{.RowGroupIndex}}</h2>
+    <div class="info-grid">
+        <div class="info-item">
+            <strong>Rows in Group</strong>
+            <span>{{.NumRows}}</span>
+        </div>
+        <div class="info-item">
+            <strong>Total Columns</strong>
+            <span>{{.TotalColumns}}</span>
+        </div>
+        <div class="info-item">
+            <strong>Total Values</strong>
+            <span>{{.TotalValues}}</span>
+        </div>
+        <div class="info-item">
+            <strong>Total Nulls</strong>
+            <span>{{.TotalNulls}}</span>
+        </div>
+        <div class="info-item">
+            <strong>Compressed Size</strong>
+            <span>{{.TotalCompressed}}</span>
+        </div>
+        <div class="info-item">
+            <strong>Uncompressed Size</strong>
+            <span>{{.TotalUncompressed}}</span>
+        </div>
+        <div class="info-item">
+            <strong>Compression Ratio</strong>
+            <span>{{.CompressionRatio}}</span>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <table>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Column Path</th>
+                <th>Physical Type</th>
+                <th>Logical Type</th>
+                <th>Converted Type</th>
+                <th>Codec</th>
+                <th>Values</th>
+                <th>Nulls</th>
+                <th>Size</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range $index, $col := .Columns}}
+            <tr>
+                <td>{{$col.Index}}</td>
+                <td>{{$col.ColumnPath}}</td>
+                <td><span class="badge badge-primary">{{$col.PhysicalType}}</span></td>
+                <td><span class="badge badge-info">{{$col.LogicalType}}</span></td>
+                <td>{{if $col.ConvertedType}}<span class="badge badge-info">{{$col.ConvertedType}}</span>{{else}}-{{end}}</td>
+                <td><span class="badge badge-success">{{$col.Codec}}</span></td>
+                <td>{{$col.NumValues}}</td>
+                <td>{{$col.NullCount}}</td>
+                <td>{{$col.CompressedSize}} → {{$col.UncompressedSize}}</td>
+                <td>
+                    <button hx-get="/ui/rowgroups/{{$.RowGroupIndex}}/columns/{{$col.Index}}/pages"
+                            hx-target="#content-area"
+                            hx-swap="innerHTML"
+                            hx-push-url="true">View Pages</button>
+                </td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+
+<div class="card">
+    <button class="btn-secondary" hx-get="/ui/rowgroups" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="true">Back to Row Groups</button>
+</div>
+{{end}}

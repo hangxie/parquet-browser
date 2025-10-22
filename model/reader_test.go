@@ -175,6 +175,25 @@ func Test_ExtractPageMetadata(t *testing.T) {
 		require.Equal(t, "PLAIN", result.Encoding, "Encoding should match")
 	})
 
+	t.Run("DATA_PAGE_V2", func(t *testing.T) {
+		header := &parquet.PageHeader{
+			Type:                 parquet.PageType_DATA_PAGE_V2,
+			CompressedPageSize:   1024,
+			UncompressedPageSize: 2048,
+			DataPageHeaderV2: &parquet.DataPageHeaderV2{
+				NumValues: 200,
+				Encoding:  parquet.Encoding_DELTA_BINARY_PACKED,
+			},
+		}
+
+		result := extractPageMetadata(header, 2000, 1, nil, nil)
+
+		require.Equal(t, 1, result.Index, "Index should match")
+		require.Equal(t, "DATA_PAGE_V2", result.PageType, "PageType should match")
+		require.Equal(t, int32(200), result.NumValues, "NumValues should match")
+		require.Equal(t, "DELTA_BINARY_PACKED", result.Encoding, "Encoding should match")
+	})
+
 	t.Run("DICTIONARY_PAGE", func(t *testing.T) {
 		header := &parquet.PageHeader{
 			Type:                 parquet.PageType_DICTIONARY_PAGE,
@@ -192,49 +211,134 @@ func Test_ExtractPageMetadata(t *testing.T) {
 		require.Equal(t, int32(50), result.NumValues, "NumValues should match")
 		require.Equal(t, "PLAIN_DICTIONARY", result.Encoding, "Encoding should match")
 	})
+
+	t.Run("INDEX_PAGE", func(t *testing.T) {
+		header := &parquet.PageHeader{
+			Type:                 parquet.PageType_INDEX_PAGE,
+			CompressedPageSize:   256,
+			UncompressedPageSize: 256,
+		}
+
+		result := extractPageMetadata(header, 3000, 2, nil, nil)
+
+		require.Equal(t, 2, result.Index, "Index should match")
+		require.Equal(t, "INDEX_PAGE", result.PageType, "PageType should match")
+		require.Equal(t, int32(0), result.NumValues, "NumValues should be 0 for INDEX_PAGE")
+	})
 }
 
 func Test_PopulateDataPageMetadata(t *testing.T) {
-	header := &parquet.DataPageHeader{
-		NumValues:               100,
-		Encoding:                parquet.Encoding_PLAIN,
-		DefinitionLevelEncoding: parquet.Encoding_RLE,
-		RepetitionLevelEncoding: parquet.Encoding_BIT_PACKED,
-	}
+	t.Run("With valid header", func(t *testing.T) {
+		header := &parquet.DataPageHeader{
+			NumValues:               100,
+			Encoding:                parquet.Encoding_PLAIN,
+			DefinitionLevelEncoding: parquet.Encoding_RLE,
+			RepetitionLevelEncoding: parquet.Encoding_BIT_PACKED,
+		}
 
-	pageInfo := &PageMetadata{}
-	populateDataPageMetadata(pageInfo, header, nil, nil)
+		pageInfo := &PageMetadata{}
+		populateDataPageMetadata(pageInfo, header, nil, nil)
 
-	require.Equal(t, int32(100), pageInfo.NumValues, "NumValues should match")
-	require.Equal(t, "PLAIN", pageInfo.Encoding, "Encoding should match")
-	require.Equal(t, "RLE", pageInfo.DefLevelEncoding, "DefLevelEncoding should match")
-	require.Equal(t, "BIT_PACKED", pageInfo.RepLevelEncoding, "RepLevelEncoding should match")
+		require.Equal(t, int32(100), pageInfo.NumValues, "NumValues should match")
+		require.Equal(t, "PLAIN", pageInfo.Encoding, "Encoding should match")
+		require.Equal(t, "RLE", pageInfo.DefLevelEncoding, "DefLevelEncoding should match")
+		require.Equal(t, "BIT_PACKED", pageInfo.RepLevelEncoding, "RepLevelEncoding should match")
+	})
+
+	t.Run("With nil header", func(t *testing.T) {
+		pageInfo := &PageMetadata{}
+		populateDataPageMetadata(pageInfo, nil, nil, nil)
+
+		require.Equal(t, int32(0), pageInfo.NumValues, "NumValues should be 0")
+	})
+
+	t.Run("With statistics", func(t *testing.T) {
+		header := &parquet.DataPageHeader{
+			NumValues:               100,
+			Encoding:                parquet.Encoding_PLAIN,
+			DefinitionLevelEncoding: parquet.Encoding_RLE,
+			RepetitionLevelEncoding: parquet.Encoding_BIT_PACKED,
+			Statistics: &parquet.Statistics{
+				MinValue: []byte{0x01, 0x00, 0x00, 0x00},
+				MaxValue: []byte{0x64, 0x00, 0x00, 0x00},
+			},
+		}
+
+		columnMeta := &parquet.ColumnMetaData{
+			Type: parquet.Type_INT32,
+		}
+
+		pageInfo := &PageMetadata{}
+		populateDataPageMetadata(pageInfo, header, columnMeta, nil)
+
+		require.Equal(t, int32(100), pageInfo.NumValues, "NumValues should match")
+		require.True(t, pageInfo.HasStatistics, "HasStatistics should be true")
+	})
 }
 
 func Test_PopulateDataPageV2Metadata(t *testing.T) {
-	header := &parquet.DataPageHeaderV2{
-		NumValues: 200,
-		Encoding:  parquet.Encoding_DELTA_BINARY_PACKED,
-	}
+	t.Run("With valid header", func(t *testing.T) {
+		header := &parquet.DataPageHeaderV2{
+			NumValues: 200,
+			Encoding:  parquet.Encoding_DELTA_BINARY_PACKED,
+		}
 
-	pageInfo := &PageMetadata{}
-	populateDataPageV2Metadata(pageInfo, header, nil, nil)
+		pageInfo := &PageMetadata{}
+		populateDataPageV2Metadata(pageInfo, header, nil, nil)
 
-	require.Equal(t, int32(200), pageInfo.NumValues, "NumValues should match")
-	require.Equal(t, "DELTA_BINARY_PACKED", pageInfo.Encoding, "Encoding should match")
+		require.Equal(t, int32(200), pageInfo.NumValues, "NumValues should match")
+		require.Equal(t, "DELTA_BINARY_PACKED", pageInfo.Encoding, "Encoding should match")
+	})
+
+	t.Run("With nil header", func(t *testing.T) {
+		pageInfo := &PageMetadata{}
+		populateDataPageV2Metadata(pageInfo, nil, nil, nil)
+
+		require.Equal(t, int32(0), pageInfo.NumValues, "NumValues should be 0")
+	})
+
+	t.Run("With statistics", func(t *testing.T) {
+		header := &parquet.DataPageHeaderV2{
+			NumValues: 200,
+			Encoding:  parquet.Encoding_DELTA_BINARY_PACKED,
+			Statistics: &parquet.Statistics{
+				MinValue: []byte{0x01, 0x00, 0x00, 0x00},
+				MaxValue: []byte{0x64, 0x00, 0x00, 0x00},
+			},
+		}
+
+		columnMeta := &parquet.ColumnMetaData{
+			Type: parquet.Type_INT32,
+		}
+
+		pageInfo := &PageMetadata{}
+		populateDataPageV2Metadata(pageInfo, header, columnMeta, nil)
+
+		require.Equal(t, int32(200), pageInfo.NumValues, "NumValues should match")
+		require.True(t, pageInfo.HasStatistics, "HasStatistics should be true")
+	})
 }
 
 func Test_PopulateDictionaryPageMetadata(t *testing.T) {
-	header := &parquet.DictionaryPageHeader{
-		NumValues: 50,
-		Encoding:  parquet.Encoding_PLAIN_DICTIONARY,
-	}
+	t.Run("With valid header", func(t *testing.T) {
+		header := &parquet.DictionaryPageHeader{
+			NumValues: 50,
+			Encoding:  parquet.Encoding_PLAIN_DICTIONARY,
+		}
 
-	pageInfo := &PageMetadata{}
-	populateDictionaryPageMetadata(pageInfo, header)
+		pageInfo := &PageMetadata{}
+		populateDictionaryPageMetadata(pageInfo, header)
 
-	require.Equal(t, int32(50), pageInfo.NumValues, "NumValues should match")
-	require.Equal(t, "PLAIN_DICTIONARY", pageInfo.Encoding, "Encoding should match")
+		require.Equal(t, int32(50), pageInfo.NumValues, "NumValues should match")
+		require.Equal(t, "PLAIN_DICTIONARY", pageInfo.Encoding, "Encoding should match")
+	})
+
+	t.Run("With nil header", func(t *testing.T) {
+		pageInfo := &PageMetadata{}
+		populateDictionaryPageMetadata(pageInfo, nil)
+
+		require.Equal(t, int32(0), pageInfo.NumValues, "NumValues should be 0")
+	})
 }
 
 func Test_ExtractPageStatistics(t *testing.T) {

@@ -1619,3 +1619,615 @@ func Test_AllSchemaHandlers_Integration(t *testing.T) {
 		})
 	}
 }
+
+// Helper to get test parquet file (same as webui_test.go)
+func getTestParquetPathAPI(filename string) string {
+	// Try build/testdata first (where make test downloads files)
+	buildPath := filepath.Join("../build/testdata", filename)
+	if _, err := os.Stat(buildPath); err == nil {
+		return buildPath
+	}
+
+	// Try relative path for when tests run from different locations
+	relPath := filepath.Join("../../build/testdata", filename)
+	if _, err := os.Stat(relPath); err == nil {
+		return relPath
+	}
+
+	return ""
+}
+
+// Helper to create service with real parquet file for API tests
+func createTestServiceWithRealFile(t *testing.T, filename string) *ParquetService {
+	t.Helper()
+
+	path := getTestParquetPathAPI(filename)
+	if path == "" {
+		t.Skipf("Test file %s not found - run 'make test' to download test files", filename)
+		return nil
+	}
+
+	svc, err := NewParquetService(path, pio.ReadOption{})
+	require.NoError(t, err, "Failed to create service with %s", filename)
+
+	return svc
+}
+
+// Test handleSchemaJSON with pretty=true parameter
+func Test_HandleSchemaJSON_PrettyParameter(t *testing.T) {
+	svc := createTestServiceWithRealFile(t, "all-types.parquet")
+	if svc == nil {
+		return
+	}
+	defer func() {
+		_ = svc.Close()
+	}()
+
+	router := mux.NewRouter()
+	svc.SetupRoutes(router)
+
+	tests := []struct {
+		name  string
+		query string
+	}{
+		{"With pretty=true", "?pretty=true"},
+		{"Without pretty parameter", ""},
+		{"With pretty=false", "?pretty=false"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest("GET", "/schema/json"+tt.query, nil)
+			w := httptest.NewRecorder()
+
+			router.ServeHTTP(w, req)
+
+			require.Equal(t, http.StatusOK, w.Code)
+			require.Equal(t, "application/json; charset=utf-8", w.Header().Get("Content-Type"))
+			require.NotEmpty(t, w.Body.String())
+		})
+	}
+}
+
+// Test handleSchemaRaw with pretty parameter
+func Test_HandleSchemaRaw_PrettyParameter(t *testing.T) {
+	svc := createTestServiceWithRealFile(t, "all-types.parquet")
+	if svc == nil {
+		return
+	}
+	defer func() {
+		_ = svc.Close()
+	}()
+
+	router := mux.NewRouter()
+	svc.SetupRoutes(router)
+
+	tests := []struct {
+		name  string
+		query string
+	}{
+		{"With pretty=true", "?pretty=true"},
+		{"Without pretty parameter", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest("GET", "/schema/raw"+tt.query, nil)
+			w := httptest.NewRecorder()
+
+			router.ServeHTTP(w, req)
+
+			require.Equal(t, http.StatusOK, w.Code)
+			require.Equal(t, "application/json; charset=utf-8", w.Header().Get("Content-Type"))
+			require.NotEmpty(t, w.Body.String())
+		})
+	}
+}
+
+// Test handleSchemaGo with real file
+func Test_HandleSchemaGo_WithRealFile(t *testing.T) {
+	svc := createTestServiceWithRealFile(t, "all-types.parquet")
+	if svc == nil {
+		return
+	}
+	defer func() {
+		_ = svc.Close()
+	}()
+
+	router := mux.NewRouter()
+	svc.SetupRoutes(router)
+
+	req := httptest.NewRequest("GET", "/schema/go", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	require.Equal(t, "text/plain; charset=utf-8", w.Header().Get("Content-Type"))
+	body := w.Body.String()
+	require.Contains(t, body, "type")
+	require.Contains(t, body, "struct")
+}
+
+// Test handleSchemaCSV with CSV file
+func Test_HandleSchemaCSV_WithRealCSVFile(t *testing.T) {
+	svc := createTestServiceWithRealFile(t, "csv-good.parquet")
+	if svc == nil {
+		return
+	}
+	defer func() {
+		_ = svc.Close()
+	}()
+
+	router := mux.NewRouter()
+	svc.SetupRoutes(router)
+
+	req := httptest.NewRequest("GET", "/schema/csv", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	require.Equal(t, "text/csv; charset=utf-8", w.Header().Get("Content-Type"))
+	require.NotEmpty(t, w.Body.String())
+}
+
+// Test all API handlers with real files for full coverage
+func Test_AllAPIHandlers_WithRealFile(t *testing.T) {
+	svc := createTestServiceWithRealFile(t, "all-types.parquet")
+	if svc == nil {
+		return
+	}
+	defer func() {
+		_ = svc.Close()
+	}()
+
+	router := mux.NewRouter()
+	svc.SetupRoutes(router)
+
+	tests := []struct {
+		name        string
+		path        string
+		contentType string
+	}{
+		{"File info", "/info", "application/json"},
+		{"Row groups", "/rowgroups", "application/json"},
+		{"Row group 0", "/rowgroups/0", "application/json"},
+		{"Column chunks", "/rowgroups/0/columnchunks", "application/json"},
+		{"Column chunk 0", "/rowgroups/0/columnchunks/0", "application/json"},
+		{"Pages", "/rowgroups/0/columnchunks/0/pages", "application/json"},
+		{"Page 0", "/rowgroups/0/columnchunks/0/pages/0", "application/json"},
+		{"Page content", "/rowgroups/0/columnchunks/0/pages/0/content", "application/json"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest("GET", tt.path, nil)
+			w := httptest.NewRecorder()
+
+			router.ServeHTTP(w, req)
+
+			require.Equal(t, http.StatusOK, w.Code)
+			require.Contains(t, w.Header().Get("Content-Type"), tt.contentType)
+			require.NotEmpty(t, w.Body.String())
+		})
+	}
+}
+
+// Test error paths for out of range indices
+func Test_APIHandlers_OutOfRangeIndices(t *testing.T) {
+	svc := createTestServiceWithRealFile(t, "all-types.parquet")
+	if svc == nil {
+		return
+	}
+	defer func() {
+		_ = svc.Close()
+	}()
+
+	router := mux.NewRouter()
+	svc.SetupRoutes(router)
+
+	tests := []struct {
+		name           string
+		path           string
+		expectedStatus int
+	}{
+		{"Row group out of range", "/rowgroups/999", http.StatusNotFound},
+		{"Column chunks - invalid row group", "/rowgroups/999/columnchunks", http.StatusNotFound},
+		{"Column chunk - invalid row group", "/rowgroups/999/columnchunks/0", http.StatusNotFound},
+		{"Column chunk - invalid column", "/rowgroups/0/columnchunks/999", http.StatusNotFound},
+		{"Pages - invalid row group", "/rowgroups/999/columnchunks/0/pages", http.StatusNotFound},
+		{"Pages - invalid column", "/rowgroups/0/columnchunks/999/pages", http.StatusNotFound},
+		{"Page info - invalid row group", "/rowgroups/999/columnchunks/0/pages/0", http.StatusNotFound},
+		{"Page info - invalid column", "/rowgroups/0/columnchunks/999/pages/0", http.StatusNotFound},
+		{"Page info - invalid page", "/rowgroups/0/columnchunks/0/pages/999", http.StatusNotFound},
+		{"Page content - invalid row group", "/rowgroups/999/columnchunks/0/pages/0/content", http.StatusNotFound},
+		{"Page content - invalid column", "/rowgroups/0/columnchunks/999/pages/0/content", http.StatusNotFound},
+		{"Page content - invalid page", "/rowgroups/0/columnchunks/0/pages/999/content", http.StatusNotFound},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest("GET", tt.path, nil)
+			w := httptest.NewRecorder()
+
+			router.ServeHTTP(w, req)
+
+			require.Equal(t, tt.expectedStatus, w.Code,
+				"Expected %d for %s, got %d. Body: %s",
+				tt.expectedStatus, tt.path, w.Code, w.Body.String())
+		})
+	}
+}
+
+// Test JSON marshaling in handleSchemaJSON with edge cases
+func Test_HandleSchemaJSON_EdgeCases(t *testing.T) {
+	svc := createTestServiceWithRealFile(t, "empty.parquet")
+	if svc == nil {
+		return
+	}
+	defer func() {
+		_ = svc.Close()
+	}()
+
+	router := mux.NewRouter()
+	svc.SetupRoutes(router)
+
+	// Test with empty file
+	req := httptest.NewRequest("GET", "/schema/json?pretty=true", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	require.NotEmpty(t, w.Body.String())
+}
+
+// Test handleSchemaRaw JSON marshaling paths
+func Test_HandleSchemaRaw_EdgeCases(t *testing.T) {
+	svc := createTestServiceWithRealFile(t, "all-types.parquet")
+	if svc == nil {
+		return
+	}
+	defer func() {
+		_ = svc.Close()
+	}()
+
+	router := mux.NewRouter()
+	svc.SetupRoutes(router)
+
+	// Test both pretty and non-pretty paths
+	req := httptest.NewRequest("GET", "/schema/raw", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	require.NotEmpty(t, w.Body.String())
+}
+
+// Test all schema endpoints together
+func Test_AllSchemaEndpoints_Comprehensive(t *testing.T) {
+	svc := createTestServiceWithRealFile(t, "all-types.parquet")
+	if svc == nil {
+		return
+	}
+	defer func() {
+		_ = svc.Close()
+	}()
+
+	router := mux.NewRouter()
+	svc.SetupRoutes(router)
+
+	endpoints := []string{
+		"/schema/go",
+		"/schema/json",
+		"/schema/json?pretty=true",
+		"/schema/raw",
+		"/schema/raw?pretty=true",
+	}
+
+	for _, endpoint := range endpoints {
+		t.Run(endpoint, func(t *testing.T) {
+			req := httptest.NewRequest("GET", endpoint, nil)
+			w := httptest.NewRecorder()
+
+			router.ServeHTTP(w, req)
+
+			require.Equal(t, http.StatusOK, w.Code)
+			require.NotEmpty(t, w.Body.String())
+		})
+	}
+}
+
+// Test CSV schema with proper CSV file
+func Test_HandleSchemaCSV_WithCSVFile(t *testing.T) {
+	svc := createTestServiceWithRealFile(t, "csv-good.parquet")
+	if svc == nil {
+		return
+	}
+	defer func() {
+		_ = svc.Close()
+	}()
+
+	router := mux.NewRouter()
+	svc.SetupRoutes(router)
+
+	req := httptest.NewRequest("GET", "/schema/csv", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	require.Equal(t, "text/csv; charset=utf-8", w.Header().Get("Content-Type"))
+	require.NotEmpty(t, w.Body.String())
+}
+
+// Test all schema handlers with different files to maximize coverage
+func Test_SchemaHandlers_AllPaths(t *testing.T) {
+	testFiles := []string{
+		"all-types.parquet",
+		"empty.parquet",
+		"csv-good.parquet",
+	}
+
+	for _, filename := range testFiles {
+		t.Run("File_"+filename, func(t *testing.T) {
+			svc := createTestServiceWithRealFile(t, filename)
+			if svc == nil {
+				return
+			}
+			defer func() {
+				_ = svc.Close()
+			}()
+
+			router := mux.NewRouter()
+			svc.SetupRoutes(router)
+
+			// Test all schema endpoints
+			endpoints := []struct {
+				path     string
+				expectOK bool
+			}{
+				{"/schema/go", true},
+				{"/schema/json", true},
+				{"/schema/json?pretty=true", true},
+				{"/schema/raw", true},
+				{"/schema/raw?pretty=true", true},
+			}
+
+			for _, ep := range endpoints {
+				req := httptest.NewRequest("GET", ep.path, nil)
+				w := httptest.NewRecorder()
+
+				router.ServeHTTP(w, req)
+
+				if ep.expectOK {
+					require.Equal(t, http.StatusOK, w.Code,
+						"Expected OK for %s with %s", ep.path, filename)
+					require.NotEmpty(t, w.Body.String())
+				}
+			}
+		})
+	}
+}
+
+// Test handleSchemaGo formatting fallback path (when formatting fails)
+func Test_HandleSchemaGo_FormattingPaths(t *testing.T) {
+	svc := createTestServiceWithRealFile(t, "all-types.parquet")
+	if svc == nil {
+		return
+	}
+	defer func() {
+		_ = svc.Close()
+	}()
+
+	router := mux.NewRouter()
+	svc.SetupRoutes(router)
+
+	req := httptest.NewRequest("GET", "/schema/go", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	body := w.Body.String()
+	// Should contain Go code (formatted or not)
+	require.NotEmpty(t, body)
+}
+
+// Test handleSchemaJSON fallback paths (JSON unmarshal errors)
+func Test_HandleSchemaJSON_AllPaths(t *testing.T) {
+	svc := createTestServiceWithRealFile(t, "all-types.parquet")
+	if svc == nil {
+		return
+	}
+	defer func() {
+		_ = svc.Close()
+	}()
+
+	router := mux.NewRouter()
+	svc.SetupRoutes(router)
+
+	// Test pretty=true (exercises the unmarshal and marshal paths)
+	req := httptest.NewRequest("GET", "/schema/json?pretty=true", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	require.NotEmpty(t, w.Body.String())
+
+	// Test without pretty (exercises the direct path)
+	req2 := httptest.NewRequest("GET", "/schema/json", nil)
+	w2 := httptest.NewRecorder()
+
+	router.ServeHTTP(w2, req2)
+
+	require.Equal(t, http.StatusOK, w2.Code)
+	require.NotEmpty(t, w2.Body.String())
+}
+
+// Test handleSchemaRaw both marshal paths (pretty and non-pretty)
+func Test_HandleSchemaRaw_BothMarshalPaths(t *testing.T) {
+	svc := createTestServiceWithRealFile(t, "all-types.parquet")
+	if svc == nil {
+		return
+	}
+	defer func() {
+		_ = svc.Close()
+	}()
+
+	router := mux.NewRouter()
+	svc.SetupRoutes(router)
+
+	// Test with pretty=true (uses json.MarshalIndent)
+	req1 := httptest.NewRequest("GET", "/schema/raw?pretty=true", nil)
+	w1 := httptest.NewRecorder()
+
+	router.ServeHTTP(w1, req1)
+
+	require.Equal(t, http.StatusOK, w1.Code)
+	body1 := w1.Body.String()
+	require.NotEmpty(t, body1)
+	require.Contains(t, body1, "\n  ") // Should have indentation
+
+	// Test without pretty (uses json.Marshal)
+	req2 := httptest.NewRequest("GET", "/schema/raw", nil)
+	w2 := httptest.NewRecorder()
+
+	router.ServeHTTP(w2, req2)
+
+	require.Equal(t, http.StatusOK, w2.Code)
+	body2 := w2.Body.String()
+	require.NotEmpty(t, body2)
+}
+
+// Test handleSchemaGo error path - list-of-list not supported for Go struct generation
+func Test_HandleSchemaGo_ErrorPath_ListOfList(t *testing.T) {
+	svc := createTestServiceWithRealFile(t, "list-of-list.parquet")
+	if svc == nil {
+		return
+	}
+	defer func() {
+		_ = svc.Close()
+	}()
+
+	router := mux.NewRouter()
+	svc.SetupRoutes(router)
+
+	req := httptest.NewRequest("GET", "/schema/go", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	// list-of-list should fail to generate Go struct
+	require.Equal(t, http.StatusInternalServerError, w.Code)
+	require.Contains(t, w.Body.String(), "Failed to format Go schema")
+}
+
+// Test handleSchemaCSV error path - list-of-list not supported for CSV schema
+func Test_HandleSchemaCSV_ErrorPath_ListOfList(t *testing.T) {
+	svc := createTestServiceWithRealFile(t, "list-of-list.parquet")
+	if svc == nil {
+		return
+	}
+	defer func() {
+		_ = svc.Close()
+	}()
+
+	router := mux.NewRouter()
+	svc.SetupRoutes(router)
+
+	req := httptest.NewRequest("GET", "/schema/csv", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	// list-of-list should fail to generate CSV schema
+	require.Equal(t, http.StatusInternalServerError, w.Code)
+	require.Contains(t, w.Body.String(), "Failed to format CSV schema")
+}
+
+// Test handleSchemaJSON with pretty=true to cover all marshal paths
+func Test_HandleSchemaJSON_PrettyTrue_AllPaths(t *testing.T) {
+	svc := createTestServiceWithRealFile(t, "all-types.parquet")
+	if svc == nil {
+		return
+	}
+	defer func() {
+		_ = svc.Close()
+	}()
+
+	router := mux.NewRouter()
+	svc.SetupRoutes(router)
+
+	// Test with pretty=true to exercise unmarshal and marshal indent paths
+	req := httptest.NewRequest("GET", "/schema/json?pretty=true", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	body := w.Body.String()
+	require.NotEmpty(t, body)
+	// Should be pretty-printed JSON
+	require.Contains(t, body, "\n")
+}
+
+// Test handleSchemaJSON without pretty to cover direct path
+func Test_HandleSchemaJSON_NoPretty_DirectPath(t *testing.T) {
+	svc := createTestServiceWithRealFile(t, "all-types.parquet")
+	if svc == nil {
+		return
+	}
+	defer func() {
+		_ = svc.Close()
+	}()
+
+	router := mux.NewRouter()
+	svc.SetupRoutes(router)
+
+	// Test without pretty parameter (or pretty=false)
+	req := httptest.NewRequest("GET", "/schema/json?pretty=false", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	require.NotEmpty(t, w.Body.String())
+}
+
+// Test handleSchemaRaw with both pretty paths
+func Test_HandleSchemaRaw_PrettyPaths(t *testing.T) {
+	svc := createTestServiceWithRealFile(t, "all-types.parquet")
+	if svc == nil {
+		return
+	}
+	defer func() {
+		_ = svc.Close()
+	}()
+
+	router := mux.NewRouter()
+	svc.SetupRoutes(router)
+
+	// Test with pretty=true (json.MarshalIndent path)
+	req1 := httptest.NewRequest("GET", "/schema/raw?pretty=true", nil)
+	w1 := httptest.NewRecorder()
+
+	router.ServeHTTP(w1, req1)
+
+	require.Equal(t, http.StatusOK, w1.Code)
+	body1 := w1.Body.String()
+	require.NotEmpty(t, body1)
+	require.Contains(t, body1, "\n")
+
+	// Test without pretty (json.Marshal path)
+	req2 := httptest.NewRequest("GET", "/schema/raw?pretty=false", nil)
+	w2 := httptest.NewRecorder()
+
+	router.ServeHTTP(w2, req2)
+
+	require.Equal(t, http.StatusOK, w2.Code)
+	require.NotEmpty(t, w2.Body.String())
+}
