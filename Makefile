@@ -83,13 +83,26 @@ docker-build:  ## Build docker image for local test
 	@sleep 2 # to address podman volume issue on MacOS
 	@docker build . -f package/container/Dockerfile -t parquet-browser:local
 
+# Test files to download from parquet-tools repository
+PARQUET_TOOLS_TAG := v1.37.0
+PARQUET_TOOLS_BASE := https://github.com/hangxie/parquet-tools/raw/refs/tags/$(PARQUET_TOOLS_TAG)/testdata
+TEST_FILES := \
+	all-types.parquet \
+	empty.parquet \
+	csv-good.parquet \
+	list-of-list.parquet
+
 .PHONY: test
 test: deps tools  ## Run unit tests
 	@echo "==> Running unit tests"
 	@mkdir -p $(BUILD_DIR)/test $(BUILD_DIR)/testdata
-	@test -f $(BUILD_DIR)/testdata/all-types.parquet || \
-		curl -sLo $(BUILD_DIR)/testdata/all-types.parquet \
-		https://github.com/hangxie/parquet-tools/raw/refs/tags/v1.37.0/testdata/all-types.parquet
+	@echo "==> Downloading test parquet files"
+	@for file in $(TEST_FILES); do \
+		test -f $(BUILD_DIR)/testdata/$$file || \
+			curl -sLo $(BUILD_DIR)/testdata/$$file \
+				$(PARQUET_TOOLS_BASE)/$$file || \
+			echo "Warning: Failed to download $$file"; \
+	done
 	@set -euo pipefail ; \
 		cd $(BUILD_DIR)/test; \
 		CGO_ENABLED=1 $(GO) test -parallel 4 -race -count 1 -trimpath -coverprofile=coverage.out $(CURDIR)/... ; \

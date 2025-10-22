@@ -1,0 +1,88 @@
+{{define "schema"}}
+<div class="breadcrumb">
+    <a href="/ui/main" hx-get="/ui/main" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="true">Home</a>
+    <span>/</span>
+    <span>Schema</span>
+</div>
+
+<div class="card">
+    <h2>Schema Viewer</h2>
+
+    <div class="schema-selector">
+        <button class="schema-btn active" data-format="json" hx-get="/ui/schema/json" hx-target="#schema-content" hx-swap="beforeend" hx-push-url="true">JSON</button>
+        <button class="schema-btn" data-format="json" hx-get="/ui/schema/raw" hx-target="#schema-content" hx-swap="beforeend" hx-push-url="true">Raw</button>
+        <button class="schema-btn" data-format="text" hx-get="/ui/schema/go" hx-target="#schema-content" hx-swap="beforeend" hx-push-url="true">Go Struct</button>
+        <button class="schema-btn" data-format="text" hx-get="/ui/schema/csv" hx-target="#schema-content" hx-swap="beforeend" hx-push-url="true">CSV</button>
+    </div>
+
+    <div id="schema-content" class="schema-content">
+        <div class="loading">Loading schema</div>
+    </div>
+
+    <script>
+        (function() {
+            const schemaContent = document.getElementById('schema-content');
+            const schemaButtons = document.querySelectorAll('.schema-btn');
+
+            function escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            function loadSchema(url, format) {
+                schemaContent.innerHTML = '<div class="loading">Loading schema...</div>';
+
+                fetch(url)
+                    .then(response => {
+                        if (!response.ok) throw new Error('Failed to load schema');
+                        return response.text();
+                    })
+                    .then(data => {
+                        if (format === 'json') {
+                            // Format JSON with syntax highlighting
+                            try {
+                                const jsonObj = JSON.parse(data);
+                                const formatted = JSON.stringify(jsonObj, null, 2);
+                                schemaContent.innerHTML = '<pre>' + escapeHtml(formatted) + '</pre>';
+                            } catch (e) {
+                                schemaContent.innerHTML = '<pre>' + escapeHtml(data) + '</pre>';
+                            }
+                        } else {
+                            // Text format (Go, CSV)
+                            schemaContent.innerHTML = '<pre>' + escapeHtml(data) + '</pre>';
+                        }
+                    })
+                    .catch(error => {
+                        schemaContent.innerHTML = '<div class="error">Error loading schema: ' + error.message + '</div>';
+                    });
+            }
+
+            // Load initial schema (JSON)
+            loadSchema('/ui/schema/json', 'json');
+
+            // Add click handlers to schema buttons
+            schemaButtons.forEach(btn => {
+                btn.addEventListener('click', function(e) {
+                    // Update active button
+                    schemaButtons.forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+
+                    const format = this.getAttribute('data-format');
+                    const url = this.getAttribute('hx-get');
+
+                    // Prevent HTMX from handling this
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    loadSchema(url, format);
+                });
+            });
+        })();
+    </script>
+</div>
+
+<div class="card">
+    <button class="btn-secondary" hx-get="/ui/main" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="true">Back to Home</button>
+</div>
+{{end}}

@@ -1,0 +1,39 @@
+{{define "page_content"}}
+<div class="breadcrumb">
+    <a href="/ui/main" hx-get="/ui/main" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="true">Home</a>
+    <span>/</span>
+    <a href="/ui/rowgroups" hx-get="/ui/rowgroups" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="true">Row Groups</a>
+    <span>/</span>
+    <a href="/ui/rowgroups/{{.RowGroupIndex}}/columns" hx-get="/ui/rowgroups/{{.RowGroupIndex}}/columns" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="true">Row Group {{.RowGroupIndex}}</a>
+    <span>/</span>
+    <a href="/ui/rowgroups/{{.RowGroupIndex}}/columns/{{.ColumnIndex}}/pages" hx-get="/ui/rowgroups/{{.RowGroupIndex}}/columns/{{.ColumnIndex}}/pages" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="true">Column {{.ColumnIndex}}</a>
+    <span>/</span>
+    <span>Page {{.PageIndex}}</span>
+</div>
+
+<div class="card">
+    <h2>Page Content - Row Group {{.RowGroupIndex}}, Column {{.ColumnIndex}}, Page {{.PageIndex}}</h2>
+    <div class="info-grid">
+        <div class="info-item">
+            <strong>Total Values</strong>
+            <span>{{.Count}}</span>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Values</h2>
+    <div class="page-values">
+        {{range $index, $value := .Values}}
+        <div class="value-item">
+            <div class="value-index">Row {{$index}}</div>
+            <div class="value-content">{{$value}}</div>
+        </div>
+        {{end}}
+    </div>
+</div>
+
+<div class="card">
+    <button class="btn-secondary" hx-get="/ui/rowgroups/{{.RowGroupIndex}}/columns/{{.ColumnIndex}}/pages" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="true">Back to Pages</button>
+</div>
+{{end}}

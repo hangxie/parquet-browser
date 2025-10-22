@@ -24,6 +24,6 @@ func (w WebUICmd) Run() error {
 	}
 	defer func() { _ = svc.Close() }()
 
-	// Start the server (same as ServeCmd for now)
-	return service.StartServer(svc, w.Addr)
+	// Start the web UI server with HTML interface
+	return service.StartWebUIServer(svc, w.Addr)
 }

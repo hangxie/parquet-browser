@@ -1,0 +1,107 @@
+{{define "pages"}}
+<div class="breadcrumb">
+    <a href="/ui/main" hx-get="/ui/main" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="true">Home</a>
+    <span>/</span>
+    <a href="/ui/rowgroups" hx-get="/ui/rowgroups" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="true">Row Groups</a>
+    <span>/</span>
+    <a href="/ui/rowgroups/{{.RowGroupIndex}}/columns" hx-get="/ui/rowgroups/{{.RowGroupIndex}}/columns" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="true">Row Group {{.RowGroupIndex}}</a>
+    <span>/</span>
+    <span>Column {{.ColumnIndex}}</span>
+</div>
+
+<div class="card">
+    <h2>Pages - Row Group {{.RowGroupIndex}}, Column {{.ColumnIndex}}</h2>
+    <div class="info-grid">
+        {{if .ColumnPath}}
+        <div class="info-item" style="grid-column: 1 / -1;">
+            <strong>Column Path</strong>
+            <span>{{.ColumnPath}}</span>
+        </div>
+        {{end}}
+        {{if .PhysicalType}}
+        <div class="info-item">
+            <strong>Physical Type</strong>
+            <span class="badge badge-primary">{{.PhysicalType}}</span>
+        </div>
+        {{end}}
+        {{if .LogicalType}}
+        <div class="info-item">
+            <strong>Logical Type</strong>
+            <span class="badge badge-info">{{.LogicalType}}</span>
+        </div>
+        {{end}}
+        {{if .ConvertedType}}
+        <div class="info-item">
+            <strong>Converted Type</strong>
+            <span class="badge badge-info">{{.ConvertedType}}</span>
+        </div>
+        {{end}}
+        {{if .Codec}}
+        <div class="info-item">
+            <strong>Codec</strong>
+            <span class="badge badge-success">{{.Codec}}</span>
+        </div>
+        {{end}}
+        <div class="info-item">
+            <strong>Total Pages</strong>
+            <span>{{.TotalPages}}</span>
+        </div>
+        <div class="info-item">
+            <strong>Total Values</strong>
+            <span>{{.TotalValues}}</span>
+        </div>
+        <div class="info-item">
+            <strong>Compressed Size</strong>
+            <span>{{.TotalCompressed}}</span>
+        </div>
+        <div class="info-item">
+            <strong>Uncompressed Size</strong>
+            <span>{{.TotalUncompressed}}</span>
+        </div>
+        <div class="info-item">
+            <strong>Compression Ratio</strong>
+            <span>{{.CompressionRatio}}</span>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <table>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Page Type</th>
+                <th>Offset</th>
+                <th>Compressed Size</th>
+                <th>Uncompressed Size</th>
+                <th>Num Values</th>
+                <th>Encoding</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range $index, $page := .Pages}}
+            <tr>
+                <td>{{$page.Index}}</td>
+                <td><span class="badge badge-primary">{{$page.PageType}}</span></td>
+                <td>{{$page.Offset}}</td>
+                <td>{{$page.CompressedSize}}</td>
+                <td>{{$page.UncompressedSize}}</td>
+                <td>{{$page.NumValues}}</td>
+                <td>{{$page.Encoding}}</td>
+                <td>
+                    <button hx-get="/ui/rowgroups/{{$.RowGroupIndex}}/columns/{{$.ColumnIndex}}/pages/{{$page.Index}}/content"
+                            hx-target="#content-area"
+                            hx-swap="innerHTML"
+                            hx-push-url="true">View Content</button>
+                </td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+
+<div class="card">
+    <button class="btn-secondary" hx-get="/ui/rowgroups/{{.RowGroupIndex}}/columns" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="true">Back to Columns</button>
+</div>
+{{end}}
