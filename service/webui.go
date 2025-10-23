@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"runtime"
 	"strconv"
+	"testing"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -506,6 +507,11 @@ func CreateWebUIRouter(s *ParquetService) *mux.Router {
 
 // openBrowser tries to open the URL in the default browser
 func openBrowser(url string) error {
+	if testing.Testing() {
+		// do not launch browser under unit test
+		return nil
+	}
+
 	var cmd *exec.Cmd
 
 	switch runtime.GOOS {
