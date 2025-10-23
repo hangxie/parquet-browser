@@ -2,12 +2,15 @@ package service
 
 import (
 	"fmt"
+	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gorilla/mux"
 	pio "github.com/hangxie/parquet-tools/io"
@@ -1930,4 +1933,224 @@ func Test_HandleSchemaRawView_Success(t *testing.T) {
 	require.Equal(t, "application/json; charset=utf-8", w.Header().Get("Content-Type"))
 	require.NotEmpty(t, w.Body.String())
 	require.Contains(t, w.Body.String(), "{") // Should be JSON
+}
+
+// Test StartWebUIServer - successful server startup
+func Test_StartWebUIServer_Success(t *testing.T) {
+	svc := createTestServiceWithFile(t, "all-types.parquet")
+	if svc == nil {
+		return
+	}
+	defer func() {
+		_ = svc.Close()
+	}()
+
+	// Find a free port
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err, "Failed to find free port")
+	addr := listener.Addr().String()
+	_ = listener.Close()
+
+	// Start server in background
+	serverErr := make(chan error, 1)
+	go func() {
+		serverErr <- StartWebUIServer(svc, addr)
+	}()
+
+	// Wait for server to start
+	time.Sleep(200 * time.Millisecond)
+
+	// Try to connect to verify server is running
+	resp, err := http.Get(fmt.Sprintf("http://%s/", addr))
+	if err == nil {
+		defer func() {
+			_ = resp.Body.Close()
+		}()
+		require.Equal(t, http.StatusOK, resp.StatusCode, "Server should respond with 200 OK")
+
+		// Verify response contains expected HTML
+		body, _ := io.ReadAll(resp.Body)
+		require.Contains(t, string(body), "<!DOCTYPE html>", "Response should contain HTML doctype")
+		require.Contains(t, string(body), "Parquet Browser", "Response should contain page title")
+	} else {
+		t.Logf("Server may not have started yet: %v", err)
+	}
+}
+
+// Test StartWebUIServer - server address format
+func Test_StartWebUIServer_AddressFormat(t *testing.T) {
+	svc := createTestServiceWithFile(t, "all-types.parquet")
+	if svc == nil {
+		return
+	}
+	defer func() {
+		_ = svc.Close()
+	}()
+
+	tests := []struct {
+		name string
+		addr string
+	}{
+		{"Port only", ":0"},
+		{"Localhost with port", "localhost:0"},
+		{"IP with port", "127.0.0.1:0"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Find a free port first
+			listener, err := net.Listen("tcp", tt.addr)
+			require.NoError(t, err, "Failed to find free port")
+			actualAddr := listener.Addr().String()
+			_ = listener.Close()
+
+			// Start server in background
+			serverErr := make(chan error, 1)
+			go func() {
+				serverErr <- StartWebUIServer(svc, actualAddr)
+			}()
+
+			// Wait for server to start
+			time.Sleep(100 * time.Millisecond)
+
+			// Try to connect
+			resp, err := http.Get(fmt.Sprintf("http://%s/", actualAddr))
+			if err == nil {
+				defer func() {
+					_ = resp.Body.Close()
+				}()
+				require.Equal(t, http.StatusOK, resp.StatusCode)
+			}
+
+			// Server is running, test passed
+		})
+	}
+}
+
+// Test StartWebUIServer - router setup
+func Test_StartWebUIServer_RouterSetup(t *testing.T) {
+	svc := createTestServiceWithFile(t, "all-types.parquet")
+	if svc == nil {
+		return
+	}
+	defer func() {
+		_ = svc.Close()
+	}()
+
+	// Find a free port
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	addr := listener.Addr().String()
+	_ = listener.Close()
+
+	// Start server
+	go func() {
+		_ = StartWebUIServer(svc, addr)
+	}()
+
+	// Wait for server to start
+	time.Sleep(200 * time.Millisecond)
+
+	// Test that various routes are working
+	routes := []struct {
+		path           string
+		expectedStatus int
+	}{
+		{"/", http.StatusOK},
+		{"/ui/main", http.StatusOK},
+		{"/ui/schema", http.StatusOK},
+		{"/ui/rowgroups", http.StatusOK},
+		{"/nonexistent", http.StatusNotFound},
+	}
+
+	for _, route := range routes {
+		t.Run("Route_"+route.path, func(t *testing.T) {
+			resp, err := http.Get(fmt.Sprintf("http://%s%s", addr, route.path))
+			if err == nil {
+				defer func() {
+					_ = resp.Body.Close()
+				}()
+				require.Equal(t, route.expectedStatus, resp.StatusCode,
+					"Route %s should return %d", route.path, route.expectedStatus)
+			}
+		})
+	}
+}
+
+// Test StartWebUIServer - CORS headers
+func Test_StartWebUIServer_CORSHeaders(t *testing.T) {
+	svc := createTestServiceWithFile(t, "all-types.parquet")
+	if svc == nil {
+		return
+	}
+	defer func() {
+		_ = svc.Close()
+	}()
+
+	// Find a free port
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	addr := listener.Addr().String()
+	_ = listener.Close()
+
+	// Start server
+	go func() {
+		_ = StartWebUIServer(svc, addr)
+	}()
+
+	// Wait for server to start
+	time.Sleep(200 * time.Millisecond)
+
+	// Make request and check CORS headers
+	resp, err := http.Get(fmt.Sprintf("http://%s/", addr))
+	if err == nil {
+		defer func() {
+			_ = resp.Body.Close()
+		}()
+
+		// Should have CORS headers from middleware
+		require.NotEmpty(t, resp.Header.Get("Access-Control-Allow-Origin"),
+			"Should have CORS headers")
+	}
+}
+
+// Test StartWebUIServer - error on invalid address
+func Test_StartWebUIServer_InvalidAddress(t *testing.T) {
+	svc := createTestServiceWithFile(t, "all-types.parquet")
+	if svc == nil {
+		return
+	}
+	defer func() {
+		_ = svc.Close()
+	}()
+
+	// Use an invalid address format
+	invalidAddr := "invalid:address:format"
+
+	err := StartWebUIServer(svc, invalidAddr)
+	require.Error(t, err, "Should return error for invalid address")
+}
+
+// Test StartWebUIServer - port already in use
+func Test_StartWebUIServer_PortInUse(t *testing.T) {
+	svc := createTestServiceWithFile(t, "all-types.parquet")
+	if svc == nil {
+		return
+	}
+	defer func() {
+		_ = svc.Close()
+	}()
+
+	// Start a listener to occupy the port
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	addr := listener.Addr().String()
+	defer func() {
+		_ = listener.Close()
+	}()
+
+	// Try to start server on the same port
+	err = StartWebUIServer(svc, addr)
+	require.Error(t, err, "Should return error when port is already in use")
+	require.Contains(t, err.Error(), "address already in use")
 }

@@ -127,9 +127,14 @@ func decodeStatValue(value any, parquetType parquet.Type, schemaElem *parquet.Sc
 			return types.ConvertDecimalValue(value, &parquetType, int(precision), int(scale))
 		case parquet.ConvertedType_DATE:
 			return types.ConvertDateLogicalValue(value)
-		case parquet.ConvertedType_TIME_MICROS, parquet.ConvertedType_TIME_MILLIS:
-			if schemaElem.LogicalType != nil && schemaElem.LogicalType.TIME != nil {
-				return types.ConvertTimeLogicalValue(value, schemaElem.LogicalType.GetTIME())
+		case parquet.ConvertedType_TIME_MILLIS:
+			if i32Val, ok := value.(int32); ok {
+				return types.TIME_MILLISToTimeFormat(i32Val)
+			}
+			return value
+		case parquet.ConvertedType_TIME_MICROS:
+			if i64Val, ok := value.(int64); ok {
+				return types.TIME_MICROSToTimeFormat(i64Val)
 			}
 			return value
 		case parquet.ConvertedType_TIMESTAMP_MICROS, parquet.ConvertedType_TIMESTAMP_MILLIS:
@@ -444,9 +449,14 @@ func decodeValue(value any, parquetType parquet.Type, schemaElem *parquet.Schema
 			return types.ConvertDecimalValue(value, &parquetType, int(precision), int(scale))
 		case parquet.ConvertedType_DATE:
 			return types.ConvertDateLogicalValue(value)
-		case parquet.ConvertedType_TIME_MICROS, parquet.ConvertedType_TIME_MILLIS:
-			if schemaElem.LogicalType != nil && schemaElem.LogicalType.TIME != nil {
-				return types.ConvertTimeLogicalValue(value, schemaElem.LogicalType.GetTIME())
+		case parquet.ConvertedType_TIME_MILLIS:
+			if i32Val, ok := value.(int32); ok {
+				return types.TIME_MILLISToTimeFormat(i32Val)
+			}
+			return value
+		case parquet.ConvertedType_TIME_MICROS:
+			if i64Val, ok := value.(int64); ok {
+				return types.TIME_MICROSToTimeFormat(i64Val)
 			}
 			return value
 		case parquet.ConvertedType_TIMESTAMP_MICROS, parquet.ConvertedType_TIMESTAMP_MILLIS:
