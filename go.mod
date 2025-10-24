@@ -11,7 +11,7 @@ require (
 	github.com/gorilla/mux v1.8.1
 	github.com/hangxie/parquet-go/v2 v2.3.1
 	github.com/hangxie/parquet-tools v1.37.1
-	github.com/klauspost/compress v1.18.0
+	github.com/klauspost/compress v1.18.1
 	github.com/pierrec/lz4/v4 v4.1.22
 	github.com/posener/complete v1.2.3
 	github.com/rivo/tview v0.42.0
