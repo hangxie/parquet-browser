@@ -12,11 +12,31 @@
 </div>
 
 <div class="card">
-    <h2>Page Content - Row Group {{.RowGroupIndex}}, Column {{.ColumnIndex}}, Page {{.PageIndex}}</h2>
+    <h2>Page Info - Row Group {{.RowGroupIndex}}, Column {{.ColumnIndex}}, Page {{.PageIndex}}</h2>
     <div class="info-grid">
         <div class="info-item">
-            <strong>Total Values</strong>
-            <span>{{.Count}}</span>
+            <strong>Page Type</strong>
+            <span class="badge badge-primary">{{.PageType}}</span>
+        </div>
+        <div class="info-item">
+            <strong>Offset</strong>
+            <span>{{.Offset}}</span>
+        </div>
+        <div class="info-item">
+            <strong>Size</strong>
+            <span>{{.CompressedSize}} → {{.UncompressedSize}} ({{.CompressionRatio}})</span>
+        </div>
+        <div class="info-item">
+            <strong>Values</strong>
+            <span>{{.NumValues}}</span>
+        </div>
+        <div class="info-item">
+            <strong>Nulls</strong>
+            <span>{{.NullCount}}</span>
+        </div>
+        <div class="info-item">
+            <strong>Encoding</strong>
+            <span>{{.Encoding}}</span>
         </div>
     </div>
 </div>
@@ -31,9 +51,5 @@
         </div>
         {{end}}
     </div>
-</div>
-
-<div class="card">
-    <button class="btn-secondary" hx-get="/ui/rowgroups/{{.RowGroupIndex}}/columns/{{.ColumnIndex}}/pages" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="true">Back to Pages</button>
 </div>
 {{end}}

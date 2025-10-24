@@ -62,9 +62,34 @@ func (s *ParquetService) handleIndexPage(w http.ResponseWriter, r *http.Request)
 	}
 }
 
-// handleMainView serves the main view with file info
+// handleMainView serves the main view with file info and row groups
 func (s *ParquetService) handleMainView(w http.ResponseWriter, r *http.Request) {
 	info := s.reader.GetFileInfo()
+
+	// Get row groups
+	rowGroups := s.reader.GetAllRowGroupsInfo()
+
+	// Format the row groups for display
+	type FormattedRowGroup struct {
+		Index            int
+		NumRows          int64
+		NumColumns       int
+		CompressedSize   string
+		UncompressedSize string
+		CompressionRatio string
+	}
+
+	formatted := make([]FormattedRowGroup, len(rowGroups))
+	for i, rg := range rowGroups {
+		formatted[i] = FormattedRowGroup{
+			Index:            rg.Index,
+			NumRows:          rg.NumRows,
+			NumColumns:       rg.NumColumns,
+			CompressedSize:   formatBytes(rg.CompressedSize),
+			UncompressedSize: formatBytes(rg.UncompressedSize),
+			CompressionRatio: formatRatio(rg.CompressionRatio),
+		}
+	}
 
 	// Create a wrapper struct with additional fields for display
 	data := struct {
@@ -77,6 +102,7 @@ func (s *ParquetService) handleMainView(w http.ResponseWriter, r *http.Request) 
 		TotalUncompressedSize string
 		CompressionRatio      string
 		CreatedBy             string
+		RowGroups             []FormattedRowGroup
 	}{
 		FileName:              s.uri,
 		Version:               info.Version,
@@ -87,6 +113,7 @@ func (s *ParquetService) handleMainView(w http.ResponseWriter, r *http.Request) 
 		TotalUncompressedSize: formatBytes(info.TotalUncompressedSize),
 		CompressionRatio:      formatRatio(info.CompressionRatio),
 		CreatedBy:             info.CreatedBy,
+		RowGroups:             formatted,
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -287,6 +314,8 @@ func (s *ParquetService) handleColumnsView(w http.ResponseWriter, r *http.Reques
 		NullCount        string
 		CompressedSize   string
 		UncompressedSize string
+		MinValue         string
+		MaxValue         string
 	}
 
 	// Calculate totals
@@ -305,6 +334,15 @@ func (s *ParquetService) handleColumnsView(w http.ResponseWriter, r *http.Reques
 			totalNulls += *col.NullCount
 		}
 
+		minValue := col.MinValue
+		if minValue == "" {
+			minValue = "-"
+		}
+		maxValue := col.MaxValue
+		if maxValue == "" {
+			maxValue = "-"
+		}
+
 		formatted[i] = FormattedColumn{
 			Index:            col.Index,
 			ColumnPath:       col.Name,
@@ -316,6 +354,8 @@ func (s *ParquetService) handleColumnsView(w http.ResponseWriter, r *http.Reques
 			NullCount:        nullCountStr,
 			CompressedSize:   formatBytes(col.CompressedSize),
 			UncompressedSize: formatBytes(col.UncompressedSize),
+			MinValue:         minValue,
+			MaxValue:         maxValue,
 		}
 	}
 
@@ -372,12 +412,34 @@ func (s *ParquetService) handlePagesView(w http.ResponseWriter, r *http.Request)
 	// Get column info for breadcrumb and summary
 	colInfo, err := s.reader.GetColumnChunkInfo(rgIndex, colIndex)
 	var columnPath, physicalType, logicalType, convertedType, codec string
+	var columnNumValues int64
+	var columnNullCount string
+	var columnCompressedSize, columnUncompressedSize string
+	var columnCompressionRatio string
+	var columnMinValue, columnMaxValue string
 	if err == nil {
 		columnPath = colInfo.Name
 		physicalType = colInfo.PhysicalType
 		logicalType = colInfo.LogicalType
 		convertedType = colInfo.ConvertedType
 		codec = colInfo.Codec
+		columnNumValues = colInfo.NumValues
+		if colInfo.NullCount != nil {
+			columnNullCount = fmt.Sprintf("%d", *colInfo.NullCount)
+		} else {
+			columnNullCount = "0"
+		}
+		columnCompressedSize = formatBytes(colInfo.CompressedSize)
+		columnUncompressedSize = formatBytes(colInfo.UncompressedSize)
+		columnCompressionRatio = formatRatio(colInfo.CompressionRatio)
+		columnMinValue = colInfo.MinValue
+		if columnMinValue == "" {
+			columnMinValue = "-"
+		}
+		columnMaxValue = colInfo.MaxValue
+		if columnMaxValue == "" {
+			columnMaxValue = "-"
+		}
 	}
 
 	// Format pages for display
@@ -389,6 +451,8 @@ func (s *ParquetService) handlePagesView(w http.ResponseWriter, r *http.Request)
 		UncompressedSize string
 		NumValues        int32
 		Encoding         string
+		MinValue         string
+		MaxValue         string
 	}
 
 	// Calculate totals
@@ -400,6 +464,15 @@ func (s *ParquetService) handlePagesView(w http.ResponseWriter, r *http.Request)
 		totalCompressed += int64(page.CompressedSize)
 		totalUncompressed += int64(page.UncompressedSize)
 
+		minValue := page.MinValue
+		if minValue == "" {
+			minValue = "-"
+		}
+		maxValue := page.MaxValue
+		if maxValue == "" {
+			maxValue = "-"
+		}
+
 		formatted[i] = FormattedPage{
 			Index:            page.Index,
 			PageType:         page.PageType,
@@ -408,37 +481,53 @@ func (s *ParquetService) handlePagesView(w http.ResponseWriter, r *http.Request)
 			UncompressedSize: formatBytes(int64(page.UncompressedSize)),
 			NumValues:        page.NumValues,
 			Encoding:         page.Encoding,
+			MinValue:         minValue,
+			MaxValue:         maxValue,
 		}
 	}
 
 	data := struct {
-		RowGroupIndex     int
-		ColumnIndex       int
-		ColumnPath        string
-		PhysicalType      string
-		LogicalType       string
-		ConvertedType     string
-		Codec             string
-		Pages             []FormattedPage
-		TotalPages        int
-		TotalValues       int32
-		TotalCompressed   string
-		TotalUncompressed string
-		CompressionRatio  string
+		RowGroupIndex          int
+		ColumnIndex            int
+		ColumnPath             string
+		PhysicalType           string
+		LogicalType            string
+		ConvertedType          string
+		Codec                  string
+		ColumnNumValues        int64
+		ColumnNullCount        string
+		ColumnCompressedSize   string
+		ColumnUncompressedSize string
+		ColumnCompressionRatio string
+		ColumnMinValue         string
+		ColumnMaxValue         string
+		Pages                  []FormattedPage
+		TotalPages             int
+		TotalValues            int32
+		TotalCompressed        string
+		TotalUncompressed      string
+		CompressionRatio       string
 	}{
-		RowGroupIndex:     rgIndex,
-		ColumnIndex:       colIndex,
-		ColumnPath:        columnPath,
-		PhysicalType:      physicalType,
-		LogicalType:       logicalType,
-		ConvertedType:     convertedType,
-		Codec:             codec,
-		Pages:             formatted,
-		TotalPages:        len(pages),
-		TotalValues:       totalValues,
-		TotalCompressed:   formatBytes(totalCompressed),
-		TotalUncompressed: formatBytes(totalUncompressed),
-		CompressionRatio:  formatRatio(float64(totalUncompressed) / float64(totalCompressed)),
+		RowGroupIndex:          rgIndex,
+		ColumnIndex:            colIndex,
+		ColumnPath:             columnPath,
+		PhysicalType:           physicalType,
+		LogicalType:            logicalType,
+		ConvertedType:          convertedType,
+		Codec:                  codec,
+		ColumnNumValues:        columnNumValues,
+		ColumnNullCount:        columnNullCount,
+		ColumnCompressedSize:   columnCompressedSize,
+		ColumnUncompressedSize: columnUncompressedSize,
+		ColumnCompressionRatio: columnCompressionRatio,
+		ColumnMinValue:         columnMinValue,
+		ColumnMaxValue:         columnMaxValue,
+		Pages:                  formatted,
+		TotalPages:             len(pages),
+		TotalValues:            totalValues,
+		TotalCompressed:        formatBytes(totalCompressed),
+		TotalUncompressed:      formatBytes(totalUncompressed),
+		CompressionRatio:       formatRatio(float64(totalUncompressed) / float64(totalCompressed)),
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -469,6 +558,20 @@ func (s *ParquetService) handlePageContentView(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	// Get page metadata
+	pages, err := s.reader.GetPageMetadataList(rgIndex, colIndex)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	if pageIndex < 0 || pageIndex >= len(pages) {
+		http.Error(w, "Page index out of range", http.StatusNotFound)
+		return
+	}
+
+	pageMetadata := pages[pageIndex]
+
 	values, err := s.reader.GetPageContentFormatted(rgIndex, colIndex, pageIndex)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
@@ -476,17 +579,33 @@ func (s *ParquetService) handlePageContentView(w http.ResponseWriter, r *http.Re
 	}
 
 	data := struct {
-		RowGroupIndex int
-		ColumnIndex   int
-		PageIndex     int
-		Values        []string
-		Count         int
+		RowGroupIndex    int
+		ColumnIndex      int
+		PageIndex        int
+		PageType         string
+		Offset           string
+		CompressedSize   string
+		UncompressedSize string
+		CompressionRatio string
+		NumValues        int32
+		NullCount        string
+		Encoding         string
+		Values           []string
+		Count            int
 	}{
-		RowGroupIndex: rgIndex,
-		ColumnIndex:   colIndex,
-		PageIndex:     pageIndex,
-		Values:        values,
-		Count:         len(values),
+		RowGroupIndex:    rgIndex,
+		ColumnIndex:      colIndex,
+		PageIndex:        pageIndex,
+		PageType:         pageMetadata.PageType,
+		Offset:           fmt.Sprintf("0x%X", pageMetadata.Offset),
+		CompressedSize:   formatBytes(int64(pageMetadata.CompressedSize)),
+		UncompressedSize: formatBytes(int64(pageMetadata.UncompressedSize)),
+		CompressionRatio: formatRatio(float64(pageMetadata.UncompressedSize) / float64(pageMetadata.CompressedSize)),
+		NumValues:        pageMetadata.NumValues,
+		NullCount:        formatNullCount(pageMetadata.NullCount),
+		Encoding:         pageMetadata.Encoding,
+		Values:           values,
+		Count:            len(values),
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -562,4 +681,11 @@ func formatRatio(ratio float64) string {
 		return "N/A"
 	}
 	return fmt.Sprintf("%.2fx", ratio)
+}
+
+func formatNullCount(count *int64) string {
+	if count == nil {
+		return "-"
+	}
+	return fmt.Sprintf("%d", *count)
 }

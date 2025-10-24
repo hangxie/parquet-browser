@@ -10,29 +10,29 @@
 </div>
 
 <div class="card">
-    <h2>Pages - Row Group {{.RowGroupIndex}}, Column {{.ColumnIndex}}</h2>
+    <h2>Column Chunk Info - Row Group {{.RowGroupIndex}}, Column {{.ColumnIndex}}</h2>
     <div class="info-grid">
         {{if .ColumnPath}}
         <div class="info-item" style="grid-column: 1 / -1;">
-            <strong>Column Path</strong>
+            <strong>Column</strong>
             <span>{{.ColumnPath}}</span>
         </div>
         {{end}}
         {{if .PhysicalType}}
         <div class="info-item">
-            <strong>Physical Type</strong>
+            <strong>Type</strong>
             <span class="badge badge-primary">{{.PhysicalType}}</span>
         </div>
         {{end}}
         {{if .LogicalType}}
         <div class="info-item">
-            <strong>Logical Type</strong>
+            <strong>Logical</strong>
             <span class="badge badge-info">{{.LogicalType}}</span>
         </div>
         {{end}}
         {{if .ConvertedType}}
         <div class="info-item">
-            <strong>Converted Type</strong>
+            <strong>Converted</strong>
             <span class="badge badge-info">{{.ConvertedType}}</span>
         </div>
         {{end}}
@@ -43,25 +43,33 @@
         </div>
         {{end}}
         <div class="info-item">
-            <strong>Total Pages</strong>
+            <strong>Values</strong>
+            <span>{{.ColumnNumValues}}</span>
+        </div>
+        <div class="info-item">
+            <strong>Nulls</strong>
+            <span>{{.ColumnNullCount}}</span>
+        </div>
+        <div class="info-item">
+            <strong>Pages</strong>
             <span>{{.TotalPages}}</span>
         </div>
         <div class="info-item">
-            <strong>Total Values</strong>
-            <span>{{.TotalValues}}</span>
+            <strong>Size</strong>
+            <span>{{.ColumnCompressedSize}} → {{.ColumnUncompressedSize}} ({{.ColumnCompressionRatio}})</span>
         </div>
+        {{if .ColumnMinValue}}
         <div class="info-item">
-            <strong>Compressed Size</strong>
-            <span>{{.TotalCompressed}}</span>
+            <strong>Min</strong>
+            <span>{{.ColumnMinValue}}</span>
         </div>
+        {{end}}
+        {{if .ColumnMaxValue}}
         <div class="info-item">
-            <strong>Uncompressed Size</strong>
-            <span>{{.TotalUncompressed}}</span>
+            <strong>Max</strong>
+            <span>{{.ColumnMaxValue}}</span>
         </div>
-        <div class="info-item">
-            <strong>Compression Ratio</strong>
-            <span>{{.CompressionRatio}}</span>
-        </div>
+        {{end}}
     </div>
 </div>
 
@@ -76,6 +84,8 @@
                 <th>Uncompressed Size</th>
                 <th>Num Values</th>
                 <th>Encoding</th>
+                <th>Min</th>
+                <th>Max</th>
                 <th>Actions</th>
             </tr>
         </thead>
@@ -89,19 +99,17 @@
                 <td>{{$page.UncompressedSize}}</td>
                 <td>{{$page.NumValues}}</td>
                 <td>{{$page.Encoding}}</td>
+                <td>{{$page.MinValue}}</td>
+                <td>{{$page.MaxValue}}</td>
                 <td>
                     <button hx-get="/ui/rowgroups/{{$.RowGroupIndex}}/columns/{{$.ColumnIndex}}/pages/{{$page.Index}}/content"
                             hx-target="#content-area"
                             hx-swap="innerHTML"
-                            hx-push-url="true">View Content</button>
+                            hx-push-url="true">Page Info</button>
                 </td>
             </tr>
             {{end}}
         </tbody>
     </table>
-</div>
-
-<div class="card">
-    <button class="btn-secondary" hx-get="/ui/rowgroups/{{.RowGroupIndex}}/columns" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="true">Back to Columns</button>
 </div>
 {{end}}

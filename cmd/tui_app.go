@@ -298,19 +298,23 @@ func (app *TUIApp) showPageView(rgIndex, colIndex int) {
 		pageInfos := make([]model.PageMetadata, len(pages))
 		for i, p := range pages {
 			pageInfos[i] = model.PageMetadata{
-				Offset:           p.Offset,
-				PageType:         p.PageType,
-				CompressedSize:   p.CompressedSize,
-				UncompressedSize: p.UncompressedSize,
-				NumValues:        p.NumValues,
-				Encoding:         p.Encoding,
-				DefLevelEncoding: p.DefLevelEncoding,
-				RepLevelEncoding: p.RepLevelEncoding,
-				HasStatistics:    p.HasStatistics,
-				HasCRC:           p.HasCRC,
-				MinValue:         p.MinValue,
-				MaxValue:         p.MaxValue,
-				NullCount:        p.NullCount,
+				Offset:                    p.Offset,
+				PageType:                  p.PageType,
+				CompressedSize:            p.CompressedSize,
+				UncompressedSize:          p.UncompressedSize,
+				NumValues:                 p.NumValues,
+				Encoding:                  p.Encoding,
+				DefLevelEncoding:          p.DefLevelEncoding,
+				RepLevelEncoding:          p.RepLevelEncoding,
+				HasStatistics:             p.HasStatistics,
+				HasCRC:                    p.HasCRC,
+				MinValue:                  p.MinValue,
+				MaxValue:                  p.MaxValue,
+				NullCount:                 p.NullCount,
+				CompressedSizeFormatted:   p.CompressedSizeFormatted,
+				UncompressedSizeFormatted: p.UncompressedSizeFormatted,
+				MinValueFormatted:         p.MinValueFormatted,
+				MaxValueFormatted:         p.MaxValueFormatted,
 			}
 		}
 
@@ -666,6 +670,31 @@ func (app *TUIApp) showColumnChunksView(rgIndex int) {
 		return
 	}
 
+	// Get column chunks info to calculate totals
+	columns, err := app.httpClient.GetAllColumnChunksInfo(rgIndex)
+	if err != nil {
+		// Show error modal
+		errorModal := tview.NewModal().
+			SetText(fmt.Sprintf("Error loading columns:\n%v\n\nPress ESC to go back", err)).
+			SetTextColor(tcell.ColorRed).
+			AddButtons([]string{"OK"}).
+			SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+				app.pages.RemovePage("error")
+			})
+		app.pages.AddPage("error", errorModal, true, true)
+		return
+	}
+
+	// Calculate total values and nulls
+	var totalValues int64
+	var totalNulls int64
+	for _, col := range columns {
+		totalValues += col.NumValues
+		if col.NullCount != nil {
+			totalNulls += *col.NullCount
+		}
+	}
+
 	// Create row group info header
 	headerView := tview.NewTextView().
 		SetDynamicColors(true).
@@ -679,7 +708,12 @@ func (app *TUIApp) showColumnChunksView(rgIndex int) {
 	info.WriteString(fmt.Sprintf("[yellow]Rows:[-] %d  ", rowGroup.NumRows))
 	info.WriteString(fmt.Sprintf("[yellow]Columns:[-] %d", rowGroup.NumColumns))
 
-	// Line 2: Size info
+	// Line 2: Total Values and Total Nulls
+	info.WriteString("\n")
+	info.WriteString(fmt.Sprintf("[yellow]Total Values:[-] %d  ", totalValues))
+	info.WriteString(fmt.Sprintf("[yellow]Total Nulls:[-] %d", totalNulls))
+
+	// Line 3: Size info
 	info.WriteString("\n")
 	info.WriteString(fmt.Sprintf("[yellow]Size:[-] %s → %s (%.2fx)",
 		model.FormatBytes(rowGroup.CompressedSize),
@@ -761,8 +795,8 @@ func (app *TUIApp) createColumnChunksList(rgIndex int) *tview.Table {
 			SetAlign(tview.AlignCenter).
 			SetSelectable(false).
 			SetExpansion(0)
-		if colIdx == 1 { // Name column should expand
-			cell.SetExpansion(1)
+		if colIdx == 1 { // Name column - limit width
+			cell.SetMaxWidth(30)
 		}
 		table.SetCell(0, colIdx, cell)
 	}
@@ -779,7 +813,7 @@ func (app *TUIApp) createColumnChunksList(rgIndex int) *tview.Table {
 		cell = tview.NewTableCell(col.Name).
 			SetTextColor(tcell.ColorWhite).
 			SetAlign(tview.AlignLeft).
-			SetExpansion(1)
+			SetMaxWidth(30)
 		table.SetCell(rowIdx+1, 1, cell)
 
 		// Type

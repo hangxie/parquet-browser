@@ -6,7 +6,7 @@
 <div class="card">
     <h2>File Information</h2>
     <div class="info-grid">
-        <div class="info-item">
+        <div class="info-item" style="grid-column: 1 / -1;">
             <strong>File</strong>
             <span>{{.FileName}}</span>
         </div>
@@ -19,41 +19,61 @@
             <span>{{.NumRowGroups}}</span>
         </div>
         <div class="info-item">
-            <strong>Total Rows</strong>
+            <strong>Rows</strong>
             <span>{{.TotalRows}}</span>
         </div>
         <div class="info-item">
-            <strong>Leaf Columns</strong>
+            <strong>Columns</strong>
             <span>{{.LeafColumns}}</span>
         </div>
         <div class="info-item">
-            <strong>Compressed Size</strong>
-            <span>{{.TotalCompressedSize}}</span>
+            <strong>Total Size</strong>
+            <span>{{.TotalCompressedSize}} → {{.TotalUncompressedSize}} ({{.CompressionRatio}})</span>
         </div>
-        <div class="info-item">
-            <strong>Uncompressed Size</strong>
-            <span>{{.TotalUncompressedSize}}</span>
-        </div>
-        <div class="info-item">
-            <strong>Compression Ratio</strong>
-            <span>{{.CompressionRatio}}</span>
-        </div>
-    </div>
-    {{if .CreatedBy}}
-    <div class="info-grid" style="margin-top: 15px;">
+        {{if .CreatedBy}}
         <div class="info-item" style="grid-column: 1 / -1;">
             <strong>Created By</strong>
             <span>{{.CreatedBy}}</span>
         </div>
+        {{end}}
     </div>
-    {{end}}
 </div>
 
 <div class="card">
-    <h2>Quick Actions</h2>
-    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+        <h2 style="margin: 0;">Row Groups ({{.NumRowGroups}})</h2>
         <button hx-get="/ui/schema" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="true">View Schema</button>
-        <button hx-get="/ui/rowgroups" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="true">Browse Row Groups</button>
     </div>
+    <table>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Rows</th>
+                <th>Columns</th>
+                <th>Compressed Size</th>
+                <th>Uncompressed Size</th>
+                <th>Ratio</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range $index, $rg := .RowGroups}}
+            <tr>
+                <td>{{$rg.Index}}</td>
+                <td>{{$rg.NumRows}}</td>
+                <td>{{$rg.NumColumns}}</td>
+                <td>{{$rg.CompressedSize}}</td>
+                <td>{{$rg.UncompressedSize}}</td>
+                <td>{{$rg.CompressionRatio}}</td>
+                <td>
+                    <button hx-get="/ui/rowgroups/{{$rg.Index}}/columns"
+                            hx-target="#content-area"
+                            hx-swap="innerHTML"
+                            hx-push-url="true">Row Group Info</button>
+                </td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
 </div>
 {{end}}

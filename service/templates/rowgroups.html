@@ -55,15 +55,11 @@
                     <button hx-get="/ui/rowgroups/{{$rg.Index}}/columns"
                             hx-target="#content-area"
                             hx-swap="innerHTML"
-                            hx-push-url="true">View Columns</button>
+                            hx-push-url="true">Row Group Info</button>
                 </td>
             </tr>
             {{end}}
         </tbody>
     </table>
-</div>
-
-<div class="card">
-    <button class="btn-secondary" hx-get="/ui/main" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="true">Back to Home</button>
 </div>
 {{end}}

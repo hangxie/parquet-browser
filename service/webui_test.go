@@ -701,8 +701,9 @@ func Test_HandleMainView_WithRealFile(t *testing.T) {
 	body := w.Body.String()
 	require.Contains(t, body, "File Information")
 	require.Contains(t, body, "all-types.parquet")
+	require.Contains(t, body, "Row Groups")
+	require.Contains(t, body, "Row Group Info")
 	require.Contains(t, body, "View Schema")
-	require.Contains(t, body, "Browse Row Groups")
 }
 
 func Test_HandleSchemaGoView_WithRealFile(t *testing.T) {
@@ -837,7 +838,7 @@ func Test_HandleRowGroupsView_WithRealFile(t *testing.T) {
 	require.Contains(t, body, "Total Rows")
 	require.Contains(t, body, "Total Compressed")
 	require.Contains(t, body, "Overall Compression")
-	require.Contains(t, body, "View Columns")
+	require.Contains(t, body, "Row Group Info")
 }
 
 func Test_HandleRowGroupsView_EmptyFile(t *testing.T) {
@@ -889,8 +890,11 @@ func Test_HandleColumnsView_WithRealFile(t *testing.T) {
 	require.Contains(t, body, "Column Chunks")
 	require.Contains(t, body, "Total Columns")
 	require.Contains(t, body, "Total Values")
-	require.Contains(t, body, "Compressed Size")
-	require.Contains(t, body, "View Pages")
+	require.Contains(t, body, "Total Size")
+	require.Contains(t, body, "Column Chunk Info")
+	// Verify Min and Max columns are present
+	require.Contains(t, body, "<th>Min</th>")
+	require.Contains(t, body, "<th>Max</th>")
 }
 
 func Test_HandlePagesView_WithRealFile(t *testing.T) {
@@ -914,10 +918,16 @@ func Test_HandlePagesView_WithRealFile(t *testing.T) {
 	require.Equal(t, "text/html; charset=utf-8", w.Header().Get("Content-Type"))
 
 	body := w.Body.String()
+	require.Contains(t, body, "Column Chunk Info")
 	require.Contains(t, body, "Pages")
-	require.Contains(t, body, "Total Pages")
-	require.Contains(t, body, "Physical Type")
+	require.Contains(t, body, "Type")
 	require.Contains(t, body, "Codec")
+	// Verify Min and Max columns are present in the table
+	require.Contains(t, body, "<th>Min</th>")
+	require.Contains(t, body, "<th>Max</th>")
+	// Verify Min and Max are also in the header info
+	require.Contains(t, body, "<strong>Min</strong>")
+	require.Contains(t, body, "<strong>Max</strong>")
 }
 
 func Test_AllSchemaFormats_WithDifferentFiles(t *testing.T) {
@@ -978,7 +988,9 @@ func Test_HandlePageContentView_WithRealFile(t *testing.T) {
 	require.Equal(t, "text/html; charset=utf-8", w.Header().Get("Content-Type"))
 
 	body := w.Body.String()
-	require.Contains(t, body, "Page Content")
+	require.Contains(t, body, "Page Info")
+	require.Contains(t, body, "Page Type")
+	require.Contains(t, body, "Encoding")
 	require.Contains(t, body, "Values")
 }
 
@@ -1248,8 +1260,8 @@ func Test_HandleColumnsView_CompressionRatio(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, w.Code)
 	body := w.Body.String()
-	// Should display compression ratio
-	require.Contains(t, body, "Compression")
+	// Should display compression ratio in Total Size field
+	require.Contains(t, body, "Total Size")
 }
 
 // Test handlePagesView with division by zero
@@ -1272,7 +1284,8 @@ func Test_HandlePagesView_CompressionRatio(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, w.Code)
 	body := w.Body.String()
-	require.Contains(t, body, "Compression")
+	// Size field now includes compression ratio inline
+	require.Contains(t, body, "Size")
 }
 
 // Test all schema views to ensure we cover all paths
@@ -1357,7 +1370,7 @@ func Test_HandlePageContentView_MultipleColumns(t *testing.T) {
 			if w.Code == http.StatusOK {
 				require.Equal(t, "text/html; charset=utf-8", w.Header().Get("Content-Type"))
 				body := w.Body.String()
-				require.Contains(t, body, "Page Content")
+				require.Contains(t, body, "Page Info")
 			} else {
 				require.Equal(t, http.StatusNotFound, w.Code)
 			}
@@ -1410,8 +1423,8 @@ func Test_HandlePagesView_ConvertedType(t *testing.T) {
 	require.Equal(t, http.StatusOK, w.Code)
 	body := w.Body.String()
 	// Page view should render (ConvertedType might be empty or present)
-	require.Contains(t, body, "Physical Type")
-	require.Contains(t, body, "Logical Type")
+	require.Contains(t, body, "Type")
+	require.Contains(t, body, "Logical")
 }
 
 // Test ConvertedType display in columns view
@@ -1624,7 +1637,7 @@ func Test_HandlePageContentView_DifferentPageIndices(t *testing.T) {
 
 	if w.Code == http.StatusOK {
 		body := w.Body.String()
-		require.Contains(t, body, "Page Content")
+		require.Contains(t, body, "Page Info")
 		require.Contains(t, body, "Values")
 	}
 }
@@ -1815,7 +1828,7 @@ func Test_HandleColumnsView_AllCodePaths(t *testing.T) {
 	require.Equal(t, http.StatusOK, w.Code)
 	body := w.Body.String()
 	require.Contains(t, body, "Column Chunks")
-	require.Contains(t, body, "Compression")
+	require.Contains(t, body, "Total Size")
 }
 
 // Test handlePagesView all code paths
@@ -1838,8 +1851,8 @@ func Test_HandlePagesView_AllCodePaths(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, w.Code)
 	body := w.Body.String()
-	require.Contains(t, body, "Pages")
-	require.Contains(t, body, "Compression")
+	require.Contains(t, body, "Column Chunk Info")
+	require.Contains(t, body, "Size")
 }
 
 // Test handlePageContentView all code paths
@@ -1862,7 +1875,9 @@ func Test_HandlePageContentView_AllCodePaths(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, w.Code)
 	body := w.Body.String()
-	require.Contains(t, body, "Page Content")
+	require.Contains(t, body, "Page Info")
+	require.Contains(t, body, "Page Type")
+	require.Contains(t, body, "Encoding")
 }
 
 // Test handleSchemaGoView error path - list-of-list not supported
