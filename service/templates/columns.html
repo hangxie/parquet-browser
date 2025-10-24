@@ -27,16 +27,8 @@
             <span>{{.TotalNulls}}</span>
         </div>
         <div class="info-item">
-            <strong>Compressed Size</strong>
-            <span>{{.TotalCompressed}}</span>
-        </div>
-        <div class="info-item">
-            <strong>Uncompressed Size</strong>
-            <span>{{.TotalUncompressed}}</span>
-        </div>
-        <div class="info-item">
-            <strong>Compression Ratio</strong>
-            <span>{{.CompressionRatio}}</span>
+            <strong>Total Size</strong>
+            <span>{{.TotalCompressed}} → {{.TotalUncompressed}} ({{.CompressionRatio}})</span>
         </div>
     </div>
 </div>
@@ -54,6 +46,8 @@
                 <th>Values</th>
                 <th>Nulls</th>
                 <th>Size</th>
+                <th>Min</th>
+                <th>Max</th>
                 <th>Actions</th>
             </tr>
         </thead>
@@ -69,19 +63,17 @@
                 <td>{{$col.NumValues}}</td>
                 <td>{{$col.NullCount}}</td>
                 <td>{{$col.CompressedSize}} → {{$col.UncompressedSize}}</td>
+                <td>{{$col.MinValue}}</td>
+                <td>{{$col.MaxValue}}</td>
                 <td>
                     <button hx-get="/ui/rowgroups/{{$.RowGroupIndex}}/columns/{{$col.Index}}/pages"
                             hx-target="#content-area"
                             hx-swap="innerHTML"
-                            hx-push-url="true">View Pages</button>
+                            hx-push-url="true">Column Chunk Info</button>
                 </td>
             </tr>
             {{end}}
         </tbody>
     </table>
-</div>
-
-<div class="card">
-    <button class="btn-secondary" hx-get="/ui/rowgroups" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="true">Back to Row Groups</button>
 </div>
 {{end}}

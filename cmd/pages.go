@@ -105,7 +105,7 @@ func (b *pageTableBuilder) build() *tview.Table {
 		cell = tview.NewTableCell(page.PageType).
 			SetTextColor(tcell.ColorWhite).
 			SetAlign(tview.AlignLeft).
-			SetExpansion(1)
+			SetMaxWidth(15)
 		b.table.SetCell(tableRowIdx, 1, cell)
 
 		// Offset
@@ -189,8 +189,8 @@ func (b *pageTableBuilder) setupHeader() {
 			SetTextColor(tcell.ColorYellow).
 			SetAlign(tview.AlignCenter).
 			SetSelectable(false)
-		if colIdx == 1 { // Page Type column should expand
-			cell.SetExpansion(1)
+		if colIdx == 1 { // Page Type column - limit width
+			cell.SetMaxWidth(15)
 		}
 		b.table.SetCell(0, colIdx, cell)
 	}
@@ -280,7 +280,7 @@ func (b *pageContentBuilder) updateHeaderInfo() {
 
 	// Line 2: Values, nulls, encoding
 	info.WriteString("\n")
-	info.WriteString(fmt.Sprintf("[yellow]Values:[-] %d/%d", b.loadedValues, len(b.allValues)))
+	info.WriteString(fmt.Sprintf("[yellow]Values:[-] %d", b.pageInfo.NumValues))
 
 	// Add null count if available
 	if b.pageInfo.NullCount != nil {

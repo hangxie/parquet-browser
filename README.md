@@ -1,8 +1,9 @@
 # parquet-browser
 
-A dual-mode tool for browsing and inspecting Apache Parquet files:
+A triple-mode tool for browsing and inspecting Apache Parquet files:
 - **TUI Mode**: Interactive Terminal User Interface for file browsing
-- **Server Mode**: HTTP API server for programmatic access and web UI integration
+- **Server Mode**: HTTP API server for programmatic access
+- **Web UI Mode**: Modern web-based interface with HTMX for interactive browsing
 
 This tool is built upon [`github.com/hangxie/parquet-tools`](https://github.com/hangxie/parquet-tools) and [`github.com/hangxie/parquet-go`](https://github.com/hangxie/parquet-go). For batch processing or command-line operations on Parquet files, it is recommended to use `parquet-tools` directly.
 
@@ -21,9 +22,10 @@ For URLs for different object store and access options, please refer to [Parquet
 
 ## Features
 
-### Dual-Mode Operation
+### Triple-Mode Operation
 - **TUI Mode**: Interactive terminal interface with embedded HTTP server
 - **Server Mode**: Standalone HTTP API server for programmatic access
+- **Web UI Mode**: Modern browser-based interface with HTMX for dynamic updates
 - **HTTP API**: Complete RESTful API with JSON responses
 - **OpenAPI Documentation**: Swagger/OpenAPI 3.0 specification included ([swagger.yaml](swagger.yaml))
 
@@ -41,23 +43,26 @@ For URLs for different object store and access options, please refer to [Parquet
 - **Row Group Explorer**: Browse row groups with detailed information:
   - Row count per group
   - Number of columns
+  - Total values and total nulls across all columns
   - Size display: compressed → uncompressed (ratio)
   - Easy navigation with arrow keys
   - Press Enter to view column chunks
 - **Column Chunk Inspector**: Deep dive into column storage:
-  - Column path, physical type, logical type, converted type
+  - Column path (max 30 chars for better layout), physical type, logical type, converted type
   - Compression codec
   - Number of values and null count
   - Size: compressed → uncompressed (ratio)
-  - Min/Max statistics
+  - Min/Max statistics for data distribution analysis
   - Press Enter to view page-level details
 - **Page-Level Details**: Inspect internal page structure:
   - View all pages (DATA_PAGE, DATA_PAGE_V2, DICTIONARY_PAGE, INDEX_PAGE)
-  - Page offsets, compressed/uncompressed sizes
+  - Page type (max 15 chars for better layout), offsets, compressed/uncompressed sizes
   - Number of values, encoding information
-  - Min/Max values and null count per page
+  - Min/Max statistics per page for data distribution analysis
+  - Null count per page
   - Press Enter to view actual page content
 - **Page Content Viewer**: Browse decoded page values:
+  - Complete page metadata header (type, offset, size, values count, encoding)
   - Display all values from a single page
   - Smart value formatting (UTF-8 strings, hex for binary data)
   - Row numbers for reference
@@ -65,6 +70,28 @@ For URLs for different object store and access options, please refer to [Parquet
 - **Type-Aware Display**: Proper handling of complex Parquet types (LIST, MAP, STRUCT, DECIMAL, TIMESTAMP, etc.)
 - **Error Handling**: Graceful error handling with cancellable loading operations
 - **Keyboard Navigation**: Full keyboard support for efficient browsing
+
+### Web UI Features
+- **Modern Browser Interface**: Clean, responsive web interface with HTMX for dynamic updates
+- **File Overview**: Home page displays file metadata and all row groups at once
+- **Schema Viewer**: View schema in multiple formats (Go, JSON, Raw, CSV) with syntax highlighting
+- **Row Group Browser**: Navigate through row groups with detailed statistics
+  - Total values and total nulls per row group
+  - Size information: compressed → uncompressed (ratio)
+- **Column Chunk Inspector**: Explore column storage with complete metadata
+  - Min/Max statistics for each column chunk
+  - Type information (physical, logical, converted)
+  - Compression codec and size details
+- **Page Inspector**: View page-level details for column chunks
+  - Complete column chunk metadata in header
+  - Min/Max statistics for each page
+  - Page type, offset, encoding, and size information
+- **Page Content Viewer**: Browse actual data values
+  - Complete page metadata header
+  - All decoded values from the page
+  - Smart formatting for different data types
+- **Breadcrumb Navigation**: Easy navigation back to any level
+- **No JavaScript Required**: Progressive enhancement with HTMX
 
 ## Installation
 
@@ -110,9 +137,23 @@ Run as a standalone HTTP API server:
 
 The server provides RESTful endpoints for programmatic access. See [API Documentation](#http-api) below.
 
+### Web UI Mode
+
+Run the web-based interface:
+
+```bash
+# Start web UI on default port (:8080)
+./parquet-browser webui file.parquet
+
+# Start web UI on custom port
+./parquet-browser webui -a :9090 file.parquet
+```
+
+The web UI will automatically open in your default browser. Navigate through file metadata, row groups, column chunks, pages, and view actual data values in a modern web interface.
+
 ### Open Remote Files
 
-Works in both TUI and server modes:
+Works in all three modes (TUI, server, and web UI):
 
 ```bash
 # S3
@@ -198,21 +239,22 @@ Press `Enter` on a row group:
 ```
 ┌─ Row Group Info ──────────────────────────────────────────────────────────┐
 │ Row Group: 0  Rows: 3  Columns: 71                                        │
-│ Size: 12.6 MB → 22.2 MB (1.76x)  File Offset: 0x4  Ordinal: 0             │
+│ Total Values: 213  Total Nulls: 0                                         │
+│ Size: 12.6 MB → 22.2 MB (1.76x)                                           │
 └───────────────────────────────────────────────────────────────────────────┘
 ┌─ Column Chunks (↑↓ to navigate, Enter=view pages) ────────────────────────┐
-│  #  │ Column Path                  │ Type       │ Codec  │      Size      │
-│  0  │ doc.id                       │ INT64      │ SNAPPY │  45 B → 51 B   │
-│  1  │ doc.sourceResource.title     │ BYTE_ARRAY │ SNAPPY │  85 B → 91 B   │
-│  2  │ doc.dataProvider             │ BYTE_ARRAY │ SNAPPY │ 165 B → 233 B  │
-│ ... │             ...              │    ...     │  ...   │      ...       │
+│  #  │ Name              │ Type       │ Codec  │ Size        │ Min  │ Max  │
+│  0  │ doc.id            │ INT64      │ SNAPPY │ 45 B → 51 B │ 1    │ 3    │
+│  1  │ doc.title         │ BYTE_ARRAY │ SNAPPY │ 85 B → 91 B │ "A"  │ "Z"  │
+│  2  │ doc.dataProvider  │ BYTE_ARRAY │ SNAPPY │ 165 B → 233 │ "AA" │ "ZZ" │
+│ ... │       ...         │    ...     │  ...   │     ...     │ ...  │ ...  │
 └───────────────────────────────────────────────────────────────────────────┘
  Keys: ESC=back, s=schema, ↑↓=scroll, Enter=see item details
 ```
 
 Features:
-- **Row Group Info**: Row group number, rows, columns, size, file offset, ordinal (2-line header)
-- **Column details**: Full path, type, codec, and sizes
+- **Row Group Info**: Row group number, rows, columns, total values/nulls, size (3-line header)
+- **Column details**: Name (max 30 chars), type, codec, sizes, and Min/Max statistics
 - **Status Line**: Consistent keyboard shortcuts across all views
 - **Press Enter**: View page-level details
 
@@ -223,20 +265,20 @@ Press `Enter` on a column chunk:
 ```
 ┌─ Column Chunk Info ───────────────────────────────────────────────────────┐
 │ Column: doc.title  Type: BYTE_ARRAY  Logical: STRING  Converted: UTF8     │
-│ Codec: SNAPPY  Values: 3  Pages: 1  Nulls: 0  Size: 85 B → 91 B (1.07x)   │
-│ Min: "A"  Max: "Z"                                                        │
+│ Values: 3  Nulls: 0  Pages: 1                                             │
+│ Size: 85 B → 91 B (1.07x)  Min: "A"  Max: "Z"                             │
 └───────────────────────────────────────────────────────────────────────────┘
 ┌─ Pages (↑↓ to navigate, Enter=view values) ───────────────────────────────┐
-│  #  │ Page Type  │  Offset  │ Comp Size │ Uncomp Size │ Values │ Encoding │
-│  0  │ DATA_PAGE  │ 0x4B2A   │   85 B    │    91 B     │   3    │ PLAIN    │
+│  #  │ Page Type  │ Offset │ Comp  │ Uncomp │ Val │ Encoding │ Min │ Max  │
+│  0  │ DATA_PAGE  │ 0x4B2A │ 85 B  │  91 B  │  3  │ PLAIN    │ "A" │ "Z"  │
 └───────────────────────────────────────────────────────────────────────────┘
  Keys: ESC=back, s=schema, ↑↓=scroll, Enter=see item details
 ```
 
 Features:
 - **Column Chunk Info**: Detailed metadata including logical/converted types, page count (3-line header)
-- **Statistics**: Min/Max values, null counts
-- **Page List**: All pages with offsets, sizes, encodings
+- **Statistics**: Min/Max values at both column chunk and page level, null counts
+- **Page List**: All pages with offsets, sizes, encodings, and Min/Max statistics
 - **Status Line**: Consistent keyboard shortcuts
 - **Press Enter**: View decoded page content
 
@@ -247,7 +289,7 @@ Press `Enter` on a page:
 ```
 ┌─ Page Info ───────────────────────────────────────────────────────────────┐
 │ Page Type: DATA_PAGE  Offset: 0x4B2A  Size: 85 B → 91 B (1.07x)           │
-│ Values: 3/3  Encoding: PLAIN                                              │
+│ Values: 3  Encoding: PLAIN                                                │
 │ Min: "A"  Max: "Z"                                                        │
 └───────────────────────────────────────────────────────────────────────────┘
 ┌─ Page Content (↑↓ to navigate) ───────────────────────────────────────────┐
@@ -260,7 +302,7 @@ Press `Enter` on a page:
 ```
 
 Features:
-- **Page Info**: Type, offset, sizes, encoding, statistics (3-line header)
+- **Page Info**: Type, offset, sizes, total values count, encoding, Min/Max statistics (3-line header)
 - **All Values**: Displays all decoded values from the page
 - **Smart Formatting**: UTF-8 strings, hex for binary, NULL handling
 - **Row Numbers**: Numbered for easy reference
@@ -370,6 +412,7 @@ The tool follows a clean three-layer architecture:
 
 ### HTTP & API
 - [**gorilla/mux**](https://github.com/gorilla/mux) - HTTP router for RESTful API endpoints
+- [**htmx**](https://htmx.org/) - Modern web interactions without JavaScript (embedded in web UI templates)
 
 ### CLI & Utilities
 - [**kong**](https://github.com/alecthomas/kong) - Command-line parser
