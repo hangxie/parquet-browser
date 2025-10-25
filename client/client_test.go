@@ -234,93 +234,39 @@ func Test_GetSchemaGo(t *testing.T) {
 }
 
 func Test_GetSchemaJSON(t *testing.T) {
-	tests := []struct {
-		name         string
-		pretty       bool
-		expectedPath string
-	}{
-		{
-			name:         "Pretty JSON",
-			pretty:       true,
-			expectedPath: "/schema/json?pretty=true",
-		},
-		{
-			name:         "Non-pretty JSON",
-			pretty:       false,
-			expectedPath: "/schema/json",
-		},
-	}
+	expectedSchema := `{"type":"struct"}`
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			expectedSchema := `{"type": "struct"}`
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "/schema/json", r.URL.Path, "Expected path should match")
 
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				fullPath := r.URL.Path
-				if r.URL.RawQuery != "" {
-					fullPath += "?" + r.URL.RawQuery
-				}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(expectedSchema))
+	}))
+	defer server.Close()
 
-				require.Equal(t, tt.expectedPath, fullPath, "Expected path should match")
+	client := NewParquetClient(server.URL)
+	schema, err := client.GetSchemaJSON()
 
-				w.Header().Set("Content-Type", "application/json")
-				_, _ = w.Write([]byte(expectedSchema))
-			}))
-			defer server.Close()
-
-			client := NewParquetClient(server.URL)
-			schema, err := client.GetSchemaJSON(tt.pretty)
-
-			require.NoError(t, err, "GetSchemaJSON() should not error")
-
-			require.Equal(t, expectedSchema, schema, "schema should match")
-		})
-	}
+	require.NoError(t, err, "GetSchemaJSON() should not error")
+	require.Equal(t, expectedSchema, schema, "schema should match")
 }
 
 func Test_GetSchemaRaw(t *testing.T) {
-	tests := []struct {
-		name         string
-		pretty       bool
-		expectedPath string
-	}{
-		{
-			name:         "Pretty raw",
-			pretty:       true,
-			expectedPath: "/schema/raw?pretty=true",
-		},
-		{
-			name:         "Non-pretty raw",
-			pretty:       false,
-			expectedPath: "/schema/raw",
-		},
-	}
+	expectedSchema := `{"raw":"schema"}`
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			expectedSchema := `{"raw": "schema"}`
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "/schema/raw", r.URL.Path, "Expected path should match")
 
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				fullPath := r.URL.Path
-				if r.URL.RawQuery != "" {
-					fullPath += "?" + r.URL.RawQuery
-				}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(expectedSchema))
+	}))
+	defer server.Close()
 
-				require.Equal(t, tt.expectedPath, fullPath, "Expected path should match")
+	client := NewParquetClient(server.URL)
+	schema, err := client.GetSchemaRaw()
 
-				w.Header().Set("Content-Type", "application/json")
-				_, _ = w.Write([]byte(expectedSchema))
-			}))
-			defer server.Close()
-
-			client := NewParquetClient(server.URL)
-			schema, err := client.GetSchemaRaw(tt.pretty)
-
-			require.NoError(t, err, "GetSchemaRaw() should not error")
-
-			require.Equal(t, expectedSchema, schema, "schema should match")
-		})
-	}
+	require.NoError(t, err, "GetSchemaRaw() should not error")
+	require.Equal(t, expectedSchema, schema, "schema should match")
 }
 
 func Test_GetSchemaCSV(t *testing.T) {

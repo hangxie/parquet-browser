@@ -336,7 +336,8 @@ curl http://localhost:8080/info
 
 # Get schema in different formats
 curl http://localhost:8080/schema/go
-curl "http://localhost:8080/schema/json?pretty=true"
+curl http://localhost:8080/schema/json
+curl http://localhost:8080/schema/raw
 curl http://localhost:8080/schema/csv
 
 # Get all row groups

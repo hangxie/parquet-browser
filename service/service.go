@@ -116,27 +116,9 @@ func (s *ParquetService) handleSchemaJSON(w http.ResponseWriter, r *http.Request
 
 	schemaText := schemaRoot.JSONSchema()
 
-	// Format JSON based on pretty parameter
-	pretty := r.URL.Query().Get("pretty") == "true"
-	var formatted string
-	if pretty {
-		var jsonObj interface{}
-		if err := json.Unmarshal([]byte(schemaText), &jsonObj); err == nil {
-			if prettyBytes, err := json.MarshalIndent(jsonObj, "", "  "); err == nil {
-				formatted = string(prettyBytes)
-			} else {
-				formatted = schemaText
-			}
-		} else {
-			formatted = schemaText
-		}
-	} else {
-		formatted = schemaText
-	}
-
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write([]byte(formatted))
+	_, _ = w.Write([]byte(schemaText))
 }
 
 // handleSchemaRaw returns the raw schema tree structure as JSON
@@ -147,15 +129,8 @@ func (s *ParquetService) handleSchemaRaw(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Marshal the raw SchemaNode structure to JSON
-	pretty := r.URL.Query().Get("pretty") == "true"
-	var rawJSON []byte
-	if pretty {
-		rawJSON, err = json.MarshalIndent(*schemaRoot, "", "  ")
-	} else {
-		rawJSON, err = json.Marshal(*schemaRoot)
-	}
-
+	// Marshal the raw SchemaNode structure to JSON (compact format)
+	rawJSON, err := json.Marshal(*schemaRoot)
 	if err != nil {
 		WriteError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to marshal raw schema: %v", err))
 		return

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
@@ -757,8 +758,10 @@ func Test_HandleSchemaJSONView_WithRealFile(t *testing.T) {
 	// Should be valid JSON
 	require.Contains(t, body, "{")
 	require.Contains(t, body, "}")
-	// Should be pretty-printed (has indentation)
-	require.Contains(t, body, "  ")
+	// Verify it's valid JSON by unmarshaling
+	var jsonData interface{}
+	err := json.Unmarshal(w.Body.Bytes(), &jsonData)
+	require.NoError(t, err, "Response should be valid JSON")
 }
 
 func Test_HandleSchemaCSVView_WithRealFile(t *testing.T) {
@@ -809,8 +812,10 @@ func Test_HandleSchemaRawView_WithRealFile(t *testing.T) {
 	// Should be JSON
 	require.Contains(t, body, "{")
 	require.Contains(t, body, "}")
-	// Should be pretty-printed
-	require.Contains(t, body, "  ")
+	// Verify it's valid JSON by unmarshaling
+	var jsonData interface{}
+	err := json.Unmarshal(w.Body.Bytes(), &jsonData)
+	require.NoError(t, err, "Response should be valid JSON")
 }
 
 func Test_HandleRowGroupsView_WithRealFile(t *testing.T) {

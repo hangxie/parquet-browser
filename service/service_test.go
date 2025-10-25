@@ -329,10 +329,8 @@ func Test_SchemaEndpointQueryParams(t *testing.T) {
 		name string
 		path string
 	}{
-		{"JSON schema with pretty", "/schema/json?pretty=true"},
-		{"JSON schema without pretty", "/schema/json?pretty=false"},
-		{"Raw schema with pretty", "/schema/raw?pretty=true"},
-		{"Raw schema without pretty", "/schema/raw?pretty=false"},
+		{"JSON schema", "/schema/json"},
+		{"Raw schema", "/schema/raw"},
 	}
 
 	for _, tt := range tests {
@@ -858,9 +856,7 @@ func Test_AllHandlers_WithRealService(t *testing.T) {
 		{"handlePageContent", "GET", "/rowgroups/0/columnchunks/0/pages/0/content", http.StatusOK},
 		{"handleSchemaGo", "GET", "/schema/go", http.StatusOK},
 		{"handleSchemaJSON", "GET", "/schema/json", http.StatusOK},
-		{"handleSchemaJSON pretty", "GET", "/schema/json?pretty=true", http.StatusOK},
 		{"handleSchemaRaw", "GET", "/schema/raw", http.StatusOK},
-		{"handleSchemaRaw pretty", "GET", "/schema/raw?pretty=true", http.StatusOK},
 		{"handleSchemaCSV", "GET", "/schema/csv", http.StatusOK},
 	}
 
@@ -880,36 +876,7 @@ func Test_AllHandlers_WithRealService(t *testing.T) {
 	}
 }
 
-// Test handleSchemaJSON with pretty=false
-func Test_HandleSchemaJSON_NotPretty(t *testing.T) {
-	parquetFile := createMinimalParquetFile(t)
-	if parquetFile == "" {
-		t.Skip("Cannot create test parquet file")
-	}
-	defer func() { _ = os.Remove(parquetFile) }()
-
-	service, err := NewParquetService(parquetFile, pio.ReadOption{})
-	if err != nil {
-		t.Skipf("Failed to create service: %v", err)
-	}
-	defer func() { _ = service.Close() }()
-
-	router := mux.NewRouter()
-	service.SetupRoutes(router)
-
-	req := httptest.NewRequest("GET", "/schema/json?pretty=false", nil)
-	w := httptest.NewRecorder()
-
-	router.ServeHTTP(w, req)
-
-	require.Equal(t, http.StatusOK, w.Code, "Status should match")
-
-	// Verify content type
-	ct := w.Header().Get("Content-Type")
-	require.Contains(t, ct, "json", "Content-Type should contain json")
-}
-
-// Test handleSchemaJSON with invalid JSON unmarshaling
+// Test handleSchemaJSON basic functionality
 func Test_HandleSchemaJSON_JSONUnmarshalError(t *testing.T) {
 	parquetFile := createMinimalParquetFile(t)
 	if parquetFile == "" {
@@ -926,69 +893,12 @@ func Test_HandleSchemaJSON_JSONUnmarshalError(t *testing.T) {
 	router := mux.NewRouter()
 	service.SetupRoutes(router)
 
-	// Test with pretty=true to trigger JSON parsing
-	req := httptest.NewRequest("GET", "/schema/json?pretty=true", nil)
+	req := httptest.NewRequest("GET", "/schema/json", nil)
 	w := httptest.NewRecorder()
 
 	router.ServeHTTP(w, req)
 
 	require.Equal(t, http.StatusOK, w.Code, "Status should match")
-}
-
-// Test handleSchemaRaw with both pretty values
-func Test_HandleSchemaRaw_BothPrettyValues(t *testing.T) {
-	parquetFile := createMinimalParquetFile(t)
-	if parquetFile == "" {
-		t.Skip("Cannot create test parquet file")
-	}
-	defer func() { _ = os.Remove(parquetFile) }()
-
-	service, err := NewParquetService(parquetFile, pio.ReadOption{})
-	if err != nil {
-		t.Skipf("Failed to create service: %v", err)
-	}
-	defer func() { _ = service.Close() }()
-
-	router := mux.NewRouter()
-	service.SetupRoutes(router)
-
-	tests := []struct {
-		name  string
-		path  string
-		check func(t *testing.T, body string)
-	}{
-		{
-			name: "pretty=true",
-			path: "/schema/raw?pretty=true",
-			check: func(t *testing.T, body string) {
-				// Should be indented
-				require.Contains(t, body, "\n", "Pretty JSON should have newlines")
-			},
-		},
-		{
-			name: "pretty=false",
-			path: "/schema/raw?pretty=false",
-			check: func(t *testing.T, body string) {
-				// Should not be indented (single line)
-				// Actually, default marshaling may still have some structure
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest("GET", tt.path, nil)
-			w := httptest.NewRecorder()
-
-			router.ServeHTTP(w, req)
-
-			require.Equal(t, http.StatusOK, w.Code, "Status should match")
-
-			if tt.check != nil {
-				tt.check(t, w.Body.String())
-			}
-		})
-	}
 }
 
 // Test handler error responses
@@ -1362,52 +1272,6 @@ func Test_HandleSchemaJSON_Success(t *testing.T) {
 	require.NotZero(t, w.Body.Len(), "Response body should not be empty")
 }
 
-// Test handleSchemaJSON with pretty parameter
-func Test_HandleSchemaJSON_Pretty(t *testing.T) {
-	service, err := NewParquetService(getTestParquetFile(), pio.ReadOption{})
-	if err != nil {
-		t.Skipf("Failed to create service: %v", err)
-	}
-	defer func() { _ = service.Close() }()
-
-	router := mux.NewRouter()
-	service.SetupRoutes(router)
-
-	tests := []struct {
-		name         string
-		queryParam   string
-		shouldPretty bool
-	}{
-		{"With pretty=true", "?pretty=true", true},
-		{"With pretty=false", "?pretty=false", false},
-		{"Without pretty param", "", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest("GET", "/schema/json"+tt.queryParam, nil)
-			w := httptest.NewRecorder()
-
-			router.ServeHTTP(w, req)
-
-			require.Equal(t, http.StatusOK, w.Code)
-
-			body := w.Body.String()
-			if tt.shouldPretty {
-				// Pretty formatted JSON should have newlines and indentation
-				if !strings.Contains(body, "\n") || !strings.Contains(body, "  ") {
-					t.Log("Pretty formatted JSON should have newlines and indentation")
-				}
-			}
-
-			// Verify it's valid JSON
-			var jsonData interface{}
-			err := json.Unmarshal(w.Body.Bytes(), &jsonData)
-			require.NoError(t, err, "Response should be valid JSON")
-		})
-	}
-}
-
 // Test handleSchemaRaw returns raw schema tree
 func Test_HandleSchemaRaw_Success(t *testing.T) {
 	service, err := NewParquetService(getTestParquetFile(), pio.ReadOption{})
@@ -1434,49 +1298,6 @@ func Test_HandleSchemaRaw_Success(t *testing.T) {
 	var jsonData interface{}
 	err = json.Unmarshal(w.Body.Bytes(), &jsonData)
 	require.NoError(t, err, "Response should be valid JSON")
-}
-
-// Test handleSchemaRaw with pretty parameter
-func Test_HandleSchemaRaw_Pretty(t *testing.T) {
-	service, err := NewParquetService(getTestParquetFile(), pio.ReadOption{})
-	if err != nil {
-		t.Skipf("Failed to create service: %v", err)
-	}
-	defer func() { _ = service.Close() }()
-
-	router := mux.NewRouter()
-	service.SetupRoutes(router)
-
-	tests := []struct {
-		name         string
-		queryParam   string
-		shouldPretty bool
-	}{
-		{"With pretty=true", "?pretty=true", true},
-		{"With pretty=false", "?pretty=false", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest("GET", "/schema/raw"+tt.queryParam, nil)
-			w := httptest.NewRecorder()
-
-			router.ServeHTTP(w, req)
-
-			require.Equal(t, http.StatusOK, w.Code)
-
-			body := w.Body.String()
-			if tt.shouldPretty {
-				// Pretty formatted JSON should have newlines and indentation
-				require.Contains(t, body, "\n", "Pretty formatted JSON should have newlines")
-			}
-
-			// Verify it's valid JSON
-			var jsonData interface{}
-			err := json.Unmarshal(w.Body.Bytes(), &jsonData)
-			require.NoError(t, err, "Response should be valid JSON")
-		})
-	}
 }
 
 // Test handleSchemaCSV returns CSV format or error
@@ -1589,9 +1410,7 @@ func Test_AllSchemaHandlers_Integration(t *testing.T) {
 	}{
 		{"Go schema", "/schema/go", "text/plain", false},
 		{"JSON schema", "/schema/json", "application/json", false},
-		{"JSON schema pretty", "/schema/json?pretty=true", "application/json", false},
 		{"Raw schema", "/schema/raw", "application/json", false},
-		{"Raw schema pretty", "/schema/raw?pretty=true", "application/json", false},
 		{"CSV schema", "/schema/csv", "text/csv", true}, // CSV may not support all parquet features
 		{"File info", "/info", "application/json", false},
 		{"Row groups", "/rowgroups", "application/json", false},
@@ -1651,77 +1470,6 @@ func createTestServiceWithRealFile(t *testing.T, filename string) *ParquetServic
 	require.NoError(t, err, "Failed to create service with %s", filename)
 
 	return svc
-}
-
-// Test handleSchemaJSON with pretty=true parameter
-func Test_HandleSchemaJSON_PrettyParameter(t *testing.T) {
-	svc := createTestServiceWithRealFile(t, "all-types.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
-
-	router := mux.NewRouter()
-	svc.SetupRoutes(router)
-
-	tests := []struct {
-		name  string
-		query string
-	}{
-		{"With pretty=true", "?pretty=true"},
-		{"Without pretty parameter", ""},
-		{"With pretty=false", "?pretty=false"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest("GET", "/schema/json"+tt.query, nil)
-			w := httptest.NewRecorder()
-
-			router.ServeHTTP(w, req)
-
-			require.Equal(t, http.StatusOK, w.Code)
-			require.Equal(t, "application/json; charset=utf-8", w.Header().Get("Content-Type"))
-			require.NotEmpty(t, w.Body.String())
-		})
-	}
-}
-
-// Test handleSchemaRaw with pretty parameter
-func Test_HandleSchemaRaw_PrettyParameter(t *testing.T) {
-	svc := createTestServiceWithRealFile(t, "all-types.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
-
-	router := mux.NewRouter()
-	svc.SetupRoutes(router)
-
-	tests := []struct {
-		name  string
-		query string
-	}{
-		{"With pretty=true", "?pretty=true"},
-		{"Without pretty parameter", ""},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest("GET", "/schema/raw"+tt.query, nil)
-			w := httptest.NewRecorder()
-
-			router.ServeHTTP(w, req)
-
-			require.Equal(t, http.StatusOK, w.Code)
-			require.Equal(t, "application/json; charset=utf-8", w.Header().Get("Content-Type"))
-			require.NotEmpty(t, w.Body.String())
-		})
-	}
 }
 
 // Test handleSchemaGo with real file
@@ -1874,7 +1622,7 @@ func Test_HandleSchemaJSON_EdgeCases(t *testing.T) {
 	svc.SetupRoutes(router)
 
 	// Test with empty file
-	req := httptest.NewRequest("GET", "/schema/json?pretty=true", nil)
+	req := httptest.NewRequest("GET", "/schema/json", nil)
 	w := httptest.NewRecorder()
 
 	router.ServeHTTP(w, req)
@@ -1922,9 +1670,7 @@ func Test_AllSchemaEndpoints_Comprehensive(t *testing.T) {
 	endpoints := []string{
 		"/schema/go",
 		"/schema/json",
-		"/schema/json?pretty=true",
 		"/schema/raw",
-		"/schema/raw?pretty=true",
 	}
 
 	for _, endpoint := range endpoints {
@@ -1991,9 +1737,7 @@ func Test_SchemaHandlers_AllPaths(t *testing.T) {
 			}{
 				{"/schema/go", true},
 				{"/schema/json", true},
-				{"/schema/json?pretty=true", true},
 				{"/schema/raw", true},
-				{"/schema/raw?pretty=true", true},
 			}
 
 			for _, ep := range endpoints {
@@ -2034,73 +1778,6 @@ func Test_HandleSchemaGo_FormattingPaths(t *testing.T) {
 	body := w.Body.String()
 	// Should contain Go code (formatted or not)
 	require.NotEmpty(t, body)
-}
-
-// Test handleSchemaJSON fallback paths (JSON unmarshal errors)
-func Test_HandleSchemaJSON_AllPaths(t *testing.T) {
-	svc := createTestServiceWithRealFile(t, "all-types.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
-
-	router := mux.NewRouter()
-	svc.SetupRoutes(router)
-
-	// Test pretty=true (exercises the unmarshal and marshal paths)
-	req := httptest.NewRequest("GET", "/schema/json?pretty=true", nil)
-	w := httptest.NewRecorder()
-
-	router.ServeHTTP(w, req)
-
-	require.Equal(t, http.StatusOK, w.Code)
-	require.NotEmpty(t, w.Body.String())
-
-	// Test without pretty (exercises the direct path)
-	req2 := httptest.NewRequest("GET", "/schema/json", nil)
-	w2 := httptest.NewRecorder()
-
-	router.ServeHTTP(w2, req2)
-
-	require.Equal(t, http.StatusOK, w2.Code)
-	require.NotEmpty(t, w2.Body.String())
-}
-
-// Test handleSchemaRaw both marshal paths (pretty and non-pretty)
-func Test_HandleSchemaRaw_BothMarshalPaths(t *testing.T) {
-	svc := createTestServiceWithRealFile(t, "all-types.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
-
-	router := mux.NewRouter()
-	svc.SetupRoutes(router)
-
-	// Test with pretty=true (uses json.MarshalIndent)
-	req1 := httptest.NewRequest("GET", "/schema/raw?pretty=true", nil)
-	w1 := httptest.NewRecorder()
-
-	router.ServeHTTP(w1, req1)
-
-	require.Equal(t, http.StatusOK, w1.Code)
-	body1 := w1.Body.String()
-	require.NotEmpty(t, body1)
-	require.Contains(t, body1, "\n  ") // Should have indentation
-
-	// Test without pretty (uses json.Marshal)
-	req2 := httptest.NewRequest("GET", "/schema/raw", nil)
-	w2 := httptest.NewRecorder()
-
-	router.ServeHTTP(w2, req2)
-
-	require.Equal(t, http.StatusOK, w2.Code)
-	body2 := w2.Body.String()
-	require.NotEmpty(t, body2)
 }
 
 // Test handleSchemaGo error path - list-of-list not supported for Go struct generation
@@ -2147,87 +1824,4 @@ func Test_HandleSchemaCSV_ErrorPath_ListOfList(t *testing.T) {
 	// list-of-list should fail to generate CSV schema
 	require.Equal(t, http.StatusInternalServerError, w.Code)
 	require.Contains(t, w.Body.String(), "Failed to format CSV schema")
-}
-
-// Test handleSchemaJSON with pretty=true to cover all marshal paths
-func Test_HandleSchemaJSON_PrettyTrue_AllPaths(t *testing.T) {
-	svc := createTestServiceWithRealFile(t, "all-types.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
-
-	router := mux.NewRouter()
-	svc.SetupRoutes(router)
-
-	// Test with pretty=true to exercise unmarshal and marshal indent paths
-	req := httptest.NewRequest("GET", "/schema/json?pretty=true", nil)
-	w := httptest.NewRecorder()
-
-	router.ServeHTTP(w, req)
-
-	require.Equal(t, http.StatusOK, w.Code)
-	body := w.Body.String()
-	require.NotEmpty(t, body)
-	// Should be pretty-printed JSON
-	require.Contains(t, body, "\n")
-}
-
-// Test handleSchemaJSON without pretty to cover direct path
-func Test_HandleSchemaJSON_NoPretty_DirectPath(t *testing.T) {
-	svc := createTestServiceWithRealFile(t, "all-types.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
-
-	router := mux.NewRouter()
-	svc.SetupRoutes(router)
-
-	// Test without pretty parameter (or pretty=false)
-	req := httptest.NewRequest("GET", "/schema/json?pretty=false", nil)
-	w := httptest.NewRecorder()
-
-	router.ServeHTTP(w, req)
-
-	require.Equal(t, http.StatusOK, w.Code)
-	require.NotEmpty(t, w.Body.String())
-}
-
-// Test handleSchemaRaw with both pretty paths
-func Test_HandleSchemaRaw_PrettyPaths(t *testing.T) {
-	svc := createTestServiceWithRealFile(t, "all-types.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
-
-	router := mux.NewRouter()
-	svc.SetupRoutes(router)
-
-	// Test with pretty=true (json.MarshalIndent path)
-	req1 := httptest.NewRequest("GET", "/schema/raw?pretty=true", nil)
-	w1 := httptest.NewRecorder()
-
-	router.ServeHTTP(w1, req1)
-
-	require.Equal(t, http.StatusOK, w1.Code)
-	body1 := w1.Body.String()
-	require.NotEmpty(t, body1)
-	require.Contains(t, body1, "\n")
-
-	// Test without pretty (json.Marshal path)
-	req2 := httptest.NewRequest("GET", "/schema/raw?pretty=false", nil)
-	w2 := httptest.NewRecorder()
-
-	router.ServeHTTP(w2, req2)
-
-	require.Equal(t, http.StatusOK, w2.Code)
-	require.NotEmpty(t, w2.Body.String())
 }

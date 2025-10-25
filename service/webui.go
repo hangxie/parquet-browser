@@ -165,22 +165,8 @@ func (s *ParquetService) handleSchemaJSONView(w http.ResponseWriter, r *http.Req
 
 	schemaText := schemaRoot.JSONSchema()
 
-	// Pretty print the JSON
-	var jsonData interface{}
-	var output []byte
-	if err := json.Unmarshal([]byte(schemaText), &jsonData); err == nil {
-		prettyBytes, err := json.MarshalIndent(jsonData, "", "  ")
-		if err == nil {
-			output = prettyBytes
-		} else {
-			output = []byte(schemaText)
-		}
-	} else {
-		output = []byte(schemaText)
-	}
-
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	_, _ = w.Write(output)
+	_, _ = w.Write([]byte(schemaText))
 }
 
 // handleSchemaCSVView returns schema in CSV format for HTMX
@@ -201,7 +187,7 @@ func (s *ParquetService) handleSchemaCSVView(w http.ResponseWriter, r *http.Requ
 	_, _ = w.Write([]byte(schemaText))
 }
 
-// handleSchemaRawView returns raw schema for HTMX
+// handleSchemaRawView returns raw schema for HTMX (compact JSON)
 func (s *ParquetService) handleSchemaRawView(w http.ResponseWriter, r *http.Request) {
 	schemaRoot, err := pschema.NewSchemaTree(s.parquetReader, pschema.SchemaOption{FailOnInt96: false})
 	if err != nil {
@@ -209,8 +195,8 @@ func (s *ParquetService) handleSchemaRawView(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// Convert to JSON for pretty printing
-	rawJSON, err := json.MarshalIndent(*schemaRoot, "", "  ")
+	// Convert to compact JSON
+	rawJSON, err := json.Marshal(*schemaRoot)
 	if err != nil {
 		// Fallback to Go's %+v format if JSON marshaling fails
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
