@@ -36,9 +36,9 @@ For URLs for different object store and access options, please refer to [Parquet
   - Total compressed and uncompressed sizes with compression ratio
   - Created by information
 - **Schema Viewer**: View schema in multiple formats (JSON, Raw, Go Struct, CSV) with:
-  - Toggle between formats with 'v' key
+  - Direct format switching with 'g' (Go), 'j' (JSON), 'r' (Raw), 'c' (CSV)
   - Pretty/compact mode toggle with 'p' key (JSON and Raw formats)
-  - Copy to clipboard with 'c' key
+  - Copy to clipboard with 'y' key (yank)
   - Support for complex types (LIST, MAP, STRUCT)
 - **Row Group Explorer**: Browse row groups with detailed information:
   - Row count per group
@@ -186,9 +186,12 @@ Display usage information and available flags.
 - `q` / `Esc`: Quit application
 
 #### Schema Viewer
-- `v`: Toggle between schema formats (JSON → Raw → Go Struct → CSV)
+- `g`: Switch to Go Struct format
+- `j`: Switch to JSON format
+- `r`: Switch to Raw format
+- `c`: Switch to CSV format
 - `p`: Toggle pretty/compact mode (JSON and Raw only)
-- `c`: Copy schema to clipboard
+- `y`: Copy schema to clipboard (yank)
 - `Esc`: Close schema viewer
 
 #### Column Chunks View
@@ -318,10 +321,13 @@ Shows schema in multiple formats:
 - **Go Struct**: Generated Go struct code ready to use
 - **CSV format**: Column definitions in CSV format (name, type, repetition)
 
-Each format supports:
+Direct format switching:
+- Press 'g' for Go Struct format
+- Press 'j' for JSON format
+- Press 'r' for Raw format
+- Press 'c' for CSV format
 - Pretty/compact toggle (JSON and Raw) with 'p' key
-- Format cycling with 'v' key
-- Copy to clipboard with 'c' key
+- Copy to clipboard with 'y' key (yank)
 - Full scrolling support
 
 ## HTTP API

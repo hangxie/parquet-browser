@@ -44,13 +44,22 @@ func (sv *schemaViewer) handleInput(event *tcell.EventKey) *tcell.EventKey {
 	}
 	if event.Key() == tcell.KeyRune {
 		switch event.Rune() {
-		case 'v', 'V':
-			sv.toggleFormat()
+		case 'g', 'G':
+			sv.switchToFormat("go")
+			return nil
+		case 'j', 'J':
+			sv.switchToFormat("json")
+			return nil
+		case 'r', 'R':
+			sv.switchToFormat("raw")
+			return nil
+		case 'c', 'C':
+			sv.switchToFormat("csv")
 			return nil
 		case 'p', 'P':
 			sv.togglePretty()
 			return nil
-		case 'c', 'C':
+		case 'y', 'Y':
 			sv.copyToClipboard()
 			return nil
 		}
@@ -58,10 +67,16 @@ func (sv *schemaViewer) handleInput(event *tcell.EventKey) *tcell.EventKey {
 	return event
 }
 
-func (sv *schemaViewer) toggleFormat() {
-	sv.currentFormat = (sv.currentFormat + 1) % len(sv.schemaFormats)
-	sv.statusBar.SetText("")
-	sv.updateDisplay()
+func (sv *schemaViewer) switchToFormat(format string) {
+	// Find the index of the requested format
+	for i, f := range sv.schemaFormats {
+		if f == format {
+			sv.currentFormat = i
+			sv.statusBar.SetText("")
+			sv.updateDisplay()
+			return
+		}
+	}
 }
 
 func (sv *schemaViewer) togglePretty() {
@@ -142,13 +157,13 @@ func (sv *schemaViewer) updateTitle() {
 		if !sv.isPretty {
 			mode = "Compact"
 		}
-		titleText = fmt.Sprintf("[yellow]Schema [%s - %s] | ESC=close, v=toggle format, p=toggle pretty/compact, c=copy[-]", strings.ToUpper(format), mode)
+		titleText = fmt.Sprintf("[yellow]Schema [%s - %s] | ESC=close, g=go, j=json, r=raw, c=csv, p=pretty/compact, y=copy[-]", strings.ToUpper(format), mode)
 	} else if format == "go" {
-		titleText = "[yellow]Schema [Go Struct] | ESC=close, v=toggle format, c=copy[-]"
+		titleText = "[yellow]Schema [Go Struct] | ESC=close, g=go, j=json, r=raw, c=csv, y=copy[-]"
 	} else if format == "csv" {
-		titleText = "[yellow]Schema [CSV] | ESC=close, v=toggle format, c=copy[-]"
+		titleText = "[yellow]Schema [CSV] | ESC=close, g=go, j=json, r=raw, c=csv, y=copy[-]"
 	} else {
-		titleText = fmt.Sprintf("[yellow]Schema [%s] | ESC=close, v=toggle format, c=copy[-]", strings.ToUpper(format))
+		titleText = fmt.Sprintf("[yellow]Schema [%s] | ESC=close, g=go, j=json, r=raw, c=csv, y=copy[-]", strings.ToUpper(format))
 	}
 
 	sv.titleBar.SetText(titleText)
