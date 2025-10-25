@@ -1825,3 +1825,183 @@ func Test_HandleSchemaCSV_ErrorPath_ListOfList(t *testing.T) {
 	require.Equal(t, http.StatusInternalServerError, w.Code)
 	require.Contains(t, w.Body.String(), "Failed to format CSV schema")
 }
+
+// Test handleSchemaJSON success with complex schema (list-of-list)
+func Test_HandleSchemaJSON_SuccessPath_ComplexSchema(t *testing.T) {
+	svc := createTestServiceWithRealFile(t, "list-of-list.parquet")
+	if svc == nil {
+		return
+	}
+	defer func() {
+		_ = svc.Close()
+	}()
+
+	router := mux.NewRouter()
+	svc.SetupRoutes(router)
+
+	req := httptest.NewRequest("GET", "/schema/json", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	// JSON schema should work even with list-of-list
+	require.Equal(t, http.StatusOK, w.Code)
+	require.Equal(t, "application/json; charset=utf-8", w.Header().Get("Content-Type"))
+
+	// Verify it's valid JSON
+	var jsonData interface{}
+	err := json.Unmarshal(w.Body.Bytes(), &jsonData)
+	require.NoError(t, err, "Response should be valid JSON")
+}
+
+// Test handleSchemaRaw success with complex schema (list-of-list)
+func Test_HandleSchemaRaw_SuccessPath_ComplexSchema(t *testing.T) {
+	svc := createTestServiceWithRealFile(t, "list-of-list.parquet")
+	if svc == nil {
+		return
+	}
+	defer func() {
+		_ = svc.Close()
+	}()
+
+	router := mux.NewRouter()
+	svc.SetupRoutes(router)
+
+	req := httptest.NewRequest("GET", "/schema/raw", nil)
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	// Raw schema should work even with list-of-list
+	require.Equal(t, http.StatusOK, w.Code)
+	require.Equal(t, "application/json; charset=utf-8", w.Header().Get("Content-Type"))
+
+	// Verify it's valid JSON
+	var jsonData interface{}
+	err := json.Unmarshal(w.Body.Bytes(), &jsonData)
+	require.NoError(t, err, "Response should be valid JSON")
+}
+
+// Test handleSchemaGo with different file types
+func Test_HandleSchemaGo_DifferentFileTypes(t *testing.T) {
+	files := []string{"all-types.parquet", "empty.parquet", "csv-good.parquet"}
+
+	for _, filename := range files {
+		t.Run(filename, func(t *testing.T) {
+			svc := createTestServiceWithRealFile(t, filename)
+			if svc == nil {
+				return
+			}
+			defer func() {
+				_ = svc.Close()
+			}()
+
+			router := mux.NewRouter()
+			svc.SetupRoutes(router)
+
+			req := httptest.NewRequest("GET", "/schema/go", nil)
+			w := httptest.NewRecorder()
+
+			router.ServeHTTP(w, req)
+
+			require.Equal(t, http.StatusOK, w.Code)
+			require.Equal(t, "text/plain; charset=utf-8", w.Header().Get("Content-Type"))
+			require.NotEmpty(t, w.Body.String())
+		})
+	}
+}
+
+// Test handleSchemaJSON with different file types
+func Test_HandleSchemaJSON_DifferentFileTypes(t *testing.T) {
+	files := []string{"all-types.parquet", "empty.parquet", "csv-good.parquet"}
+
+	for _, filename := range files {
+		t.Run(filename, func(t *testing.T) {
+			svc := createTestServiceWithRealFile(t, filename)
+			if svc == nil {
+				return
+			}
+			defer func() {
+				_ = svc.Close()
+			}()
+
+			router := mux.NewRouter()
+			svc.SetupRoutes(router)
+
+			req := httptest.NewRequest("GET", "/schema/json", nil)
+			w := httptest.NewRecorder()
+
+			router.ServeHTTP(w, req)
+
+			require.Equal(t, http.StatusOK, w.Code)
+			require.Equal(t, "application/json; charset=utf-8", w.Header().Get("Content-Type"))
+
+			// Verify it's valid JSON
+			var jsonData interface{}
+			err := json.Unmarshal(w.Body.Bytes(), &jsonData)
+			require.NoError(t, err, "Response should be valid JSON")
+		})
+	}
+}
+
+// Test handleSchemaRaw with different file types
+func Test_HandleSchemaRaw_DifferentFileTypes(t *testing.T) {
+	files := []string{"all-types.parquet", "empty.parquet", "csv-good.parquet"}
+
+	for _, filename := range files {
+		t.Run(filename, func(t *testing.T) {
+			svc := createTestServiceWithRealFile(t, filename)
+			if svc == nil {
+				return
+			}
+			defer func() {
+				_ = svc.Close()
+			}()
+
+			router := mux.NewRouter()
+			svc.SetupRoutes(router)
+
+			req := httptest.NewRequest("GET", "/schema/raw", nil)
+			w := httptest.NewRecorder()
+
+			router.ServeHTTP(w, req)
+
+			require.Equal(t, http.StatusOK, w.Code)
+			require.Equal(t, "application/json; charset=utf-8", w.Header().Get("Content-Type"))
+
+			// Verify it's valid JSON
+			var jsonData interface{}
+			err := json.Unmarshal(w.Body.Bytes(), &jsonData)
+			require.NoError(t, err, "Response should be valid JSON")
+		})
+	}
+}
+
+// Test handleSchemaCSV with different file types
+func Test_HandleSchemaCSV_DifferentFileTypes(t *testing.T) {
+	files := []string{"csv-good.parquet", "empty.parquet"}
+
+	for _, filename := range files {
+		t.Run(filename, func(t *testing.T) {
+			svc := createTestServiceWithRealFile(t, filename)
+			if svc == nil {
+				return
+			}
+			defer func() {
+				_ = svc.Close()
+			}()
+
+			router := mux.NewRouter()
+			svc.SetupRoutes(router)
+
+			req := httptest.NewRequest("GET", "/schema/csv", nil)
+			w := httptest.NewRecorder()
+
+			router.ServeHTTP(w, req)
+
+			require.Equal(t, http.StatusOK, w.Code)
+			require.Equal(t, "text/csv; charset=utf-8", w.Header().Get("Content-Type"))
+			require.NotEmpty(t, w.Body.String())
+		})
+	}
+}
