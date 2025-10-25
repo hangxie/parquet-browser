@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -93,12 +94,18 @@ func (sv *schemaViewer) updateDisplay() {
 	switch format {
 	case "go":
 		schemaText, err = sv.app.httpClient.GetSchemaGo()
-	case "json":
-		schemaText, err = sv.app.httpClient.GetSchemaJSON(sv.isPretty)
 	case "csv":
 		schemaText, err = sv.app.httpClient.GetSchemaCSV()
+	case "json":
+		schemaText, err = sv.app.httpClient.GetSchemaJSON()
+		if err == nil && sv.isPretty {
+			schemaText = sv.formatJSON(schemaText)
+		}
 	case "raw":
-		schemaText, err = sv.app.httpClient.GetSchemaRaw(sv.isPretty)
+		schemaText, err = sv.app.httpClient.GetSchemaRaw()
+		if err == nil && sv.isPretty {
+			schemaText = sv.formatJSON(schemaText)
+		}
 	default:
 		schemaText, err = sv.app.httpClient.GetSchemaGo()
 	}
@@ -109,6 +116,21 @@ func (sv *schemaViewer) updateDisplay() {
 	}
 
 	sv.textView.SetText(schemaText)
+}
+
+// formatJSON formats JSON string with indentation
+func (sv *schemaViewer) formatJSON(jsonStr string) string {
+	var jsonObj interface{}
+	if err := json.Unmarshal([]byte(jsonStr), &jsonObj); err != nil {
+		return jsonStr // Return original if unmarshal fails
+	}
+
+	prettyBytes, err := json.MarshalIndent(jsonObj, "", "  ")
+	if err != nil {
+		return jsonStr // Return original if marshal fails
+	}
+
+	return string(prettyBytes)
 }
 
 func (sv *schemaViewer) updateTitle() {

@@ -31,13 +31,7 @@ paths:
   /schema/json:
     get:
       summary: Get Schema (JSON Format)
-      description: Returns the Parquet schema in JSON format.
-      parameters:
-        - name: pretty
-          in: query
-          description: If "true", returns pretty-printed JSON with indentation
-          schema:
-            type: boolean
+      description: Returns the Parquet schema in JSON format (compact format - clients should format locally if pretty-printing is desired).
       responses:
         '200':
           description: Successful response
@@ -48,13 +42,7 @@ paths:
   /schema/raw:
     get:
       summary: Get Schema (Raw Format)
-      description: Returns the complete internal schema tree structure showing all fields of the SchemaNode.
-      parameters:
-        - name: pretty
-          in: query
-          description: If "true", returns pretty-printed JSON with indentation
-          schema:
-            type: boolean
+      description: Returns the complete internal schema tree structure showing all fields of the SchemaNode (compact JSON format - clients should format locally if pretty-printing is desired).
       responses:
         '200':
           description: Successful response

@@ -7,12 +7,13 @@ import (
 	"testing"
 
 	"github.com/gdamore/tcell/v2"
-	"github.com/hangxie/parquet-browser/client"
-	"github.com/hangxie/parquet-browser/model"
 	"github.com/hangxie/parquet-go/v2/parquet"
 	"github.com/rivo/tview"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/hangxie/parquet-browser/client"
+	"github.com/hangxie/parquet-browser/model"
 )
 
 func Test_parsePhysicalType(t *testing.T) {
@@ -83,9 +84,9 @@ func Test_parsePhysicalType(t *testing.T) {
 
 func Test_parseCompressionCodec(t *testing.T) {
 	tests := []struct {
-		name      string
-		codecStr  string
-		expected  parquet.CompressionCodec
+		name     string
+		codecStr string
+		expected parquet.CompressionCodec
 	}{
 		{
 			name:     "UNCOMPRESSED codec",
@@ -207,9 +208,9 @@ func Test_NewTUIApp(t *testing.T) {
 
 func Test_TUIApp_getHeaderHeight(t *testing.T) {
 	tests := []struct {
-		name        string
-		setupApp    func() *TUIApp
-		expected    int
+		name     string
+		setupApp func() *TUIApp
+		expected int
 	}{
 		{
 			name: "Nil headerView returns default",
@@ -264,7 +265,7 @@ func Test_TUIApp_readPageHeaders(t *testing.T) {
 		if strings.Contains(r.URL.Path, "/pages") {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`[
+			_, _ = w.Write([]byte(`[
 				{
 					"Index": 0,
 					"Offset": 1024,
@@ -294,7 +295,7 @@ func Test_TUIApp_readPageHeaders_Error(t *testing.T) {
 	// Create a mock HTTP server that returns error
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte(`{"error":"not found"}`))
+		_, _ = w.Write([]byte(`{"error":"not found"}`))
 	}))
 	defer server.Close()
 
@@ -311,7 +312,7 @@ func Test_TUIApp_readPageContent(t *testing.T) {
 		if strings.Contains(r.URL.Path, "/content") {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"values": ["value1", "value2", "NULL", "value3"], "count": 4}`))
+			_, _ = w.Write([]byte(`{"values": ["value1", "value2", "NULL", "value3"], "count": 4}`))
 		}
 	}))
 	defer server.Close()
@@ -355,7 +356,7 @@ func Test_TUIApp_createHeaderView(t *testing.T) {
 		if strings.HasSuffix(r.URL.Path, "/info") {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{
+			_, _ = w.Write([]byte(`{
 				"Version": 2,
 				"NumRows": 1000,
 				"NumRowGroups": 5,
@@ -387,7 +388,7 @@ func Test_TUIApp_createRowGroupList(t *testing.T) {
 		if strings.HasSuffix(r.URL.Path, "/rowgroups") {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`[
+			_, _ = w.Write([]byte(`[
 				{
 					"Index": 0,
 					"NumRows": 100,
@@ -417,7 +418,7 @@ func Test_TUIApp_showSchema(t *testing.T) {
 		if strings.Contains(r.URL.Path, "/schema/raw") {
 			w.Header().Set("Content-Type", "text/plain")
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("message schema {\n  required int32 id;\n}"))
+			_, _ = w.Write([]byte("message schema {\n  required int32 id;\n}"))
 		}
 	}))
 	defer server.Close()

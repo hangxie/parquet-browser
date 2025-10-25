@@ -6,12 +6,13 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/hangxie/parquet-browser/client"
-	"github.com/hangxie/parquet-browser/model"
 	"github.com/hangxie/parquet-go/v2/parquet"
 	"github.com/rivo/tview"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/hangxie/parquet-browser/client"
+	"github.com/hangxie/parquet-browser/model"
 )
 
 func Test_pageTableBuilder_readPageHeadersBatch(t *testing.T) {
@@ -27,7 +28,7 @@ func Test_pageTableBuilder_readPageHeadersBatch(t *testing.T) {
 				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					w.Header().Set("Content-Type", "application/json")
 					w.WriteHeader(http.StatusOK)
-					w.Write([]byte(`[
+					_, _ = w.Write([]byte(`[
 						{"Index": 0, "PageType": "DATA_PAGE", "Offset": 1024, "CompressedSize": 512, "UncompressedSize": 1024, "NumValues": 100, "Encoding": "PLAIN"},
 						{"Index": 1, "PageType": "DATA_PAGE", "Offset": 2048, "CompressedSize": 512, "UncompressedSize": 1024, "NumValues": 100, "Encoding": "PLAIN"}
 					]`))
@@ -38,10 +39,10 @@ func Test_pageTableBuilder_readPageHeadersBatch(t *testing.T) {
 				app.httpClient = client.NewParquetClient(server.URL)
 
 				return &pageTableBuilder{
-					app:     app,
-					rgIndex: 0,
+					app:      app,
+					rgIndex:  0,
 					colIndex: 0,
-					table:   tview.NewTable(),
+					table:    tview.NewTable(),
 				}
 			},
 			expectError:   false,
@@ -52,7 +53,7 @@ func Test_pageTableBuilder_readPageHeadersBatch(t *testing.T) {
 			setupBuilder: func() *pageTableBuilder {
 				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					w.WriteHeader(http.StatusNotFound)
-					w.Write([]byte(`{"error": "not found"}`))
+					_, _ = w.Write([]byte(`{"error": "not found"}`))
 				}))
 				t.Cleanup(server.Close)
 
@@ -60,10 +61,10 @@ func Test_pageTableBuilder_readPageHeadersBatch(t *testing.T) {
 				app.httpClient = client.NewParquetClient(server.URL)
 
 				return &pageTableBuilder{
-					app:     app,
-					rgIndex: 0,
+					app:      app,
+					rgIndex:  0,
 					colIndex: 0,
-					table:   tview.NewTable(),
+					table:    tview.NewTable(),
 				}
 			},
 			expectError:   true,
@@ -91,10 +92,10 @@ func Test_pageTableBuilder_readPageHeadersBatch(t *testing.T) {
 				app := NewTUIApp()
 
 				return &pageTableBuilder{
-					app:     app,
-					rgIndex: 0,
+					app:      app,
+					rgIndex:  0,
 					colIndex: 0,
-					table:   tview.NewTable(),
+					table:    tview.NewTable(),
 					pages: []model.PageMetadata{
 						{Index: 0, PageType: "DATA_PAGE"},
 						{Index: 1, PageType: "DATA_PAGE"},
@@ -158,7 +159,7 @@ func Test_pageTableBuilder_build(t *testing.T) {
 				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					w.Header().Set("Content-Type", "application/json")
 					w.WriteHeader(http.StatusOK)
-					w.Write([]byte(`[
+					_, _ = w.Write([]byte(`[
 						{
 							"Index": 0,
 							"PageType": "DATA_PAGE",
@@ -192,7 +193,7 @@ func Test_pageTableBuilder_build(t *testing.T) {
 			setupBuilder: func() *pageTableBuilder {
 				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					w.WriteHeader(http.StatusInternalServerError)
-					w.Write([]byte(`{"error": "internal error"}`))
+					_, _ = w.Write([]byte(`{"error": "internal error"}`))
 				}))
 				t.Cleanup(server.Close)
 
@@ -286,9 +287,9 @@ func Test_pageContentBuilder_updateHeaderInfo(t *testing.T) {
 	assert.Contains(t, text, "0x400") // Offset 1024 in hex
 	assert.Contains(t, text, "512 B")
 	assert.Contains(t, text, "1.0 KB")
-	assert.Contains(t, text, "100")    // NumValues
-	assert.Contains(t, text, "5")      // NullCount
-	assert.Contains(t, text, "PLAIN")  // Encoding
+	assert.Contains(t, text, "100")   // NumValues
+	assert.Contains(t, text, "5")     // NullCount
+	assert.Contains(t, text, "PLAIN") // Encoding
 	assert.Contains(t, text, "Min:")
 	assert.Contains(t, text, "1")
 	assert.Contains(t, text, "Max:")
@@ -308,7 +309,7 @@ func Test_pageContentBuilder_build(t *testing.T) {
 				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					w.Header().Set("Content-Type", "application/json")
 					w.WriteHeader(http.StatusOK)
-					w.Write([]byte(`{"values": ["value1", "value2", "value3"], "count": 3}`))
+					_, _ = w.Write([]byte(`{"values": ["value1", "value2", "value3"], "count": 3}`))
 				}))
 				t.Cleanup(server.Close)
 
@@ -349,7 +350,7 @@ func Test_pageContentBuilder_build(t *testing.T) {
 			setupBuilder: func() *pageContentBuilder {
 				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					w.WriteHeader(http.StatusInternalServerError)
-					w.Write([]byte(`{"error": "internal error"}`))
+					_, _ = w.Write([]byte(`{"error": "internal error"}`))
 				}))
 				t.Cleanup(server.Close)
 

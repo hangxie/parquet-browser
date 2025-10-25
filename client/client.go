@@ -88,22 +88,14 @@ func (c *ParquetClient) GetSchemaGo() (string, error) {
 	return c.getText("/schema/go")
 }
 
-// GetSchemaJSON retrieves the schema in JSON format
-func (c *ParquetClient) GetSchemaJSON(pretty bool) (string, error) {
-	path := "/schema/json"
-	if pretty {
-		path += "?pretty=true"
-	}
-	return c.getText(path)
+// GetSchemaJSON retrieves the schema in JSON format (compact)
+func (c *ParquetClient) GetSchemaJSON() (string, error) {
+	return c.getText("/schema/json")
 }
 
-// GetSchemaRaw retrieves the raw schema tree structure
-func (c *ParquetClient) GetSchemaRaw(pretty bool) (string, error) {
-	path := "/schema/raw"
-	if pretty {
-		path += "?pretty=true"
-	}
-	return c.getText(path)
+// GetSchemaRaw retrieves the raw schema tree structure (compact JSON)
+func (c *ParquetClient) GetSchemaRaw() (string, error) {
+	return c.getText("/schema/raw")
 }
 
 // GetSchemaCSV retrieves the schema in CSV format
