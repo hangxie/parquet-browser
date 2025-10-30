@@ -1,19 +1,13 @@
 package model
 
 import (
-	"bytes"
-	"compress/gzip"
 	"context"
 	"fmt"
 	"io"
 	"strings"
-	"unsafe"
 
 	"github.com/apache/thrift/lib/go/thrift"
-	"github.com/golang/snappy"
 	"github.com/hangxie/parquet-go/v2/parquet"
-	"github.com/klauspost/compress/zstd"
-	"github.com/pierrec/lz4/v4"
 )
 
 // getTotalSize gets the total compressed size of a row group
@@ -383,157 +377,4 @@ func countPageValues(pageHeader *parquet.PageHeader) int64 {
 		return int64(pageHeader.DataPageHeaderV2.NumValues)
 	}
 	return 0
-}
-
-// decompressPageData decompresses page data based on the codec
-func decompressPageData(compressedData []byte, codec parquet.CompressionCodec, uncompressedSize int32) ([]byte, error) {
-	switch codec {
-	case parquet.CompressionCodec_UNCOMPRESSED:
-		return compressedData, nil
-	case parquet.CompressionCodec_SNAPPY:
-		return decompressSnappy(compressedData)
-	case parquet.CompressionCodec_GZIP:
-		return decompressGzip(compressedData)
-	case parquet.CompressionCodec_LZO:
-		return nil, fmt.Errorf("LZO compression not supported")
-	case parquet.CompressionCodec_BROTLI:
-		return decompressBrotli(compressedData)
-	case parquet.CompressionCodec_LZ4:
-		return decompressLZ4(compressedData, int(uncompressedSize))
-	case parquet.CompressionCodec_ZSTD:
-		return decompressZstd(compressedData)
-	default:
-		return nil, fmt.Errorf("unsupported compression codec: %v", codec)
-	}
-}
-
-// decodeDictionaryValues decodes dictionary values based on physical type and encoding
-func decodeDictionaryValues(data []byte, physicalType parquet.Type, encoding parquet.Encoding, numValues int) ([]interface{}, error) {
-	// Dictionary pages typically use PLAIN or PLAIN_DICTIONARY encoding
-	switch encoding {
-	case parquet.Encoding_PLAIN, parquet.Encoding_PLAIN_DICTIONARY:
-		return decodePlainValues(data, physicalType, numValues)
-	case parquet.Encoding_RLE_DICTIONARY:
-		// RLE_DICTIONARY is only for data pages, not dictionary pages
-		return nil, fmt.Errorf("RLE_DICTIONARY encoding not valid for dictionary pages")
-	default:
-		return nil, fmt.Errorf("unsupported encoding for dictionary: %v", encoding)
-	}
-}
-
-// decodePlainValues decodes PLAIN encoded values
-func decodePlainValues(data []byte, physicalType parquet.Type, numValues int) ([]interface{}, error) {
-	values := make([]interface{}, 0, numValues)
-	offset := 0
-
-	for i := 0; i < numValues && offset < len(data); i++ {
-		var value interface{}
-		var bytesRead int
-
-		switch physicalType {
-		case parquet.Type_BOOLEAN:
-			if offset < len(data) {
-				value = data[offset]&0x01 != 0
-				bytesRead = 1
-			}
-
-		case parquet.Type_INT32:
-			if offset+4 <= len(data) {
-				value = int32(data[offset]) | int32(data[offset+1])<<8 |
-					int32(data[offset+2])<<16 | int32(data[offset+3])<<24
-				bytesRead = 4
-			}
-
-		case parquet.Type_INT64:
-			if offset+8 <= len(data) {
-				value = int64(data[offset]) | int64(data[offset+1])<<8 |
-					int64(data[offset+2])<<16 | int64(data[offset+3])<<24 |
-					int64(data[offset+4])<<32 | int64(data[offset+5])<<40 |
-					int64(data[offset+6])<<48 | int64(data[offset+7])<<56
-				bytesRead = 8
-			}
-
-		case parquet.Type_FLOAT:
-			if offset+4 <= len(data) {
-				bits := uint32(data[offset]) | uint32(data[offset+1])<<8 |
-					uint32(data[offset+2])<<16 | uint32(data[offset+3])<<24
-				value = *(*float32)(unsafe.Pointer(&bits))
-				bytesRead = 4
-			}
-
-		case parquet.Type_DOUBLE:
-			if offset+8 <= len(data) {
-				bits := uint64(data[offset]) | uint64(data[offset+1])<<8 |
-					uint64(data[offset+2])<<16 | uint64(data[offset+3])<<24 |
-					uint64(data[offset+4])<<32 | uint64(data[offset+5])<<40 |
-					uint64(data[offset+6])<<48 | uint64(data[offset+7])<<56
-				value = *(*float64)(unsafe.Pointer(&bits))
-				bytesRead = 8
-			}
-
-		case parquet.Type_BYTE_ARRAY:
-			// BYTE_ARRAY: 4-byte length + data
-			if offset+4 <= len(data) {
-				length := int32(data[offset]) | int32(data[offset+1])<<8 |
-					int32(data[offset+2])<<16 | int32(data[offset+3])<<24
-				if offset+4+int(length) <= len(data) {
-					value = string(data[offset+4 : offset+4+int(length)])
-					bytesRead = 4 + int(length)
-				}
-			}
-
-		case parquet.Type_FIXED_LEN_BYTE_ARRAY:
-			// Need type length from schema - for now, treat as raw bytes
-			// This would require passing schema element info
-			return nil, fmt.Errorf("FIXED_LEN_BYTE_ARRAY decoding requires schema information")
-
-		default:
-			return nil, fmt.Errorf("unsupported physical type: %v", physicalType)
-		}
-
-		if bytesRead == 0 {
-			break // Not enough data
-		}
-
-		values = append(values, value)
-		offset += bytesRead
-	}
-
-	return values, nil
-}
-
-// Decompression helper functions
-
-func decompressSnappy(data []byte) ([]byte, error) {
-	return snappy.Decode(nil, data)
-}
-
-func decompressGzip(data []byte) ([]byte, error) {
-	reader, err := gzip.NewReader(bytes.NewReader(data))
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = reader.Close() }()
-	return io.ReadAll(reader)
-}
-
-func decompressLZ4(data []byte, uncompressedSize int) ([]byte, error) {
-	reader := lz4.NewReader(bytes.NewReader(data))
-	result := make([]byte, uncompressedSize)
-	_, err := io.ReadFull(reader, result)
-	return result, err
-}
-
-func decompressZstd(data []byte) ([]byte, error) {
-	reader, err := zstd.NewReader(bytes.NewReader(data))
-	if err != nil {
-		return nil, err
-	}
-	defer reader.Close()
-	return io.ReadAll(reader)
-}
-
-func decompressBrotli(data []byte) ([]byte, error) {
-	// Brotli support requires additional dependency
-	return nil, fmt.Errorf("brotli decompression not implemented")
 }

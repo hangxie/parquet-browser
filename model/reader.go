@@ -1,8 +1,11 @@
 package model
 
 import (
+	"bytes"
 	"fmt"
 
+	"github.com/hangxie/parquet-go/v2/compress"
+	"github.com/hangxie/parquet-go/v2/encoding"
 	"github.com/hangxie/parquet-go/v2/parquet"
 	"github.com/hangxie/parquet-go/v2/reader"
 )
@@ -436,7 +439,7 @@ func (pr *ParquetReader) readDictionaryPageContent(rgIndex, colIndex, pageIndex 
 	}
 
 	// Decompress the data
-	uncompressedData, err := decompressPageData(compressedData, meta.Codec, pageHeader.UncompressedPageSize)
+	uncompressedData, err := compress.Uncompress(compressedData, meta.Codec)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decompress page data: %w", err)
 	}
@@ -447,8 +450,14 @@ func (pr *ParquetReader) readDictionaryPageContent(rgIndex, colIndex, pageIndex 
 		return nil, fmt.Errorf("missing dictionary page header")
 	}
 
+	// Dictionary pages typically use PLAIN or PLAIN_DICTIONARY encoding
+	if dictHeader.Encoding != parquet.Encoding_PLAIN && dictHeader.Encoding != parquet.Encoding_PLAIN_DICTIONARY {
+		return nil, fmt.Errorf("unsupported encoding for dictionary: %v", dictHeader.Encoding)
+	}
+
 	numValues := dictHeader.NumValues
-	values, err := decodeDictionaryValues(uncompressedData, meta.Type, dictHeader.Encoding, int(numValues))
+	bytesReader := bytes.NewReader(uncompressedData)
+	values, err := encoding.ReadPlain(bytesReader, meta.Type, uint64(numValues), 0)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode dictionary values: %w", err)
 	}

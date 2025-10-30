@@ -7,12 +7,9 @@ require (
 	github.com/apache/thrift v0.22.0
 	github.com/atotto/clipboard v0.1.4
 	github.com/gdamore/tcell/v2 v2.9.0
-	github.com/golang/snappy v1.0.0
 	github.com/gorilla/mux v1.8.1
 	github.com/hangxie/parquet-go/v2 v2.3.1
 	github.com/hangxie/parquet-tools v1.37.1
-	github.com/klauspost/compress v1.18.1
-	github.com/pierrec/lz4/v4 v4.1.22
 	github.com/posener/complete v1.2.3
 	github.com/rivo/tview v0.42.0
 	github.com/stretchr/testify v1.11.1
@@ -81,8 +78,10 @@ require (
 	github.com/jcmturner/goidentity/v6 v6.0.1 // indirect
 	github.com/jcmturner/gokrb5/v8 v8.4.4 // indirect
 	github.com/jcmturner/rpc/v2 v2.0.3 // indirect
+	github.com/klauspost/compress v1.18.1 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
 	github.com/mattn/go-runewidth v0.0.16 // indirect
+	github.com/pierrec/lz4/v4 v4.1.22 // indirect
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
