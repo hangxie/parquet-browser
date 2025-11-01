@@ -126,8 +126,7 @@ func (s *ParquetService) handleMainView(w http.ResponseWriter, r *http.Request) 
 
 // handleSchemaView serves the schema viewer page
 func (s *ParquetService) handleSchemaView(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	err := templates.ExecuteTemplate(w, "schema", nil)
+	err := renderPartial(w, r, "schema", nil)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -263,8 +262,7 @@ func (s *ParquetService) handleRowGroupsView(w http.ResponseWriter, r *http.Requ
 		OverallRatio:      formatRatio(float64(totalUncompressed) / float64(totalCompressed)),
 	}
 
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	err := templates.ExecuteTemplate(w, "rowgroups", data)
+	err := renderPartial(w, r, "rowgroups", data)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -371,8 +369,7 @@ func (s *ParquetService) handleColumnsView(w http.ResponseWriter, r *http.Reques
 		CompressionRatio:  formatRatio(float64(totalUncompressed) / float64(totalCompressed)),
 	}
 
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	err = templates.ExecuteTemplate(w, "columns", data)
+	err = renderPartial(w, r, "columns", data)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -520,8 +517,7 @@ func (s *ParquetService) handlePagesView(w http.ResponseWriter, r *http.Request)
 		CompressionRatio:       formatRatio(float64(totalUncompressed) / float64(totalCompressed)),
 	}
 
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	err = templates.ExecuteTemplate(w, "pages", data)
+	err = renderPartial(w, r, "pages", data)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -598,8 +594,7 @@ func (s *ParquetService) handlePageContentView(w http.ResponseWriter, r *http.Re
 		Count:            len(values),
 	}
 
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	err = templates.ExecuteTemplate(w, "page_content", data)
+	err = renderPartial(w, r, "page_content", data)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -678,6 +673,299 @@ func formatRatio(ratio float64) string {
 		return "N/A"
 	}
 	return fmt.Sprintf("%.2fx", ratio)
+}
+
+// renderPartial renders a template partial, wrapping it in full HTML if not an HTMX request
+func renderPartial(w http.ResponseWriter, r *http.Request, templateName string, data interface{}) error {
+	isHTMX := r.Header.Get("HX-Request") == "true"
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
+	if isHTMX {
+		// For HTMX requests, render just the partial
+		return templates.ExecuteTemplate(w, templateName, data)
+	}
+
+	// For direct browser requests, render the partial into the content area
+	// We need to render the index template with the partial loaded
+	var buf strings.Builder
+	if err := templates.ExecuteTemplate(&buf, templateName, data); err != nil {
+		return err
+	}
+
+	// Write the full HTML page structure with the partial content injected
+	if _, err := w.Write([]byte(`<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parquet Browser</title>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <style>`)); err != nil {
+		return err
+	}
+
+	// Write inline CSS
+	if _, err := w.Write([]byte(`
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow-x: auto;
+        }
+
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 10px;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .info-item {
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            border-left: 3px solid #667eea;
+            overflow: hidden;
+        }
+
+        .info-item strong {
+            display: block;
+            color: #555;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+        }
+
+        .info-item span {
+            color: #333;
+            font-size: 1.1em;
+            font-weight: 500;
+            word-wrap: break-word;
+            word-break: break-word;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            table-layout: auto;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid #e0e0e0;
+            word-wrap: break-word;
+            word-break: break-word;
+            max-width: 250px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        th {
+            background: #667eea;
+            color: white;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .row-clickable {
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .row-clickable:hover {
+            background: #e3f2fd !important;
+            transform: scale(1.01);
+        }
+
+        /* Style for clickable table row numbers */
+        table tbody td a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+            padding: 2px 6px;
+            border-radius: 3px;
+            transition: all 0.2s;
+            display: inline-block;
+        }
+
+        table tbody td a:hover {
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+        }
+
+        button, .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        button:hover, .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+
+        .breadcrumb {
+            background: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .breadcrumb a {
+            color: #667eea;
+            text-decoration: none;
+            margin-right: 5px;
+        }
+
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+
+        .breadcrumb span {
+            margin: 0 5px;
+            color: #999;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        .badge-primary {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .badge-success {
+            background: #e8f5e9;
+            color: #388e3c;
+        }
+
+        .badge-info {
+            background: #e0f7fa;
+            color: #0097a7;
+        }
+
+        .page-values {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .value-item {
+            padding: 8px;
+            border-bottom: 1px solid #e0e0e0;
+            display: grid;
+            grid-template-columns: 80px 1fr;
+            gap: 10px;
+        }
+
+        .value-index {
+            color: #666;
+            font-weight: 600;
+        }
+
+        .value-content {
+            font-family: 'Courier New', monospace;
+            word-break: break-all;
+        }
+    `)); err != nil {
+		return err
+	}
+
+	if _, err := w.Write([]byte(`
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Parquet Browser</h1>
+            <p>Interactive web interface for exploring Apache Parquet files</p>
+        </header>
+
+        <div id="breadcrumb-area"></div>
+        <div id="content-area">
+`)); err != nil {
+		return err
+	}
+
+	// Inject the rendered partial content
+	if _, err := w.Write([]byte(buf.String())); err != nil {
+		return err
+	}
+
+	if _, err := w.Write([]byte(`
+        </div>
+    </div>
+</body>
+</html>`)); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func formatNullCount(count *int64) string {

@@ -703,7 +703,7 @@ func Test_HandleMainView_WithRealFile(t *testing.T) {
 	require.Contains(t, body, "File Information")
 	require.Contains(t, body, "all-types.parquet")
 	require.Contains(t, body, "Row Groups")
-	require.Contains(t, body, "Row Group Info")
+	require.Contains(t, body, "/ui/rowgroups/0/columns")
 	require.Contains(t, body, "View Schema")
 }
 
@@ -843,7 +843,7 @@ func Test_HandleRowGroupsView_WithRealFile(t *testing.T) {
 	require.Contains(t, body, "Total Rows")
 	require.Contains(t, body, "Total Compressed")
 	require.Contains(t, body, "Overall Compression")
-	require.Contains(t, body, "Row Group Info")
+	require.Contains(t, body, "/ui/rowgroups/0/columns")
 }
 
 func Test_HandleRowGroupsView_EmptyFile(t *testing.T) {
@@ -896,7 +896,7 @@ func Test_HandleColumnsView_WithRealFile(t *testing.T) {
 	require.Contains(t, body, "Total Columns")
 	require.Contains(t, body, "Total Values")
 	require.Contains(t, body, "Total Size")
-	require.Contains(t, body, "Column Chunk Info")
+	require.Contains(t, body, "/ui/rowgroups/0/columns/0/pages")
 	// Verify Min and Max columns are present
 	require.Contains(t, body, "<th>Min</th>")
 	require.Contains(t, body, "<th>Max</th>")
