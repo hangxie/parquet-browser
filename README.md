@@ -142,14 +142,14 @@ The server provides RESTful endpoints for programmatic access. See [API Document
 Run the web-based interface:
 
 ```bash
-# Start web UI on default port (:8080)
-./parquet-browser webui file.parquet
+# Start web UI on random available port (default)
+./parquet-browser web-ui file.parquet
 
 # Start web UI on custom port
-./parquet-browser webui -a :9090 file.parquet
+./parquet-browser web-ui -a :9090 file.parquet
 ```
 
-The web UI will automatically open in your default browser. Navigate through file metadata, row groups, column chunks, pages, and view actual data values in a modern web interface.
+The web UI will automatically open in your default browser. By default, a random available port is used to avoid conflicts. Navigate through file metadata, row groups, column chunks, pages, and view actual data values in a modern web interface.
 
 ### Open Remote Files
 

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"net"
 
 	pio "github.com/hangxie/parquet-tools/io"
 
@@ -11,7 +12,7 @@ import (
 // WebUICmd is a kong command for serving Web UI
 type WebUICmd struct {
 	URI  string `arg:"" predictor:"file" help:"URI of Parquet file."`
-	Addr string `short:"a" default:":8080" help:"Address to listen on (default :8080)."`
+	Addr string `short:"a" default:"" help:"Address to listen on (default: random port)."`
 	pio.ReadOption
 }
 
@@ -24,6 +25,17 @@ func (w WebUICmd) Run() error {
 	}
 	defer func() { _ = svc.Close() }()
 
+	// If no address specified, find a random available port
+	addr := w.Addr
+	if addr == "" {
+		listener, err := net.Listen("tcp", "127.0.0.1:0")
+		if err != nil {
+			return fmt.Errorf("failed to find available port: %w", err)
+		}
+		addr = listener.Addr().String()
+		_ = listener.Close()
+	}
+
 	// Start the web UI server with HTML interface
-	return service.StartWebUIServer(svc, w.Addr)
+	return service.StartWebUIServer(svc, addr)
 }
