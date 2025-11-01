@@ -16,6 +16,8 @@ import (
 	"github.com/gorilla/mux"
 	pio "github.com/hangxie/parquet-tools/io"
 	"github.com/stretchr/testify/require"
+
+	"github.com/hangxie/parquet-browser/model"
 )
 
 func Test_SetupWebUIRoutes(t *testing.T) {
@@ -176,7 +178,7 @@ func Test_FormatBytes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := formatBytes(tt.input)
+			result := model.FormatBytes(tt.input)
 			require.Equal(t, tt.expected, result)
 		})
 	}
@@ -358,7 +360,7 @@ func Test_FormatBytes_EdgeCases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := formatBytes(tt.input)
+			result := model.FormatBytes(tt.input)
 			require.Equal(t, tt.expected, result)
 		})
 	}
