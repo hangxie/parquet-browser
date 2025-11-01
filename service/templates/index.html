@@ -49,6 +49,7 @@
             padding: 25px;
             margin-bottom: 20px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow-x: auto;
         }
 
         .card h2 {
@@ -71,6 +72,7 @@
             background: #f8f9fa;
             border-radius: 5px;
             border-left: 3px solid #667eea;
+            overflow: hidden;
         }
 
         .info-item strong {
@@ -84,18 +86,26 @@
             color: #333;
             font-size: 1.1em;
             font-weight: 500;
+            word-wrap: break-word;
+            word-break: break-word;
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
             margin-top: 15px;
+            table-layout: auto;
         }
 
         th, td {
             text-align: left;
             padding: 12px;
             border-bottom: 1px solid #e0e0e0;
+            word-wrap: break-word;
+            word-break: break-word;
+            max-width: 250px;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         th {
