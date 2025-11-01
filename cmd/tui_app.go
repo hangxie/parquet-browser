@@ -735,7 +735,7 @@ func (app *TUIApp) showColumnChunksView(rgIndex int) {
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignLeft)
 
-	status := " [yellow]Keys:[-] ESC=back, s=schema, ↑↓=scroll  [red]Note: Page viewing not yet available in HTTP mode[-]"
+	status := " [yellow]Keys:[-] ESC=back, s=schema, ↑↓=scroll, Enter=view pages"
 	statusLine.SetText(status)
 
 	// Create flex layout - same structure as main view: header, table, status
