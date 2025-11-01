@@ -296,6 +296,54 @@ func Test_pageContentBuilder_updateHeaderInfo(t *testing.T) {
 	assert.Contains(t, text, "100")
 }
 
+func Test_getPageContentHeaderHeight(t *testing.T) {
+	tests := []struct {
+		name      string
+		setupView *tview.TextView
+		expected  int
+	}{
+		{
+			name:      "Nil headerView returns default height",
+			setupView: nil,
+			expected:  3,
+		},
+		{
+			name: "Single line text",
+			setupView: func() *tview.TextView {
+				tv := tview.NewTextView()
+				tv.SetText("Single line")
+				return tv
+			}(),
+			expected: 3, // 1 line + 2 borders
+		},
+		{
+			name: "Multi-line text",
+			setupView: func() *tview.TextView {
+				tv := tview.NewTextView()
+				tv.SetText("Line 1\nLine 2\nLine 3")
+				return tv
+			}(),
+			expected: 5, // 3 lines + 2 borders
+		},
+		{
+			name: "Empty text",
+			setupView: func() *tview.TextView {
+				tv := tview.NewTextView()
+				tv.SetText("")
+				return tv
+			}(),
+			expected: 3, // 1 line (empty) + 2 borders
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := getPageContentHeaderHeight(tt.setupView)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
 func Test_pageContentBuilder_build(t *testing.T) {
 	tests := []struct {
 		name         string

@@ -1,7 +1,10 @@
 package cmd
 
 import (
+	"net"
+	"net/http"
 	"testing"
+	"time"
 
 	pio "github.com/hangxie/parquet-tools/io"
 	"github.com/stretchr/testify/require"
@@ -18,6 +21,73 @@ func Test_ServeCmd_Run_InvalidFile(t *testing.T) {
 
 	// Error should mention failed to create service
 	require.Contains(t, err.Error(), "failed to create service", "Error should mention failed to create service")
+}
+
+func Test_ServeCmd_Run_RealFile(t *testing.T) {
+	// Use the test file from parquet-tools repository
+	testFileURL := "https://github.com/hangxie/parquet-tools/raw/refs/heads/main/testdata/good.parquet"
+
+	// Find an available port
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	addr := listener.Addr().String()
+	_ = listener.Close()
+
+	cmd := ServeCmd{
+		URI:        testFileURL,
+		Addr:       addr,
+		ReadOption: pio.ReadOption{},
+	}
+
+	// Run the server in a goroutine since it's a blocking call
+	errChan := make(chan error, 1)
+
+	go func() {
+		err := cmd.Run()
+		if err != nil && err != http.ErrServerClosed {
+			errChan <- err
+		}
+	}()
+
+	// Wait for server to be ready with retry logic
+	serverURL := "http://" + addr
+	var resp *http.Response
+	var connErr error
+
+	for i := 0; i < 50; i++ {
+		// Check if server errored out
+		select {
+		case err := <-errChan:
+			t.Fatalf("Server failed to start: %v", err)
+		default:
+		}
+
+		resp, connErr = http.Get(serverURL + "/info")
+		if connErr == nil {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	if connErr != nil {
+		// One final check for startup error
+		select {
+		case err := <-errChan:
+			t.Fatalf("Server failed to start: %v", err)
+		default:
+			t.Fatalf("Could not connect to server after retries: %v", connErr)
+		}
+	}
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
+	// Verify we got a successful response
+	require.Equal(t, http.StatusOK, resp.StatusCode, "Server should return 200 OK for /info endpoint")
+
+	// The test passes - server started successfully with real file
+	// Note: We don't have a way to cleanly shut down the server from here,
+	// but the test will exit and the goroutine will be cleaned up
 }
 
 func Test_WebUICmd_Run_InvalidFile(t *testing.T) {
