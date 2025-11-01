@@ -86,13 +86,16 @@
                 <th>Encoding</th>
                 <th>Min</th>
                 <th>Max</th>
-                <th>Actions</th>
             </tr>
         </thead>
         <tbody>
             {{range $index, $page := .Pages}}
             <tr>
-                <td>{{$page.Index}}</td>
+                <td><a href="/ui/rowgroups/{{$.RowGroupIndex}}/columns/{{$.ColumnIndex}}/pages/{{$page.Index}}/content"
+                       hx-get="/ui/rowgroups/{{$.RowGroupIndex}}/columns/{{$.ColumnIndex}}/pages/{{$page.Index}}/content"
+                       hx-target="#content-area"
+                       hx-swap="innerHTML"
+                       hx-push-url="true">{{$page.Index}}</a></td>
                 <td><span class="badge badge-primary">{{$page.PageType}}</span></td>
                 <td>{{$page.Offset}}</td>
                 <td>{{$page.CompressedSize}}</td>
@@ -101,12 +104,6 @@
                 <td>{{$page.Encoding}}</td>
                 <td title="{{$page.MinValue}}">{{$page.MinValue}}</td>
                 <td title="{{$page.MaxValue}}">{{$page.MaxValue}}</td>
-                <td>
-                    <button hx-get="/ui/rowgroups/{{$.RowGroupIndex}}/columns/{{$.ColumnIndex}}/pages/{{$page.Index}}/content"
-                            hx-target="#content-area"
-                            hx-swap="innerHTML"
-                            hx-push-url="true">Page Info</button>
-                </td>
             </tr>
             {{end}}
         </tbody>

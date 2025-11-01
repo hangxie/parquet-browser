@@ -41,24 +41,21 @@
                 <th>Uncompressed Size</th>
                 <th>Ratio</th>
                 <th>File Offset</th>
-                <th>Actions</th>
             </tr>
         </thead>
         <tbody>
             {{range $index, $rg := .RowGroups}}
             <tr>
-                <td>{{$rg.Index}}</td>
+                <td><a href="/ui/rowgroups/{{$rg.Index}}/columns"
+                       hx-get="/ui/rowgroups/{{$rg.Index}}/columns"
+                       hx-target="#content-area"
+                       hx-swap="innerHTML"
+                       hx-push-url="true">{{$rg.Index}}</a></td>
                 <td>{{$rg.NumRows}}</td>
                 <td>{{$rg.CompressedSize}}</td>
                 <td>{{$rg.UncompressedSize}}</td>
                 <td>{{$rg.CompressionRatio}}</td>
                 <td>{{$rg.FileOffset}}</td>
-                <td>
-                    <button hx-get="/ui/rowgroups/{{$rg.Index}}/columns"
-                            hx-target="#content-area"
-                            hx-swap="innerHTML"
-                            hx-push-url="true">Row Group Info</button>
-                </td>
             </tr>
             {{end}}
         </tbody>
