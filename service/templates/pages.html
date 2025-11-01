@@ -99,8 +99,8 @@
                 <td>{{$page.UncompressedSize}}</td>
                 <td>{{$page.NumValues}}</td>
                 <td>{{$page.Encoding}}</td>
-                <td>{{$page.MinValue}}</td>
-                <td>{{$page.MaxValue}}</td>
+                <td title="{{$page.MinValue}}">{{$page.MinValue}}</td>
+                <td title="{{$page.MaxValue}}">{{$page.MaxValue}}</td>
                 <td>
                     <button hx-get="/ui/rowgroups/{{$.RowGroupIndex}}/columns/{{$.ColumnIndex}}/pages/{{$page.Index}}/content"
                             hx-target="#content-area"

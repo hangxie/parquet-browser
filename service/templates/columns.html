@@ -55,7 +55,7 @@
             {{range $index, $col := .Columns}}
             <tr>
                 <td>{{$col.Index}}</td>
-                <td>{{$col.ColumnPath}}</td>
+                <td title="{{$col.ColumnPath}}">{{$col.ColumnPath}}</td>
                 <td><span class="badge badge-primary">{{$col.PhysicalType}}</span></td>
                 <td><span class="badge badge-info">{{$col.LogicalType}}</span></td>
                 <td>{{if $col.ConvertedType}}<span class="badge badge-info">{{$col.ConvertedType}}</span>{{else}}-{{end}}</td>
@@ -63,8 +63,8 @@
                 <td>{{$col.NumValues}}</td>
                 <td>{{$col.NullCount}}</td>
                 <td>{{$col.CompressedSize}} → {{$col.UncompressedSize}}</td>
-                <td>{{$col.MinValue}}</td>
-                <td>{{$col.MaxValue}}</td>
+                <td title="{{$col.MinValue}}">{{$col.MinValue}}</td>
+                <td title="{{$col.MaxValue}}">{{$col.MaxValue}}</td>
                 <td>
                     <button hx-get="/ui/rowgroups/{{$.RowGroupIndex}}/columns/{{$col.Index}}/pages"
                             hx-target="#content-area"
