@@ -7,49 +7,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test_GetTotalSize(t *testing.T) {
-	tests := []struct {
-		name     string
-		rowGroup *parquet.RowGroup
-		expected int64
-	}{
-		{
-			name: "Empty row group",
-			rowGroup: &parquet.RowGroup{
-				Columns: []*parquet.ColumnChunk{},
-			},
-			expected: 0,
-		},
-		{
-			name: "Single column",
-			rowGroup: &parquet.RowGroup{
-				Columns: []*parquet.ColumnChunk{
-					{MetaData: &parquet.ColumnMetaData{TotalCompressedSize: 1024}},
-				},
-			},
-			expected: 1024,
-		},
-		{
-			name: "Multiple columns",
-			rowGroup: &parquet.RowGroup{
-				Columns: []*parquet.ColumnChunk{
-					{MetaData: &parquet.ColumnMetaData{TotalCompressedSize: 1024}},
-					{MetaData: &parquet.ColumnMetaData{TotalCompressedSize: 2048}},
-					{MetaData: &parquet.ColumnMetaData{TotalCompressedSize: 512}},
-				},
-			},
-			expected: 3584,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := getTotalSize(tt.rowGroup)
-			require.Equal(t, tt.expected, result, "getTotalSize() should match")
-		})
-	}
-}
-
 func Test_CountLeafColumns(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -96,42 +53,6 @@ func Test_CountLeafColumns(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := countLeafColumns(tt.schema)
 			require.Equal(t, tt.expected, result, "countLeafColumns() should match")
-		})
-	}
-}
-
-func Test_FormatPathInSchema(t *testing.T) {
-	tests := []struct {
-		name     string
-		path     []string
-		expected string
-	}{
-		{
-			name:     "Empty path",
-			path:     []string{},
-			expected: "",
-		},
-		{
-			name:     "Single element",
-			path:     []string{"field1"},
-			expected: "field1",
-		},
-		{
-			name:     "Multiple elements",
-			path:     []string{"parent", "child", "grandchild"},
-			expected: "parent.child.grandchild",
-		},
-		{
-			name:     "With special characters",
-			path:     []string{"my_field", "sub_field"},
-			expected: "my_field.sub_field",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := formatPathInSchema(tt.path)
-			require.Equal(t, tt.expected, result, "formatPathInSchema() should match")
 		})
 	}
 }
@@ -203,64 +124,6 @@ func Test_FormatLogicalType(t *testing.T) {
 		})
 	}
 }
-
-func Test_FormatConvertedType(t *testing.T) {
-	tests := []struct {
-		name          string
-		convertedType *parquet.ConvertedType
-		expected      string
-	}{
-		{
-			name:          "Nil converted type",
-			convertedType: nil,
-			expected:      "-",
-		},
-		{
-			name:          "UTF8 type",
-			convertedType: convertedTypePtr(parquet.ConvertedType_UTF8),
-			expected:      "UTF8",
-		},
-		{
-			name:          "MAP type",
-			convertedType: convertedTypePtr(parquet.ConvertedType_MAP),
-			expected:      "MAP",
-		},
-		{
-			name:          "LIST type",
-			convertedType: convertedTypePtr(parquet.ConvertedType_LIST),
-			expected:      "LIST",
-		},
-		{
-			name:          "DECIMAL type",
-			convertedType: convertedTypePtr(parquet.ConvertedType_DECIMAL),
-			expected:      "DECIMAL",
-		},
-		{
-			name:          "DATE type",
-			convertedType: convertedTypePtr(parquet.ConvertedType_DATE),
-			expected:      "DATE",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := formatConvertedType(tt.convertedType)
-			require.Equal(t, tt.expected, result, "formatConvertedType() should match")
-		})
-	}
-}
-
-// Compression and value decoding tests are covered by the parquet-go library
-// The wrapper functions have been removed - callers now use compress.Uncompress() and encoding.ReadPlain() directly
-
-// LZ4 and Zstd decompression tests are covered by the parquet-go library
-
-// Helper function
-func convertedTypePtr(ct parquet.ConvertedType) *parquet.ConvertedType {
-	return &ct
-}
-
-// Gzip decompression and plain value decoding tests are covered by the parquet-go library
 
 // Test findSchemaElement with various paths
 func Test_FindSchemaElement(t *testing.T) {

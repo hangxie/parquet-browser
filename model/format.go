@@ -2,12 +2,11 @@ package model
 
 import (
 	"bytes"
-	"encoding/base64"
-	"encoding/binary"
 	"fmt"
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/hangxie/parquet-go/v2/encoding"
 	"github.com/hangxie/parquet-go/v2/parquet"
 	"github.com/hangxie/parquet-go/v2/types"
 )
@@ -27,101 +26,72 @@ func FormatBytes(bytes int64) string {
 }
 
 // FormatStatValue formats statistics values (min/max) based on column type information
-// This mimics how parquet-tools interprets min/max values
+// This uses parquet-go's types.ParquetTypeToJSONTypeWithLogical function
 func FormatStatValue(value []byte, columnMeta *parquet.ColumnMetaData, schemaElem *parquet.SchemaElement) string {
 	if len(value) == 0 {
 		return "-"
 	}
 
-	// First, retrieve the raw value based on physical type
-	// Note: retrieveRawValue never returns nil for non-nil input
-	rawValue := retrieveRawValue(value, columnMeta.Type)
+	// Retrieve the raw value from bytes
+	rawValue := retrieveStatValue(value, columnMeta.Type)
+	if rawValue == nil {
+		return "-"
+	}
 
-	// Then decode it based on logical/converted type
-	decodedValue := decodeStatValue(rawValue, columnMeta.Type, schemaElem)
+	// Get precision and scale for numeric types
+	var precision, scale int
+	if schemaElem != nil {
+		precision = int(schemaElem.GetPrecision())
+		scale = int(schemaElem.GetScale())
+	}
+
+	// Convert to JSON type with logical type support
+	var convertedType *parquet.ConvertedType
+	var logicalType *parquet.LogicalType
+	if schemaElem != nil {
+		convertedType = schemaElem.ConvertedType
+		logicalType = schemaElem.LogicalType
+	}
+
+	jsonValue := types.ParquetTypeToJSONTypeWithLogical(
+		rawValue,
+		&columnMeta.Type,
+		convertedType,
+		logicalType,
+		precision,
+		scale,
+	)
 
 	// Format for display
-	return formatDecodedValue(decodedValue)
+	str := fmt.Sprintf("%v", jsonValue)
+	if len(str) > 50 {
+		return str[:50] + "..."
+	}
+	return str
 }
 
-// retrieveRawValue converts raw bytes to Go type based on Parquet physical type
-func retrieveRawValue(value []byte, parquetType parquet.Type) any {
+// retrieveStatValue converts raw statistic bytes to Go type based on Parquet physical type
+// This is similar to parquet-tools' retrieveValue function
+func retrieveStatValue(value []byte, parquetType parquet.Type) any {
 	if value == nil {
 		return nil
 	}
 
+	// Handle byte array types specially
+	if parquetType == parquet.Type_BYTE_ARRAY || parquetType == parquet.Type_FIXED_LEN_BYTE_ARRAY {
+		return string(value)
+	}
+
+	// Use encoding.ReadPlain for other types
 	buf := bytes.NewReader(value)
-	switch parquetType {
-	case parquet.Type_BOOLEAN:
-		var b bool
-		if err := binary.Read(buf, binary.LittleEndian, &b); err != nil {
-			return fmt.Sprintf("error: %v", err)
-		}
-		return b
-	case parquet.Type_INT32:
-		var i32 int32
-		if err := binary.Read(buf, binary.LittleEndian, &i32); err != nil {
-			return fmt.Sprintf("error: %v", err)
-		}
-		return i32
-	case parquet.Type_INT64:
-		var i64 int64
-		if err := binary.Read(buf, binary.LittleEndian, &i64); err != nil {
-			return fmt.Sprintf("error: %v", err)
-		}
-		return i64
-	case parquet.Type_FLOAT:
-		var f32 float32
-		if err := binary.Read(buf, binary.LittleEndian, &f32); err != nil {
-			return fmt.Sprintf("error: %v", err)
-		}
-		return f32
-	case parquet.Type_DOUBLE:
-		var f64 float64
-		if err := binary.Read(buf, binary.LittleEndian, &f64); err != nil {
-			return fmt.Sprintf("error: %v", err)
-		}
-		return f64
+	vals, err := encoding.ReadPlain(buf, parquetType, 1, 0)
+	if err != nil {
+		return fmt.Sprintf("failed to read data as %s: %v", parquetType.String(), err)
 	}
-	return string(value)
-}
-
-// decodeStatValue decodes a value based on logical/converted type
-// This is now a wrapper around decodeValue for backward compatibility
-func decodeStatValue(value any, parquetType parquet.Type, schemaElem *parquet.SchemaElement) any {
-	return decodeValue(value, parquetType, schemaElem)
-}
-
-// formatDecodedValue formats a decoded value for display
-func formatDecodedValue(value any) string {
-	if value == nil {
-		return "-"
+	if len(vals) == 0 {
+		return nil
 	}
-
-	// Handle different types
-	switch v := value.(type) {
-	case string:
-		// Limit string length for display
-		if len(v) > 50 {
-			return v[:50] + "..."
-		}
-		return v
-	case int, int32, int64, uint, uint32, uint64:
-		return fmt.Sprintf("%v", v)
-	case float32:
-		return fmt.Sprintf("%g", v)
-	case float64:
-		return fmt.Sprintf("%g", v)
-	case bool:
-		return fmt.Sprintf("%v", v)
-	default:
-		// For complex types, use JSON marshaling
-		str := fmt.Sprintf("%v", v)
-		if len(str) > 50 {
-			return str[:50] + "..."
-		}
-		return str
-	}
+	return vals[0]
 }
 
 // IsValidUTF8 checks if a string contains valid and mostly printable UTF-8
@@ -157,265 +127,32 @@ func FormatValue(val interface{}, parquetType parquet.Type, schemaElem *parquet.
 		return ""
 	}
 
-	// Apply logical type conversions if schema element is available
+	// Get precision and scale for numeric types
+	var precision, scale int
+	var convertedType *parquet.ConvertedType
+	var logicalType *parquet.LogicalType
+
 	if schemaElem != nil {
-		formattedVal := formatValueWithLogicalType(val, parquetType, schemaElem)
-		// Convert to string for display
-		str := fmt.Sprintf("%v", formattedVal)
-		if len(str) > 200 {
-			return str[:200] + "..."
-		}
-		return str
+		precision = int(schemaElem.GetPrecision())
+		scale = int(schemaElem.GetScale())
+		convertedType = schemaElem.ConvertedType
+		logicalType = schemaElem.LogicalType
 	}
 
-	// No schema information - format as-is
-	str := fmt.Sprintf("%v", val)
+	// Use parquet-go's type conversion function
+	formattedVal := types.ParquetTypeToJSONTypeWithLogical(
+		val,
+		&parquetType,
+		convertedType,
+		logicalType,
+		precision,
+		scale,
+	)
+
+	// Convert to string for display
+	str := fmt.Sprintf("%v", formattedVal)
 	if len(str) > 200 {
 		return str[:200] + "..."
 	}
 	return str
-}
-
-// formatValueWithLogicalType applies logical type formatting to a value
-//
-//nolint:gocognit // Complex type conversion logic with many Parquet types - inherent complexity
-func formatValueWithLogicalType(val interface{}, parquetType parquet.Type, schemaElem *parquet.SchemaElement) interface{} {
-	if val == nil || schemaElem == nil {
-		return val
-	}
-
-	// Handle INT96 (deprecated timestamp type) - must come before byte array handling
-	// INT96 values come through as strings from the parquet reader
-	if parquetType == parquet.Type_INT96 {
-		if strVal, ok := val.(string); ok {
-			return decodeValue(strVal, parquetType, schemaElem)
-		}
-	}
-
-	// Handle string values with logical/converted types (from parquet reader)
-	// This handles BYTE_ARRAY and FIXED_LEN_BYTE_ARRAY types that come through as strings
-	if strVal, ok := val.(string); ok {
-		if schemaElem.LogicalType != nil || schemaElem.ConvertedType != nil {
-			// Apply logical type conversion
-			decoded := decodeValue(strVal, parquetType, schemaElem)
-			if decoded != strVal {
-				// If decoding changed the value, use the decoded version
-				return decoded
-			}
-		}
-	}
-
-	// Handle byte arrays with logical/converted types
-	if bytes, ok := val.([]byte); ok {
-		// If it has a logical or converted type, apply the conversion
-		if schemaElem.LogicalType != nil || schemaElem.ConvertedType != nil {
-			// Convert the value using the same logic as min/max values
-			decoded := decodeValue(string(bytes), parquetType, schemaElem)
-			if decoded != string(bytes) {
-				// If decoding changed the value, use the decoded version
-				return decoded
-			}
-		}
-
-		// No logical type or conversion didn't change it - treat as string/binary
-		str := string(bytes)
-		if isValidUTF8String(str) {
-			return str
-		}
-		// If not valid UTF-8, show as hex for small values
-		if len(bytes) <= 32 {
-			return fmt.Sprintf("0x%X", bytes)
-		}
-		return fmt.Sprintf("<binary:%d bytes>", len(bytes))
-	}
-
-	// For non-byte-array types, check if we need to apply logical type formatting
-	if schemaElem.LogicalType != nil {
-		// Handle special display formatting for certain logical types
-		switch {
-		case schemaElem.LogicalType.IsSetDECIMAL():
-			// If it's already a numeric type, format with proper decimal precision
-			if schemaElem.Scale != nil && *schemaElem.Scale > 0 {
-				switch v := val.(type) {
-				case int32:
-					return decodeValue(v, parquetType, schemaElem)
-				case int64:
-					return decodeValue(v, parquetType, schemaElem)
-				case float32, float64:
-					// Already a float, format with precision
-					return val
-				}
-			}
-		case schemaElem.LogicalType.IsSetDATE():
-			if i32Val, ok := val.(int32); ok {
-				return decodeValue(i32Val, parquetType, schemaElem)
-			}
-		case schemaElem.LogicalType.IsSetTIMESTAMP():
-			if i64Val, ok := val.(int64); ok {
-				return decodeValue(i64Val, parquetType, schemaElem)
-			}
-		case schemaElem.LogicalType.IsSetTIME():
-			if i32Val, ok := val.(int32); ok {
-				return decodeValue(i32Val, parquetType, schemaElem)
-			}
-			if i64Val, ok := val.(int64); ok {
-				return decodeValue(i64Val, parquetType, schemaElem)
-			}
-		case schemaElem.LogicalType.IsSetUUID():
-			if strVal, ok := val.(string); ok {
-				return decodeValue(strVal, parquetType, schemaElem)
-			}
-		}
-	}
-
-	// Handle converted types (backward compatibility)
-	if schemaElem.ConvertedType != nil {
-		switch *schemaElem.ConvertedType {
-		case parquet.ConvertedType_INTERVAL:
-			if strVal, ok := val.(string); ok {
-				return decodeValue(strVal, parquetType, schemaElem)
-			}
-		case parquet.ConvertedType_DECIMAL:
-			// DECIMAL can be stored as BYTE_ARRAY or FIXED_LEN_BYTE_ARRAY
-			if parquetType == parquet.Type_BYTE_ARRAY || parquetType == parquet.Type_FIXED_LEN_BYTE_ARRAY {
-				if strVal, ok := val.(string); ok {
-					return decodeValue(strVal, parquetType, schemaElem)
-				}
-			}
-			// Apply decimal conversion for int32/int64 values
-			switch v := val.(type) {
-			case int32:
-				return decodeValue(v, parquetType, schemaElem)
-			case int64:
-				return decodeValue(v, parquetType, schemaElem)
-			}
-		case parquet.ConvertedType_DATE:
-			if i32Val, ok := val.(int32); ok {
-				return decodeValue(i32Val, parquetType, schemaElem)
-			}
-		case parquet.ConvertedType_TIMESTAMP_MILLIS, parquet.ConvertedType_TIMESTAMP_MICROS:
-			if i64Val, ok := val.(int64); ok {
-				return decodeValue(i64Val, parquetType, schemaElem)
-			}
-		case parquet.ConvertedType_TIME_MILLIS:
-			if i32Val, ok := val.(int32); ok {
-				return decodeValue(i32Val, parquetType, schemaElem)
-			}
-		case parquet.ConvertedType_TIME_MICROS:
-			if i64Val, ok := val.(int64); ok {
-				return decodeValue(i64Val, parquetType, schemaElem)
-			}
-		}
-	}
-
-	// Return value as-is if no special formatting needed
-	return val
-}
-
-// decodeValue decodes a value based on logical/converted type
-//
-//nolint:gocognit // Complex type conversion logic with many Parquet types - inherent complexity
-func decodeValue(value any, parquetType parquet.Type, schemaElem *parquet.SchemaElement) any {
-	if value == nil || schemaElem == nil {
-		return value
-	}
-
-	// Handle INT96 (deprecated timestamp type)
-	if parquetType == parquet.Type_INT96 {
-		if strVal, ok := value.(string); ok {
-			return types.INT96ToTime(strVal)
-		}
-		return value
-	}
-
-	// Handle BYTE_ARRAY and FIXED_LEN_BYTE_ARRAY without logical/converted type
-	if (parquetType == parquet.Type_BYTE_ARRAY || parquetType == parquet.Type_FIXED_LEN_BYTE_ARRAY) &&
-		schemaElem.ConvertedType == nil && schemaElem.LogicalType == nil {
-		if strVal, ok := value.(string); ok {
-			return base64.StdEncoding.EncodeToString([]byte(strVal))
-		}
-		return value
-	}
-
-	// Handle converted types (backward compatibility)
-	if schemaElem.ConvertedType != nil {
-		switch *schemaElem.ConvertedType {
-		case parquet.ConvertedType_DECIMAL:
-			precision := int32(10) // default
-			scale := int32(0)      // default
-			if schemaElem.Precision != nil {
-				precision = *schemaElem.Precision
-			}
-			if schemaElem.Scale != nil {
-				scale = *schemaElem.Scale
-			}
-			return types.ConvertDecimalValue(value, &parquetType, int(precision), int(scale))
-		case parquet.ConvertedType_DATE:
-			return types.ConvertDateLogicalValue(value)
-		case parquet.ConvertedType_TIME_MILLIS:
-			if i32Val, ok := value.(int32); ok {
-				return types.TIME_MILLISToTimeFormat(i32Val)
-			}
-			return value
-		case parquet.ConvertedType_TIME_MICROS:
-			if i64Val, ok := value.(int64); ok {
-				return types.TIME_MICROSToTimeFormat(i64Val)
-			}
-			return value
-		case parquet.ConvertedType_TIMESTAMP_MICROS, parquet.ConvertedType_TIMESTAMP_MILLIS:
-			return types.ConvertTimestampValue(value, *schemaElem.ConvertedType)
-		case parquet.ConvertedType_INTERVAL:
-			if strVal, ok := value.(string); ok {
-				return types.IntervalToString([]byte(strVal))
-			}
-			return value
-		case parquet.ConvertedType_BSON:
-			return types.ConvertBSONLogicalValue(value)
-		}
-	}
-
-	// Handle logical types
-	if schemaElem.LogicalType != nil {
-		switch {
-		case schemaElem.LogicalType.IsSetDECIMAL():
-			precision := int32(10) // default
-			scale := int32(0)      // default
-			if schemaElem.Precision != nil {
-				precision = *schemaElem.Precision
-			}
-			if schemaElem.Scale != nil {
-				scale = *schemaElem.Scale
-			}
-			return types.ConvertDecimalValue(value, &parquetType, int(precision), int(scale))
-		case schemaElem.LogicalType.IsSetDATE():
-			return types.ConvertDateLogicalValue(value)
-		case schemaElem.LogicalType.IsSetTIME():
-			return types.ConvertTimeLogicalValue(value, schemaElem.LogicalType.GetTIME())
-		case schemaElem.LogicalType.IsSetTIMESTAMP():
-			if i64Val, ok := value.(int64); ok {
-				if schemaElem.LogicalType.TIMESTAMP.Unit.IsSetMILLIS() {
-					return types.TIMESTAMP_MILLISToISO8601(i64Val, false)
-				}
-				if schemaElem.LogicalType.TIMESTAMP.Unit.IsSetMICROS() {
-					return types.TIMESTAMP_MICROSToISO8601(i64Val, false)
-				}
-				return types.TIMESTAMP_NANOSToISO8601(i64Val, false)
-			}
-			return value
-		case schemaElem.LogicalType.IsSetUUID():
-			return types.ConvertUUIDValue(value)
-		case schemaElem.LogicalType.IsSetBSON():
-			return types.ConvertBSONLogicalValue(value)
-		case schemaElem.LogicalType.IsSetFLOAT16():
-			return types.ConvertFloat16LogicalValue(value)
-		}
-	}
-
-	return value
-}
-
-// isValidUTF8String is an alias for IsValidUTF8 to maintain compatibility
-// Deprecated: Use IsValidUTF8 instead
-func isValidUTF8String(s string) bool {
-	return IsValidUTF8(s)
 }

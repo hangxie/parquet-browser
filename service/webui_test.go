@@ -2174,3 +2174,23 @@ func Test_StartWebUIServer_PortInUse(t *testing.T) {
 	require.Error(t, err, "Should return error when port is already in use")
 	require.Contains(t, err.Error(), "address already in use")
 }
+
+// Test formatNullCount function
+func Test_formatNullCount(t *testing.T) {
+	t.Run("Nil value", func(t *testing.T) {
+		result := formatNullCount(nil)
+		require.Equal(t, "-", result, "Should return '-' for nil")
+	})
+
+	t.Run("Non-nil value", func(t *testing.T) {
+		count := int64(42)
+		result := formatNullCount(&count)
+		require.Equal(t, "42", result, "Should format the count")
+	})
+
+	t.Run("Zero count", func(t *testing.T) {
+		count := int64(0)
+		result := formatNullCount(&count)
+		require.Equal(t, "0", result, "Should format zero")
+	})
+}
