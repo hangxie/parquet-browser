@@ -601,8 +601,8 @@ func (app *TUIApp) createRowGroupList() {
 		return
 	}
 
-	// Set header row
-	headers := []string{"#", "Rows", "Columns", "Size"}
+	// Set header row (removed "Columns" as it's in the file header - all row groups have same columns)
+	headers := []string{"#", "Rows", "Size"}
 	for colIdx, header := range headers {
 		cell := tview.NewTableCell(header).
 			SetTextColor(tcell.ColorYellow).
@@ -626,12 +626,6 @@ func (app *TUIApp) createRowGroupList() {
 			SetAlign(tview.AlignRight)
 		app.rowGroupList.SetCell(rowIdx+1, 1, cell)
 
-		// Columns
-		cell = tview.NewTableCell(fmt.Sprintf("%d", rg.NumColumns)).
-			SetTextColor(tcell.ColorWhite).
-			SetAlign(tview.AlignRight)
-		app.rowGroupList.SetCell(rowIdx+1, 2, cell)
-
 		// Size - show compressed → uncompressed (ratio)
 		sizeStr := fmt.Sprintf("%s → %s",
 			model.FormatBytes(rg.CompressedSize),
@@ -639,7 +633,7 @@ func (app *TUIApp) createRowGroupList() {
 		cell = tview.NewTableCell(sizeStr).
 			SetTextColor(tcell.ColorWhite).
 			SetAlign(tview.AlignRight)
-		app.rowGroupList.SetCell(rowIdx+1, 3, cell)
+		app.rowGroupList.SetCell(rowIdx+1, 2, cell)
 	}
 
 	// Selection handler removed - use keyboard shortcuts instead (d=data, c=columns)
