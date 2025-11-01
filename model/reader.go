@@ -477,7 +477,7 @@ func (pr *ParquetReader) GetPageContentFormatted(rgIndex, colIndex, pageIndex in
 	// Get column metadata and schema element for formatting
 	rg := pr.metadata.RowGroups[rgIndex]
 	meta := rg.Columns[colIndex].MetaData
-	schemaElem := findSchemaElementByPath(pr.metadata.Schema, meta.PathInSchema)
+	schemaElem := findSchemaElement(pr.metadata.Schema, meta.PathInSchema)
 
 	// Format each value
 	formattedValues := make([]string, len(rawValues))

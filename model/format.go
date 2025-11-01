@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"fmt"
-	"strings"
 	"unicode"
 	"unicode/utf8"
 
@@ -88,105 +87,9 @@ func retrieveRawValue(value []byte, parquetType parquet.Type) any {
 }
 
 // decodeStatValue decodes a value based on logical/converted type
-//
-//nolint:gocognit // Complex type conversion logic with many Parquet types - inherent complexity
+// This is now a wrapper around decodeValue for backward compatibility
 func decodeStatValue(value any, parquetType parquet.Type, schemaElem *parquet.SchemaElement) any {
-	if value == nil || schemaElem == nil {
-		return value
-	}
-
-	// Handle INT96 (deprecated timestamp type)
-	if parquetType == parquet.Type_INT96 {
-		if strVal, ok := value.(string); ok {
-			return types.INT96ToTime(strVal)
-		}
-		return value
-	}
-
-	// Handle BYTE_ARRAY and FIXED_LEN_BYTE_ARRAY without logical/converted type
-	if (parquetType == parquet.Type_BYTE_ARRAY || parquetType == parquet.Type_FIXED_LEN_BYTE_ARRAY) &&
-		schemaElem.ConvertedType == nil && schemaElem.LogicalType == nil {
-		if strVal, ok := value.(string); ok {
-			return base64.StdEncoding.EncodeToString([]byte(strVal))
-		}
-		return value
-	}
-
-	// Handle converted types (backward compatibility)
-	if schemaElem.ConvertedType != nil {
-		switch *schemaElem.ConvertedType {
-		case parquet.ConvertedType_DECIMAL:
-			precision := int32(10) // default
-			scale := int32(0)      // default
-			if schemaElem.Precision != nil {
-				precision = *schemaElem.Precision
-			}
-			if schemaElem.Scale != nil {
-				scale = *schemaElem.Scale
-			}
-			return types.ConvertDecimalValue(value, &parquetType, int(precision), int(scale))
-		case parquet.ConvertedType_DATE:
-			return types.ConvertDateLogicalValue(value)
-		case parquet.ConvertedType_TIME_MILLIS:
-			if i32Val, ok := value.(int32); ok {
-				return types.TIME_MILLISToTimeFormat(i32Val)
-			}
-			return value
-		case parquet.ConvertedType_TIME_MICROS:
-			if i64Val, ok := value.(int64); ok {
-				return types.TIME_MICROSToTimeFormat(i64Val)
-			}
-			return value
-		case parquet.ConvertedType_TIMESTAMP_MICROS, parquet.ConvertedType_TIMESTAMP_MILLIS:
-			return types.ConvertTimestampValue(value, *schemaElem.ConvertedType)
-		case parquet.ConvertedType_INTERVAL:
-			if strVal, ok := value.(string); ok {
-				return types.IntervalToString([]byte(strVal))
-			}
-			return value
-		case parquet.ConvertedType_BSON:
-			return types.ConvertBSONLogicalValue(value)
-		}
-	}
-
-	// Handle logical types
-	if schemaElem.LogicalType != nil {
-		switch {
-		case schemaElem.LogicalType.IsSetDECIMAL():
-			precision := int32(10) // default
-			scale := int32(0)      // default
-			if schemaElem.Precision != nil {
-				precision = *schemaElem.Precision
-			}
-			if schemaElem.Scale != nil {
-				scale = *schemaElem.Scale
-			}
-			return types.ConvertDecimalValue(value, &parquetType, int(precision), int(scale))
-		case schemaElem.LogicalType.IsSetDATE():
-			return types.ConvertDateLogicalValue(value)
-		case schemaElem.LogicalType.IsSetTIME():
-			return types.ConvertTimeLogicalValue(value, schemaElem.LogicalType.GetTIME())
-		case schemaElem.LogicalType.IsSetTIMESTAMP():
-			if i64Val, ok := value.(int64); ok {
-				if schemaElem.LogicalType.TIMESTAMP.Unit.IsSetMILLIS() {
-					return types.TIMESTAMP_MILLISToISO8601(i64Val, false)
-				}
-				if schemaElem.LogicalType.TIMESTAMP.Unit.IsSetMICROS() {
-					return types.TIMESTAMP_MICROSToISO8601(i64Val, false)
-				}
-				return types.TIMESTAMP_NANOSToISO8601(i64Val, false)
-			}
-			return value
-		case schemaElem.LogicalType.IsSetUUID():
-			return types.ConvertUUIDValue(value)
-		case schemaElem.LogicalType.IsSetBSON():
-			return types.ConvertBSONLogicalValue(value)
-		case schemaElem.LogicalType.IsSetFLOAT16():
-			return types.ConvertFloat16LogicalValue(value)
-		}
-	}
-
-	return value
+	return decodeValue(value, parquetType, schemaElem)
 }
 
 // formatDecodedValue formats a decoded value for display
@@ -511,110 +414,8 @@ func decodeValue(value any, parquetType parquet.Type, schemaElem *parquet.Schema
 	return value
 }
 
-// isValidUTF8String checks if a string contains valid and mostly printable UTF-8
+// isValidUTF8String is an alias for IsValidUTF8 to maintain compatibility
+// Deprecated: Use IsValidUTF8 instead
 func isValidUTF8String(s string) bool {
-	// Check if valid UTF-8
-	if !utf8.ValidString(s) {
-		return false
-	}
-
-	// Count printable characters
-	printable := 0
-	total := 0
-	for _, r := range s {
-		total++
-		if unicode.IsPrint(r) || unicode.IsSpace(r) {
-			printable++
-		}
-	}
-
-	// Require at least 80% printable characters
-	return total > 0 && (printable*100/total >= 80)
-}
-
-// findSchemaElementByPath finds the schema element for a given path
-//
-//nolint:gocognit // Complex schema traversal logic with many edge cases - inherent complexity
-func findSchemaElementByPath(schema []*parquet.SchemaElement, pathInSchema []string) *parquet.SchemaElement {
-	if len(pathInSchema) == 0 || len(schema) == 0 {
-		return nil
-	}
-
-	// The schema is stored as a flat list in depth-first pre-order traversal
-	// We need to reconstruct paths to find the correct element
-
-	// Build a stack-based traversal to match the full path
-	type stackEntry struct {
-		path       []string
-		childCount int
-	}
-
-	var stack []stackEntry
-	var candidates []*parquet.SchemaElement
-
-	for _, elem := range schema {
-		// Skip root element
-		if elem.Name == "Parquet_go_root" || elem.Name == "" {
-			continue
-		}
-
-		// Pop completed parent nodes from stack
-		for len(stack) > 0 {
-			top := &stack[len(stack)-1]
-			if top.childCount > 0 {
-				top.childCount--
-				break
-			}
-			stack = stack[:len(stack)-1]
-		}
-
-		// Build current path
-		currentPath := make([]string, 0, len(stack)+1)
-		for _, entry := range stack {
-			currentPath = append(currentPath, entry.path[len(entry.path)-1])
-		}
-		currentPath = append(currentPath, elem.Name)
-
-		// Check if this matches our target path
-		if len(currentPath) == len(pathInSchema) {
-			match := true
-			for i := range pathInSchema {
-				// Case-insensitive match to handle Key_value vs key_value
-				if !strings.EqualFold(pathInSchema[i], currentPath[i]) {
-					match = false
-					break
-				}
-			}
-			if match {
-				candidates = append(candidates, elem)
-			}
-		}
-
-		// Push current element to stack if it has children
-		childCount := 0
-		if elem.NumChildren != nil {
-			childCount = int(*elem.NumChildren)
-		}
-		if childCount > 0 {
-			stack = append(stack, stackEntry{
-				path:       currentPath,
-				childCount: childCount,
-			})
-		}
-	}
-
-	// Return the first matching candidate
-	if len(candidates) > 0 {
-		return candidates[0]
-	}
-
-	// Fallback: match just the leaf name (for backward compatibility with simple schemas)
-	leafName := pathInSchema[len(pathInSchema)-1]
-	for _, elem := range schema {
-		if strings.EqualFold(elem.Name, leafName) {
-			return elem
-		}
-	}
-
-	return nil
+	return IsValidUTF8(s)
 }
