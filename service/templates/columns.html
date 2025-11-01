@@ -48,13 +48,16 @@
                 <th>Size</th>
                 <th>Min</th>
                 <th>Max</th>
-                <th>Actions</th>
             </tr>
         </thead>
         <tbody>
             {{range $index, $col := .Columns}}
             <tr>
-                <td>{{$col.Index}}</td>
+                <td><a href="/ui/rowgroups/{{$.RowGroupIndex}}/columns/{{$col.Index}}/pages"
+                       hx-get="/ui/rowgroups/{{$.RowGroupIndex}}/columns/{{$col.Index}}/pages"
+                       hx-target="#content-area"
+                       hx-swap="innerHTML"
+                       hx-push-url="true">{{$col.Index}}</a></td>
                 <td title="{{$col.ColumnPath}}">{{$col.ColumnPath}}</td>
                 <td><span class="badge badge-primary">{{$col.PhysicalType}}</span></td>
                 <td><span class="badge badge-info">{{$col.LogicalType}}</span></td>
@@ -65,12 +68,6 @@
                 <td>{{$col.CompressedSize}} → {{$col.UncompressedSize}}</td>
                 <td title="{{$col.MinValue}}">{{$col.MinValue}}</td>
                 <td title="{{$col.MaxValue}}">{{$col.MaxValue}}</td>
-                <td>
-                    <button hx-get="/ui/rowgroups/{{$.RowGroupIndex}}/columns/{{$col.Index}}/pages"
-                            hx-target="#content-area"
-                            hx-swap="innerHTML"
-                            hx-push-url="true">Column Chunk Info</button>
-                </td>
             </tr>
             {{end}}
         </tbody>
