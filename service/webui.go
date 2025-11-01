@@ -212,6 +212,7 @@ func (s *ParquetService) handleSchemaRawView(w http.ResponseWriter, r *http.Requ
 // handleRowGroupsView serves the row groups list view
 func (s *ParquetService) handleRowGroupsView(w http.ResponseWriter, r *http.Request) {
 	rowGroups := s.reader.GetAllRowGroupsInfo()
+	fileInfo := s.reader.GetFileInfo()
 
 	// Format the row groups for display
 	type FormattedRowGroup struct {
@@ -248,6 +249,7 @@ func (s *ParquetService) handleRowGroupsView(w http.ResponseWriter, r *http.Requ
 		RowGroups         []FormattedRowGroup
 		TotalRowGroups    int
 		TotalRows         int64
+		TotalColumns      int
 		TotalCompressed   string
 		TotalUncompressed string
 		OverallRatio      string
@@ -255,6 +257,7 @@ func (s *ParquetService) handleRowGroupsView(w http.ResponseWriter, r *http.Requ
 		RowGroups:         formatted,
 		TotalRowGroups:    len(rowGroups),
 		TotalRows:         totalRows,
+		TotalColumns:      fileInfo.NumLeafColumns,
 		TotalCompressed:   formatBytes(totalCompressed),
 		TotalUncompressed: formatBytes(totalUncompressed),
 		OverallRatio:      formatRatio(float64(totalUncompressed) / float64(totalCompressed)),
