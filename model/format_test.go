@@ -423,12 +423,12 @@ func Test_FindSchemaElementByPath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := findSchemaElementByPath(tt.schema, tt.path)
+			result := findSchemaElement(tt.schema, tt.path)
 			if tt.expectNil {
-				require.Nil(t, result, "findSchemaElementByPath() should return nil")
+				require.Nil(t, result, "findSchemaElement() should return nil")
 			} else {
-				require.NotNil(t, result, "findSchemaElementByPath() should return non-nil")
-				require.Equal(t, tt.expectedName, result.Name, "findSchemaElementByPath() name should match")
+				require.NotNil(t, result, "findSchemaElement() should return non-nil")
+				require.Equal(t, tt.expectedName, result.Name, "findSchemaElement() name should match")
 			}
 		})
 	}
@@ -441,9 +441,9 @@ func Test_FindSchemaElementByPath_CaseInsensitive(t *testing.T) {
 	}
 
 	// Should match case-insensitively
-	result := findSchemaElementByPath(schema, []string{"myfield"})
-	require.NotNil(t, result, "findSchemaElementByPath() with different case should find element")
-	require.Equal(t, "MyField", result.Name, "findSchemaElementByPath() name should match")
+	result := findSchemaElement(schema, []string{"myfield"})
+	require.NotNil(t, result, "findSchemaElement() with different case should find element")
+	require.Equal(t, "MyField", result.Name, "findSchemaElement() name should match")
 }
 
 func Test_FormatValueWithLogicalType_ByteArray(t *testing.T) {
