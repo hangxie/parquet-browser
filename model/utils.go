@@ -10,15 +10,6 @@ import (
 	"github.com/hangxie/parquet-go/v2/parquet"
 )
 
-// getTotalSize gets the total compressed size of a row group
-func getTotalSize(rg *parquet.RowGroup) int64 {
-	var total int64
-	for _, col := range rg.Columns {
-		total += col.MetaData.TotalCompressedSize
-	}
-	return total
-}
-
 // countLeafColumns counts only leaf columns (columns with Type field) in the schema
 func countLeafColumns(schema []*parquet.SchemaElement) int {
 	count := 0
@@ -30,16 +21,6 @@ func countLeafColumns(schema []*parquet.SchemaElement) int {
 	}
 	return count
 }
-
-// formatPathInSchema formats a path in schema for display
-func formatPathInSchema(pathInSchema []string) string {
-	return strings.Join(pathInSchema, ".")
-}
-
-// countLeafColumns counts only leaf columns (columns with Type field) in the schema
-// This excludes group nodes like LIST, MAP, and STRUCT which don't have actual data
-
-// formatPathInSchema formats a path in schema for display
 
 // findSchemaElement finds the schema element for a given path
 //
@@ -189,14 +170,6 @@ func formatLogicalType(logicalType *parquet.LogicalType) string {
 	return "-"
 }
 
-// formatConvertedType formats the converted type for display
-func formatConvertedType(convertedType *parquet.ConvertedType) string {
-	if convertedType == nil {
-		return "-"
-	}
-	return convertedType.String()
-}
-
 // positionTracker wraps a reader and tracks read position
 type positionTracker struct {
 	r   io.Reader
@@ -231,14 +204,6 @@ func (p *positionTracker) IsOpen() bool {
 
 func (p *positionTracker) Open() error {
 	return nil
-}
-
-// getColumnStartOffset returns the starting offset for a column's pages
-func getColumnStartOffset(meta *parquet.ColumnMetaData) int64 {
-	if meta.DictionaryPageOffset != nil {
-		return *meta.DictionaryPageOffset
-	}
-	return meta.DataPageOffset
 }
 
 // readSinglePageHeader reads a page header from the given offset
@@ -365,16 +330,4 @@ func extractPageStatistics(pageInfo *PageMetadata, stats *parquet.Statistics, co
 
 	// Extract null count if available
 	pageInfo.NullCount = stats.NullCount
-}
-
-// countPageValues returns the number of values in a page (only for data pages)
-func countPageValues(pageHeader *parquet.PageHeader) int64 {
-	// Only data pages count toward total values
-	if pageHeader.Type == parquet.PageType_DATA_PAGE && pageHeader.DataPageHeader != nil {
-		return int64(pageHeader.DataPageHeader.NumValues)
-	}
-	if pageHeader.Type == parquet.PageType_DATA_PAGE_V2 && pageHeader.DataPageHeaderV2 != nil {
-		return int64(pageHeader.DataPageHeaderV2.NumValues)
-	}
-	return 0
 }

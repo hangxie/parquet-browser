@@ -57,99 +57,6 @@ func Test_FormatColumnName(t *testing.T) {
 	}
 }
 
-func Test_GetColumnStartOffset(t *testing.T) {
-	tests := []struct {
-		name     string
-		meta     *parquet.ColumnMetaData
-		expected int64
-	}{
-		{
-			name: "With dictionary page offset",
-			meta: &parquet.ColumnMetaData{
-				DictionaryPageOffset: int64Ptr(1000),
-				DataPageOffset:       2000,
-			},
-			expected: 1000,
-		},
-		{
-			name: "Without dictionary page offset",
-			meta: &parquet.ColumnMetaData{
-				DictionaryPageOffset: nil,
-				DataPageOffset:       2000,
-			},
-			expected: 2000,
-		},
-		{
-			name: "Zero offsets",
-			meta: &parquet.ColumnMetaData{
-				DictionaryPageOffset: int64Ptr(0),
-				DataPageOffset:       0,
-			},
-			expected: 0,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := getColumnStartOffset(tt.meta)
-			require.Equal(t, tt.expected, result, "getColumnStartOffset() should match")
-		})
-	}
-}
-
-func Test_CountPageValues(t *testing.T) {
-	tests := []struct {
-		name     string
-		header   *parquet.PageHeader
-		expected int64
-	}{
-		{
-			name: "DATA_PAGE with values",
-			header: &parquet.PageHeader{
-				Type: parquet.PageType_DATA_PAGE,
-				DataPageHeader: &parquet.DataPageHeader{
-					NumValues: 100,
-				},
-			},
-			expected: 100,
-		},
-		{
-			name: "DATA_PAGE_V2 with values",
-			header: &parquet.PageHeader{
-				Type: parquet.PageType_DATA_PAGE_V2,
-				DataPageHeaderV2: &parquet.DataPageHeaderV2{
-					NumValues: 200,
-				},
-			},
-			expected: 200,
-		},
-		{
-			name: "DICTIONARY_PAGE",
-			header: &parquet.PageHeader{
-				Type: parquet.PageType_DICTIONARY_PAGE,
-				DictionaryPageHeader: &parquet.DictionaryPageHeader{
-					NumValues: 50,
-				},
-			},
-			expected: 0, // Dictionary pages don't count toward total values
-		},
-		{
-			name: "INDEX_PAGE",
-			header: &parquet.PageHeader{
-				Type: parquet.PageType_INDEX_PAGE,
-			},
-			expected: 0,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := countPageValues(tt.header)
-			require.Equal(t, tt.expected, result, "countPageValues() should match")
-		})
-	}
-}
-
 func Test_ExtractPageMetadata(t *testing.T) {
 	t.Run("DATA_PAGE", func(t *testing.T) {
 		header := &parquet.PageHeader{
@@ -408,11 +315,6 @@ func Test_PositionTracker(t *testing.T) {
 		err := tracker.Flush(context.Background())
 		require.NoError(t, err, "Flush() should not return error")
 	})
-}
-
-// Helper function
-func int64Ptr(i int64) *int64 {
-	return &i
 }
 
 // Helper to get the path to test parquet file

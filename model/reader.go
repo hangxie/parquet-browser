@@ -3,6 +3,7 @@ package model
 import (
 	"bytes"
 	"fmt"
+	"strings"
 
 	"github.com/hangxie/parquet-go/v2/compress"
 	"github.com/hangxie/parquet-go/v2/encoding"
@@ -109,7 +110,12 @@ func (pr *ParquetReader) GetFileInfo() FileInfo {
 		if rg.IsSetTotalCompressedSize() {
 			info.TotalCompressedSize += rg.GetTotalCompressedSize()
 		} else {
-			info.TotalCompressedSize += getTotalSize(rg)
+			// Sum up compressed sizes from all columns
+			var total int64
+			for _, col := range rg.Columns {
+				total += col.MetaData.TotalCompressedSize
+			}
+			info.TotalCompressedSize += total
 		}
 	}
 
@@ -145,7 +151,12 @@ func (pr *ParquetReader) GetRowGroupInfo(rgIndex int) (RowGroupInfo, error) {
 	if rg.IsSetTotalCompressedSize() {
 		info.CompressedSize = rg.GetTotalCompressedSize()
 	} else {
-		info.CompressedSize = getTotalSize(rg)
+		// Sum up compressed sizes from all columns
+		var total int64
+		for _, col := range rg.Columns {
+			total += col.MetaData.TotalCompressedSize
+		}
+		info.CompressedSize = total
 	}
 
 	// Calculate compression ratio
@@ -200,7 +211,11 @@ func (pr *ParquetReader) GetColumnChunkInfo(rgIndex, colIndex int) (ColumnChunkI
 	schemaElem := findSchemaElement(pr.metadata.Schema, meta.PathInSchema)
 	if schemaElem != nil {
 		info.LogicalType = formatLogicalType(schemaElem.LogicalType)
-		info.ConvertedType = formatConvertedType(schemaElem.ConvertedType)
+		if schemaElem.ConvertedType == nil {
+			info.ConvertedType = "-"
+		} else {
+			info.ConvertedType = schemaElem.ConvertedType.String()
+		}
 	}
 
 	// Get statistics if available
@@ -254,7 +269,7 @@ func (pr *ParquetReader) GetAllColumnChunksInfo(rgIndex int) ([]ColumnChunkInfo,
 
 // formatColumnName creates a display name from path in schema
 func formatColumnName(pathInSchema []string) string {
-	return formatPathInSchema(pathInSchema)
+	return strings.Join(pathInSchema, ".")
 }
 
 // GetPageMetadataList returns metadata for all pages in a column chunk
@@ -278,7 +293,10 @@ func (pr *ParquetReader) GetPageMetadataList(rgIndex, colIndex int) ([]PageMetad
 	pFile := pr.Reader.PFile
 
 	// Calculate start offset
-	startOffset := getColumnStartOffset(meta)
+	startOffset := meta.DataPageOffset
+	if meta.DictionaryPageOffset != nil {
+		startOffset = *meta.DictionaryPageOffset
+	}
 
 	// Read pages until we've read all values
 	currentOffset := startOffset
@@ -296,7 +314,12 @@ func (pr *ParquetReader) GetPageMetadataList(rgIndex, colIndex int) ([]PageMetad
 		pageIndex++
 
 		// Count values for data pages
-		valuesInPage := countPageValues(pageHeader)
+		var valuesInPage int64
+		if pageHeader.Type == parquet.PageType_DATA_PAGE && pageHeader.DataPageHeader != nil {
+			valuesInPage = int64(pageHeader.DataPageHeader.NumValues)
+		} else if pageHeader.Type == parquet.PageType_DATA_PAGE_V2 && pageHeader.DataPageHeaderV2 != nil {
+			valuesInPage = int64(pageHeader.DataPageHeaderV2.NumValues)
+		}
 		totalValuesRead += valuesInPage
 
 		pages = append(pages, pageInfo)
