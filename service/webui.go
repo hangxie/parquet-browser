@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"runtime"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -638,7 +639,14 @@ func StartWebUIServer(service *ParquetService, addr string) error {
 	r := CreateWebUIRouter(service)
 
 	// Construct the full URL
-	url := fmt.Sprintf("http://localhost%s", addr)
+	// If addr already contains host (e.g., "127.0.0.1:8080"), use it directly
+	// Otherwise prepend localhost (e.g., ":8080" -> "localhost:8080")
+	url := ""
+	if strings.HasPrefix(addr, ":") {
+		url = fmt.Sprintf("http://localhost%s", addr)
+	} else {
+		url = fmt.Sprintf("http://%s", addr)
+	}
 
 	fmt.Printf("Starting Parquet Browser Web UI on %s\n", addr)
 	fmt.Printf("Opening browser to: %s\n", url)
