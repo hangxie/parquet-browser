@@ -201,7 +201,7 @@ func Test_FormatLogicalType_TimeTypes(t *testing.T) {
 					Unit:            &parquet.TimeUnit{MILLIS: &parquet.MilliSeconds{}},
 				},
 			},
-			expected: "TIME(TimeUnit({MILLIS:MilliSeconds({}) MICROS:<nil> NANOS:<nil>}),true)",
+			expected: "TIME(MILLIS,UTC)",
 		},
 		{
 			name: "TIME with micros",
@@ -211,7 +211,7 @@ func Test_FormatLogicalType_TimeTypes(t *testing.T) {
 					Unit:            &parquet.TimeUnit{MICROS: &parquet.MicroSeconds{}},
 				},
 			},
-			expected: "TIME(TimeUnit({MILLIS:<nil> MICROS:MicroSeconds({}) NANOS:<nil>}),false)",
+			expected: "TIME(MICROS,local)",
 		},
 		{
 			name: "TIME with nanos",
@@ -221,7 +221,7 @@ func Test_FormatLogicalType_TimeTypes(t *testing.T) {
 					Unit:            &parquet.TimeUnit{NANOS: &parquet.NanoSeconds{}},
 				},
 			},
-			expected: "TIME(TimeUnit({MILLIS:<nil> MICROS:<nil> NANOS:NanoSeconds({})}),true)",
+			expected: "TIME(NANOS,UTC)",
 		},
 		{
 			name: "TIMESTAMP with millis",
@@ -231,7 +231,7 @@ func Test_FormatLogicalType_TimeTypes(t *testing.T) {
 					Unit:            &parquet.TimeUnit{MILLIS: &parquet.MilliSeconds{}},
 				},
 			},
-			expected: "TIMESTAMP(TimeUnit({MILLIS:MilliSeconds({}) MICROS:<nil> NANOS:<nil>}),true)",
+			expected: "TIMESTAMP(MILLIS,UTC)",
 		},
 		{
 			name: "TIMESTAMP with micros",
@@ -241,7 +241,7 @@ func Test_FormatLogicalType_TimeTypes(t *testing.T) {
 					Unit:            &parquet.TimeUnit{MICROS: &parquet.MicroSeconds{}},
 				},
 			},
-			expected: "TIMESTAMP(TimeUnit({MILLIS:<nil> MICROS:MicroSeconds({}) NANOS:<nil>}),false)",
+			expected: "TIMESTAMP(MICROS,local)",
 		},
 		{
 			name: "TIMESTAMP with nanos",
@@ -251,7 +251,7 @@ func Test_FormatLogicalType_TimeTypes(t *testing.T) {
 					Unit:            &parquet.TimeUnit{NANOS: &parquet.NanoSeconds{}},
 				},
 			},
-			expected: "TIMESTAMP(TimeUnit({MILLIS:<nil> MICROS:<nil> NANOS:NanoSeconds({})}),true)",
+			expected: "TIMESTAMP(NANOS,UTC)",
 		},
 		{
 			name: "INTEGER with bit width",
