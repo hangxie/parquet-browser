@@ -2,6 +2,7 @@ package model
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"unicode"
 	"unicode/utf8"
@@ -10,6 +11,13 @@ import (
 	"github.com/hangxie/parquet-go/v2/parquet"
 	"github.com/hangxie/parquet-go/v2/types"
 )
+
+func init() {
+	// Configure geospatial rendering to use GeoJSON for both GEOMETRY and GEOGRAPHY types
+	// This provides human-readable coordinate data instead of hex-encoded WKB
+	types.SetGeometryJSONMode(types.GeospatialModeGeoJSON)
+	types.SetGeographyJSONMode(types.GeospatialModeGeoJSON)
+}
 
 // FormatBytes formats bytes as human readable size
 func FormatBytes(bytes int64) string {
@@ -150,6 +158,19 @@ func FormatValue(val interface{}, parquetType parquet.Type, schemaElem *parquet.
 	)
 
 	// Convert to string for display
+	// For complex types (maps, slices), use JSON encoding for proper formatting
+	switch formattedVal.(type) {
+	case map[string]any, []any, []map[string]any:
+		if jsonBytes, err := json.Marshal(formattedVal); err == nil {
+			str := string(jsonBytes)
+			if len(str) > 200 {
+				return str[:200] + "..."
+			}
+			return str
+		}
+	}
+
+	// For simple types, use standard formatting
 	str := fmt.Sprintf("%v", formattedVal)
 	if len(str) > 200 {
 		return str[:200] + "..."
