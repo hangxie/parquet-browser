@@ -163,6 +163,15 @@ func formatLogicalType(logicalType *parquet.LogicalType) string {
 	if logicalType.IsSetFLOAT16() {
 		return "FLOAT16"
 	}
+	if logicalType.IsSetVARIANT() {
+		return "VARIANT"
+	}
+	if logicalType.IsSetGEOMETRY() {
+		return "GEOMETRY"
+	}
+	if logicalType.IsSetGEOGRAPHY() {
+		return "GEOGRAPHY"
+	}
 
 	return "-"
 }
