@@ -134,11 +134,21 @@ func formatLogicalType(logicalType *parquet.LogicalType) string {
 	}
 	if logicalType.IsSetTIME() {
 		time := logicalType.TIME
-		return fmt.Sprintf("TIME(%v,%t)", time.Unit, time.IsAdjustedToUTC)
+		unit := formatTimeUnit(time.Unit)
+		adjusted := "UTC"
+		if !time.IsAdjustedToUTC {
+			adjusted = "local"
+		}
+		return fmt.Sprintf("TIME(%s,%s)", unit, adjusted)
 	}
 	if logicalType.IsSetTIMESTAMP() {
 		ts := logicalType.TIMESTAMP
-		return fmt.Sprintf("TIMESTAMP(%v,%t)", ts.Unit, ts.IsAdjustedToUTC)
+		unit := formatTimeUnit(ts.Unit)
+		adjusted := "UTC"
+		if !ts.IsAdjustedToUTC {
+			adjusted = "local"
+		}
+		return fmt.Sprintf("TIMESTAMP(%s,%s)", unit, adjusted)
 	}
 	if logicalType.IsSetINTEGER() {
 		integer := logicalType.INTEGER
@@ -174,4 +184,21 @@ func formatLogicalType(logicalType *parquet.LogicalType) string {
 	}
 
 	return "-"
+}
+
+// formatTimeUnit formats a TimeUnit to a clean string representation
+func formatTimeUnit(unit *parquet.TimeUnit) string {
+	if unit == nil {
+		return "unknown"
+	}
+	if unit.IsSetMILLIS() {
+		return "MILLIS"
+	}
+	if unit.IsSetMICROS() {
+		return "MICROS"
+	}
+	if unit.IsSetNANOS() {
+		return "NANOS"
+	}
+	return "unknown"
 }
