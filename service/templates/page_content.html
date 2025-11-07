@@ -46,7 +46,7 @@
     <div class="page-values">
         {{range $index, $value := .Values}}
         <div class="value-item">
-            <div class="value-index">Row {{$index}}</div>
+            <div class="value-index">{{$index}}</div>
             <div class="value-content">{{$value}}</div>
         </div>
         {{end}}

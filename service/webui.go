@@ -117,8 +117,7 @@ func (s *ParquetService) handleMainView(w http.ResponseWriter, r *http.Request) 
 		RowGroups:             formatted,
 	}
 
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	err := templates.ExecuteTemplate(w, "main", data)
+	err := renderPartial(w, r, "main", data)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
