@@ -1,23 +1,81 @@
 package model
 
 import (
-	"context"
 	"path/filepath"
 	"testing"
 
 	"github.com/hangxie/parquet-go/v2/parquet"
+	"github.com/hangxie/parquet-go/v2/reader"
 	pio "github.com/hangxie/parquet-tools/io"
 	"github.com/stretchr/testify/require"
 )
 
 func Test_NewParquetReader(t *testing.T) {
-	// This is a basic test to ensure NewParquetReader doesn't panic with nil
-	// In a real scenario, you'd need a valid parquet reader
-	t.Run("NewParquetReader structure", func(t *testing.T) {
-		// We can't easily test this without a real parquet file
-		// but we can verify the function signature exists
-		// This would require integration tests with actual parquet files
-		t.Skip("Requires actual parquet file for integration testing")
+	t.Run("Opens and reads parquet file", func(t *testing.T) {
+		// Open a test parquet file using parquet-tools helper
+		pr, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
+		require.NoError(t, err)
+		defer func() { _ = pr.ReadStopWithError() }()
+
+		// Wrap it in our ParquetReader
+		parquetReader := NewParquetReader(pr)
+		require.NotNil(t, parquetReader)
+		require.NotNil(t, parquetReader.Reader)
+		require.NotNil(t, parquetReader.metadata)
+
+		// Test GetFileInfo
+		fileInfo := parquetReader.GetFileInfo()
+		require.Greater(t, fileInfo.NumRows, int64(0))
+		require.Greater(t, fileInfo.NumLeafColumns, 0)
+		require.Greater(t, fileInfo.NumRowGroups, 0)
+	})
+
+	t.Run("Gets row group info", func(t *testing.T) {
+		pr, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
+		require.NoError(t, err)
+		defer func() { _ = pr.ReadStopWithError() }()
+
+		parquetReader := NewParquetReader(pr)
+
+		// Test GetRowGroupInfo
+		rgInfo, err := parquetReader.GetRowGroupInfo(0)
+		require.NoError(t, err)
+		require.Equal(t, 0, rgInfo.Index)
+		require.Greater(t, rgInfo.NumRows, int64(0))
+		require.Greater(t, rgInfo.NumColumns, 0)
+	})
+
+	t.Run("Gets column chunk info", func(t *testing.T) {
+		pr, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
+		require.NoError(t, err)
+		defer func() { _ = pr.ReadStopWithError() }()
+
+		parquetReader := NewParquetReader(pr)
+
+		// Test GetColumnChunkInfo
+		colInfo, err := parquetReader.GetColumnChunkInfo(0, 0)
+		require.NoError(t, err)
+		require.Equal(t, 0, colInfo.Index)
+		require.NotEmpty(t, colInfo.Name)
+		require.NotEmpty(t, colInfo.PhysicalType)
+	})
+
+	t.Run("Gets page metadata", func(t *testing.T) {
+		pr, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
+		require.NoError(t, err)
+		defer func() { _ = pr.ReadStopWithError() }()
+
+		parquetReader := NewParquetReader(pr)
+
+		// Test GetPageMetadataList
+		pages, err := parquetReader.GetPageMetadataList(0, 0)
+		require.NoError(t, err)
+		require.Greater(t, len(pages), 0)
+
+		// Verify page metadata structure
+		firstPage := pages[0]
+		require.GreaterOrEqual(t, firstPage.Index, 0)
+		require.NotEmpty(t, firstPage.PageType)
 	})
 }
 
@@ -52,218 +110,123 @@ func Test_FormatColumnName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := formatColumnName(tt.path)
-			require.Equal(t, tt.expected, result, "formatColumnName() should match")
+			require.Equal(t, tt.expected, result)
 		})
 	}
 }
 
-func Test_ExtractPageMetadata(t *testing.T) {
+func Test_ConvertPageHeaderInfoToMetadata(t *testing.T) {
 	t.Run("DATA_PAGE", func(t *testing.T) {
-		header := &parquet.PageHeader{
-			Type:                 parquet.PageType_DATA_PAGE,
-			CompressedPageSize:   1024,
-			UncompressedPageSize: 2048,
-			DataPageHeader: &parquet.DataPageHeader{
-				NumValues:               100,
-				Encoding:                parquet.Encoding_PLAIN,
-				DefinitionLevelEncoding: parquet.Encoding_RLE,
-				RepetitionLevelEncoding: parquet.Encoding_RLE,
-			},
+		headerInfo := reader.PageHeaderInfo{
+			Index:            0,
+			Offset:           1000,
+			PageType:         parquet.PageType_DATA_PAGE,
+			CompressedSize:   1024,
+			UncompressedSize: 2048,
+			NumValues:        100,
+			Encoding:         parquet.Encoding_PLAIN,
+			DefLevelEncoding: parquet.Encoding_RLE,
+			RepLevelEncoding: parquet.Encoding_RLE,
 		}
 
-		result := extractPageMetadata(header, 1000, 0, nil, nil)
+		result := convertPageHeaderInfoToMetadata(headerInfo, nil, nil)
 
-		require.Equal(t, 0, result.Index, "Index should match")
-		require.Equal(t, int64(1000), result.Offset, "Offset should match")
-		require.Equal(t, "DATA_PAGE", result.PageType, "PageType should match")
-		require.Equal(t, int32(1024), result.CompressedSize, "CompressedSize should match")
-		require.Equal(t, int32(2048), result.UncompressedSize, "UncompressedSize should match")
-		require.Equal(t, int32(100), result.NumValues, "NumValues should match")
-		require.Equal(t, "PLAIN", result.Encoding, "Encoding should match")
+		require.Equal(t, 0, result.Index)
+		require.Equal(t, int64(1000), result.Offset)
+		require.Equal(t, "DATA_PAGE", result.PageType)
+		require.Equal(t, int32(1024), result.CompressedSize)
+		require.Equal(t, int32(2048), result.UncompressedSize)
+		require.Equal(t, int32(100), result.NumValues)
+		require.Equal(t, "PLAIN", result.Encoding)
 	})
 
 	t.Run("DATA_PAGE_V2", func(t *testing.T) {
-		header := &parquet.PageHeader{
-			Type:                 parquet.PageType_DATA_PAGE_V2,
-			CompressedPageSize:   1024,
-			UncompressedPageSize: 2048,
-			DataPageHeaderV2: &parquet.DataPageHeaderV2{
-				NumValues: 200,
-				Encoding:  parquet.Encoding_DELTA_BINARY_PACKED,
-			},
+		headerInfo := reader.PageHeaderInfo{
+			Index:            1,
+			Offset:           2000,
+			PageType:         parquet.PageType_DATA_PAGE_V2,
+			CompressedSize:   1024,
+			UncompressedSize: 2048,
+			NumValues:        200,
+			Encoding:         parquet.Encoding_DELTA_BINARY_PACKED,
 		}
 
-		result := extractPageMetadata(header, 2000, 1, nil, nil)
+		result := convertPageHeaderInfoToMetadata(headerInfo, nil, nil)
 
-		require.Equal(t, 1, result.Index, "Index should match")
-		require.Equal(t, "DATA_PAGE_V2", result.PageType, "PageType should match")
-		require.Equal(t, int32(200), result.NumValues, "NumValues should match")
-		require.Equal(t, "DELTA_BINARY_PACKED", result.Encoding, "Encoding should match")
+		require.Equal(t, 1, result.Index)
+		require.Equal(t, "DATA_PAGE_V2", result.PageType)
+		require.Equal(t, int32(200), result.NumValues)
+		require.Equal(t, "DELTA_BINARY_PACKED", result.Encoding)
 	})
 
 	t.Run("DICTIONARY_PAGE", func(t *testing.T) {
-		header := &parquet.PageHeader{
-			Type:                 parquet.PageType_DICTIONARY_PAGE,
-			CompressedPageSize:   512,
-			UncompressedPageSize: 512,
-			DictionaryPageHeader: &parquet.DictionaryPageHeader{
-				NumValues: 50,
-				Encoding:  parquet.Encoding_PLAIN_DICTIONARY,
-			},
+		headerInfo := reader.PageHeaderInfo{
+			Index:            1,
+			Offset:           500,
+			PageType:         parquet.PageType_DICTIONARY_PAGE,
+			CompressedSize:   512,
+			UncompressedSize: 512,
+			NumValues:        50,
+			Encoding:         parquet.Encoding_PLAIN_DICTIONARY,
 		}
 
-		result := extractPageMetadata(header, 500, 1, nil, nil)
+		result := convertPageHeaderInfoToMetadata(headerInfo, nil, nil)
 
-		require.Equal(t, "DICTIONARY_PAGE", result.PageType, "PageType should match")
-		require.Equal(t, int32(50), result.NumValues, "NumValues should match")
-		require.Equal(t, "PLAIN_DICTIONARY", result.Encoding, "Encoding should match")
+		require.Equal(t, "DICTIONARY_PAGE", result.PageType)
+		require.Equal(t, int32(50), result.NumValues)
+		require.Equal(t, "PLAIN_DICTIONARY", result.Encoding)
 	})
 
 	t.Run("INDEX_PAGE", func(t *testing.T) {
-		header := &parquet.PageHeader{
-			Type:                 parquet.PageType_INDEX_PAGE,
-			CompressedPageSize:   256,
-			UncompressedPageSize: 256,
+		headerInfo := reader.PageHeaderInfo{
+			Index:            2,
+			Offset:           3000,
+			PageType:         parquet.PageType_INDEX_PAGE,
+			CompressedSize:   256,
+			UncompressedSize: 256,
 		}
 
-		result := extractPageMetadata(header, 3000, 2, nil, nil)
+		result := convertPageHeaderInfoToMetadata(headerInfo, nil, nil)
 
-		require.Equal(t, 2, result.Index, "Index should match")
-		require.Equal(t, "INDEX_PAGE", result.PageType, "PageType should match")
-		require.Equal(t, int32(0), result.NumValues, "NumValues should be 0 for INDEX_PAGE")
+		require.Equal(t, 2, result.Index)
+		require.Equal(t, "INDEX_PAGE", result.PageType)
 	})
 }
 
-func Test_PopulateDataPageMetadata(t *testing.T) {
-	t.Run("With valid header", func(t *testing.T) {
-		header := &parquet.DataPageHeader{
-			NumValues:               100,
-			Encoding:                parquet.Encoding_PLAIN,
-			DefinitionLevelEncoding: parquet.Encoding_RLE,
-			RepetitionLevelEncoding: parquet.Encoding_BIT_PACKED,
-		}
-
-		pageInfo := &PageMetadata{}
-		populateDataPageMetadata(pageInfo, header, nil, nil)
-
-		require.Equal(t, int32(100), pageInfo.NumValues, "NumValues should match")
-		require.Equal(t, "PLAIN", pageInfo.Encoding, "Encoding should match")
-		require.Equal(t, "RLE", pageInfo.DefLevelEncoding, "DefLevelEncoding should match")
-		require.Equal(t, "BIT_PACKED", pageInfo.RepLevelEncoding, "RepLevelEncoding should match")
-	})
-
-	t.Run("With nil header", func(t *testing.T) {
-		pageInfo := &PageMetadata{}
-		populateDataPageMetadata(pageInfo, nil, nil, nil)
-
-		require.Equal(t, int32(0), pageInfo.NumValues, "NumValues should be 0")
-	})
-
+func Test_ConvertPageHeaderInfoToMetadataWithStatistics(t *testing.T) {
 	t.Run("With statistics", func(t *testing.T) {
-		header := &parquet.DataPageHeader{
-			NumValues:               100,
-			Encoding:                parquet.Encoding_PLAIN,
-			DefinitionLevelEncoding: parquet.Encoding_RLE,
-			RepetitionLevelEncoding: parquet.Encoding_BIT_PACKED,
-			Statistics: &parquet.Statistics{
-				MinValue: []byte{0x01, 0x00, 0x00, 0x00},
-				MaxValue: []byte{0x64, 0x00, 0x00, 0x00},
-			},
-		}
-
-		columnMeta := &parquet.ColumnMetaData{
-			Type: parquet.Type_INT32,
-		}
-
-		pageInfo := &PageMetadata{}
-		populateDataPageMetadata(pageInfo, header, columnMeta, nil)
-
-		require.Equal(t, int32(100), pageInfo.NumValues, "NumValues should match")
-		require.True(t, pageInfo.HasStatistics, "HasStatistics should be true")
-	})
-}
-
-func Test_PopulateDataPageV2Metadata(t *testing.T) {
-	t.Run("With valid header", func(t *testing.T) {
-		header := &parquet.DataPageHeaderV2{
-			NumValues: 200,
-			Encoding:  parquet.Encoding_DELTA_BINARY_PACKED,
-		}
-
-		pageInfo := &PageMetadata{}
-		populateDataPageV2Metadata(pageInfo, header, nil, nil)
-
-		require.Equal(t, int32(200), pageInfo.NumValues, "NumValues should match")
-		require.Equal(t, "DELTA_BINARY_PACKED", pageInfo.Encoding, "Encoding should match")
-	})
-
-	t.Run("With nil header", func(t *testing.T) {
-		pageInfo := &PageMetadata{}
-		populateDataPageV2Metadata(pageInfo, nil, nil, nil)
-
-		require.Equal(t, int32(0), pageInfo.NumValues, "NumValues should be 0")
-	})
-
-	t.Run("With statistics", func(t *testing.T) {
-		header := &parquet.DataPageHeaderV2{
-			NumValues: 200,
-			Encoding:  parquet.Encoding_DELTA_BINARY_PACKED,
-			Statistics: &parquet.Statistics{
-				MinValue: []byte{0x01, 0x00, 0x00, 0x00},
-				MaxValue: []byte{0x64, 0x00, 0x00, 0x00},
-			},
-		}
-
-		columnMeta := &parquet.ColumnMetaData{
-			Type: parquet.Type_INT32,
-		}
-
-		pageInfo := &PageMetadata{}
-		populateDataPageV2Metadata(pageInfo, header, columnMeta, nil)
-
-		require.Equal(t, int32(200), pageInfo.NumValues, "NumValues should match")
-		require.True(t, pageInfo.HasStatistics, "HasStatistics should be true")
-	})
-}
-
-func Test_PopulateDictionaryPageMetadata(t *testing.T) {
-	t.Run("With valid header", func(t *testing.T) {
-		header := &parquet.DictionaryPageHeader{
-			NumValues: 50,
-			Encoding:  parquet.Encoding_PLAIN_DICTIONARY,
-		}
-
-		pageInfo := &PageMetadata{}
-		populateDictionaryPageMetadata(pageInfo, header)
-
-		require.Equal(t, int32(50), pageInfo.NumValues, "NumValues should match")
-		require.Equal(t, "PLAIN_DICTIONARY", pageInfo.Encoding, "Encoding should match")
-	})
-
-	t.Run("With nil header", func(t *testing.T) {
-		pageInfo := &PageMetadata{}
-		populateDictionaryPageMetadata(pageInfo, nil)
-
-		require.Equal(t, int32(0), pageInfo.NumValues, "NumValues should be 0")
-	})
-}
-
-func Test_ExtractPageStatistics(t *testing.T) {
-	t.Run("With min/max values", func(t *testing.T) {
+		nullCount := int64(10)
 		stats := &parquet.Statistics{
-			MinValue: []byte{0x01, 0x00, 0x00, 0x00}, // int32: 1
-			MaxValue: []byte{0x64, 0x00, 0x00, 0x00}, // int32: 100
+			MinValue:  []byte{0x01, 0x00, 0x00, 0x00}, // int32: 1
+			MaxValue:  []byte{0x64, 0x00, 0x00, 0x00}, // int32: 100
+			NullCount: &nullCount,
+		}
+
+		headerInfo := reader.PageHeaderInfo{
+			Index:            0,
+			Offset:           1000,
+			PageType:         parquet.PageType_DATA_PAGE,
+			CompressedSize:   1024,
+			UncompressedSize: 2048,
+			NumValues:        100,
+			Encoding:         parquet.Encoding_PLAIN,
+			DefLevelEncoding: parquet.Encoding_RLE,
+			RepLevelEncoding: parquet.Encoding_RLE,
+			HasStatistics:    true,
+			Statistics:       stats,
 		}
 
 		columnMeta := &parquet.ColumnMetaData{
 			Type: parquet.Type_INT32,
 		}
 
-		pageInfo := &PageMetadata{}
-		extractPageStatistics(pageInfo, stats, columnMeta, nil)
+		result := convertPageHeaderInfoToMetadata(headerInfo, columnMeta, nil)
 
-		require.NotEmpty(t, pageInfo.MinValue, "MinValue should not be empty")
-		require.NotEmpty(t, pageInfo.MaxValue, "MaxValue should not be empty")
+		require.Equal(t, int32(100), result.NumValues)
+		require.True(t, result.HasStatistics)
+		require.NotEmpty(t, result.MinValue)
+		require.NotEmpty(t, result.MaxValue)
+		require.Equal(t, &nullCount, result.NullCount)
 	})
 
 	t.Run("With null count", func(t *testing.T) {
@@ -272,48 +235,17 @@ func Test_ExtractPageStatistics(t *testing.T) {
 			NullCount: &nullCount,
 		}
 
-		pageInfo := &PageMetadata{}
-		extractPageStatistics(pageInfo, stats, nil, nil)
+		headerInfo := reader.PageHeaderInfo{
+			PageType:      parquet.PageType_DATA_PAGE,
+			Encoding:      parquet.Encoding_PLAIN,
+			HasStatistics: true,
+			Statistics:    stats,
+		}
 
-		require.NotNil(t, pageInfo.NullCount, "NullCount should not be nil")
-		require.Equal(t, int64(10), *pageInfo.NullCount, "NullCount should match")
-	})
-}
+		result := convertPageHeaderInfoToMetadata(headerInfo, nil, nil)
 
-func Test_PositionTracker(t *testing.T) {
-	// Create a simple byte buffer
-	data := []byte("hello world")
-	tracker := &positionTracker{
-		r:   nil, // We'll just test the interface methods
-		pos: 0,
-	}
-
-	t.Run("Write should return error", func(t *testing.T) {
-		_, err := tracker.Write(data)
-		require.Error(t, err, "Write() should return error")
-	})
-
-	t.Run("IsOpen should return true", func(t *testing.T) {
-		require.True(t, tracker.IsOpen(), "IsOpen() should return true")
-	})
-
-	t.Run("RemainingBytes should return max uint64", func(t *testing.T) {
-		require.Equal(t, ^uint64(0), tracker.RemainingBytes(), "RemainingBytes() should return max uint64")
-	})
-
-	t.Run("Close should succeed", func(t *testing.T) {
-		err := tracker.Close()
-		require.NoError(t, err, "Close() should not return error")
-	})
-
-	t.Run("Open should succeed", func(t *testing.T) {
-		err := tracker.Open()
-		require.NoError(t, err, "Open() should not return error")
-	})
-
-	t.Run("Flush should succeed", func(t *testing.T) {
-		err := tracker.Flush(context.Background())
-		require.NoError(t, err, "Flush() should not return error")
+		require.NotNil(t, result.NullCount)
+		require.Equal(t, int64(10), *result.NullCount)
 	})
 }
 
@@ -325,79 +257,62 @@ func getTestParquetFilePath() string {
 // Test NewParquetReader with real parquet file
 func Test_NewParquetReader_WithRealFile(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
-	if err != nil {
-		t.Skipf("Failed to open parquet file: %v", err)
-	}
+	require.NoError(t, err)
 	defer func() { _ = parquetReader.ReadStopWithError() }()
 
 	pr := NewParquetReader(parquetReader)
 
-	require.NotNil(t, pr, "NewParquetReader should not return nil")
-	require.NotNil(t, pr.Reader, "Reader field should not be nil")
-	require.NotNil(t, pr.metadata, "metadata field should not be nil")
+	require.NotNil(t, pr)
+	require.NotNil(t, pr.Reader)
+	require.NotNil(t, pr.metadata)
 
 	// Verify metadata is properly set
-	require.Equal(t, parquetReader.Footer, pr.metadata, "metadata should be set to reader's Footer")
+	require.Equal(t, parquetReader.Footer, pr.metadata)
 }
 
 // Test GetFileInfo with real parquet file
 func Test_GetFileInfo_WithRealFile(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
-	if err != nil {
-		t.Skipf("Failed to open parquet file: %v", err)
-	}
+	require.NoError(t, err)
 	defer func() { _ = parquetReader.ReadStopWithError() }()
 
 	pr := NewParquetReader(parquetReader)
 	info := pr.GetFileInfo()
 
 	// Verify basic fields are populated
-	require.Greater(t, info.NumRowGroups, 0, "NumRowGroups should be > 0")
-	require.Greater(t, info.NumRows, int64(0), "NumRows should be > 0")
-	require.Greater(t, info.NumLeafColumns, 0, "NumLeafColumns should be > 0")
-	require.Greater(t, info.TotalCompressedSize, int64(0), "TotalCompressedSize should be > 0")
-	require.Greater(t, info.TotalUncompressedSize, int64(0), "TotalUncompressedSize should be > 0")
-	require.Greater(t, info.CompressionRatio, 0.0, "CompressionRatio should be > 0")
-
-	if info.CreatedBy == "" {
-		t.Log("CreatedBy is empty (optional field)")
-	}
-
-	t.Logf("File info: Version=%d, RowGroups=%d, Rows=%d, Columns=%d",
-		info.Version, info.NumRowGroups, info.NumRows, info.NumLeafColumns)
+	require.Greater(t, info.NumRowGroups, 0)
+	require.Greater(t, info.NumRows, int64(0))
+	require.Greater(t, info.NumLeafColumns, 0)
+	require.Greater(t, info.TotalCompressedSize, int64(0))
+	require.Greater(t, info.TotalUncompressedSize, int64(0))
+	require.Greater(t, info.CompressionRatio, 0.0)
+	require.NotEqual(t, "", info.CreatedBy)
 }
 
 // Test GetRowGroupInfo with valid indices
 func Test_GetRowGroupInfo_ValidIndex(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
-	if err != nil {
-		t.Skipf("Failed to open parquet file: %v", err)
-	}
+	require.NoError(t, err)
 	defer func() { _ = parquetReader.ReadStopWithError() }()
 
 	pr := NewParquetReader(parquetReader)
 
 	// Test first row group
 	info, err := pr.GetRowGroupInfo(0)
-	require.NoError(t, err, "GetRowGroupInfo(0) should succeed")
+	require.NoError(t, err)
 
-	require.Equal(t, 0, info.Index, "Index should be 0")
-	require.Greater(t, info.NumRows, int64(0), "NumRows should be > 0")
-	require.Greater(t, info.NumColumns, 0, "NumColumns should be > 0")
-	require.Greater(t, info.CompressedSize, int64(0), "CompressedSize should be > 0")
-	require.Greater(t, info.UncompressedSize, int64(0), "UncompressedSize should be > 0")
-	require.Greater(t, info.CompressionRatio, 0.0, "CompressionRatio should be > 0")
-
-	t.Logf("Row group 0: NumRows=%d, NumColumns=%d, CompressionRatio=%.2f",
-		info.NumRows, info.NumColumns, info.CompressionRatio)
+	require.Equal(t, 0, info.Index)
+	require.Greater(t, info.NumRows, int64(0))
+	require.Greater(t, info.NumColumns, 0)
+	require.Greater(t, info.CompressedSize, int64(0))
+	require.Greater(t, info.UncompressedSize, int64(0))
+	require.Greater(t, info.CompressionRatio, 0.0)
 }
 
 // Test GetRowGroupInfo with invalid indices
 func Test_GetRowGroupInfo_InvalidIndex(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
-	if err != nil {
-		t.Skipf("Failed to open parquet file: %v", err)
-	}
+	require.NoError(t, err)
 	defer func() { _ = parquetReader.ReadStopWithError() }()
 
 	pr := NewParquetReader(parquetReader)
@@ -413,8 +328,8 @@ func Test_GetRowGroupInfo_InvalidIndex(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := pr.GetRowGroupInfo(tt.index)
-			require.Error(t, err, "Should return error for invalid index")
-			require.ErrorIs(t, err, ErrInvalidRowGroupIndex, "Should return ErrInvalidRowGroupIndex")
+			require.Error(t, err)
+			require.ErrorIs(t, err, ErrInvalidRowGroupIndex)
 		})
 	}
 }
@@ -422,57 +337,46 @@ func Test_GetRowGroupInfo_InvalidIndex(t *testing.T) {
 // Test GetAllRowGroupsInfo
 func Test_GetAllRowGroupsInfo(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
-	if err != nil {
-		t.Skipf("Failed to open parquet file: %v", err)
-	}
+	require.NoError(t, err)
 	defer func() { _ = parquetReader.ReadStopWithError() }()
 
 	pr := NewParquetReader(parquetReader)
 	infos := pr.GetAllRowGroupsInfo()
 
-	require.NotEmpty(t, infos, "Should have at least one row group")
+	require.NotEmpty(t, infos)
 
 	// Verify each row group info is populated
 	for i, info := range infos {
-		require.Equal(t, i, info.Index, "Row group %d: Index should match", i)
-		require.Greater(t, info.NumRows, int64(0), "Row group %d: NumRows should be > 0", i)
-		require.Greater(t, info.NumColumns, 0, "Row group %d: NumColumns should be > 0", i)
+		require.Equal(t, i, info.Index)
+		require.Greater(t, info.NumRows, int64(0))
+		require.Greater(t, info.NumColumns, 0)
 	}
-
-	t.Logf("Found %d row groups", len(infos))
 }
 
 // Test GetColumnChunkInfo with valid indices
 func Test_GetColumnChunkInfo_ValidIndices(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
-	if err != nil {
-		t.Skipf("Failed to open parquet file: %v", err)
-	}
+	require.NoError(t, err)
 	defer func() { _ = parquetReader.ReadStopWithError() }()
 
 	pr := NewParquetReader(parquetReader)
 
 	// Test first column of first row group
 	info, err := pr.GetColumnChunkInfo(0, 0)
-	require.NoError(t, err, "GetColumnChunkInfo(0, 0) should succeed")
+	require.NoError(t, err)
 
-	require.Equal(t, 0, info.Index, "Index should be 0")
-	require.NotEmpty(t, info.PathInSchema, "PathInSchema should not be empty")
-	require.NotEmpty(t, info.Name, "Name should not be empty")
-	require.NotEmpty(t, info.PhysicalType, "PhysicalType should not be empty")
-	require.NotEmpty(t, info.Codec, "Codec should not be empty")
-	require.GreaterOrEqual(t, info.NumValues, int64(0), "NumValues should be >= 0")
-
-	t.Logf("Column 0: Name=%s, Type=%s, Codec=%s, Values=%d",
-		info.Name, info.PhysicalType, info.Codec, info.NumValues)
+	require.Equal(t, 0, info.Index)
+	require.NotEmpty(t, info.PathInSchema)
+	require.NotEmpty(t, info.Name)
+	require.NotEmpty(t, info.PhysicalType)
+	require.NotEmpty(t, info.Codec)
+	require.GreaterOrEqual(t, info.NumValues, int64(0))
 }
 
 // Test GetColumnChunkInfo with invalid indices
 func Test_GetColumnChunkInfo_InvalidIndices(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
-	if err != nil {
-		t.Skipf("Failed to open parquet file: %v", err)
-	}
+	require.NoError(t, err)
 	defer func() { _ = parquetReader.ReadStopWithError() }()
 
 	pr := NewParquetReader(parquetReader)
@@ -492,7 +396,7 @@ func Test_GetColumnChunkInfo_InvalidIndices(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := pr.GetColumnChunkInfo(tt.rgIndex, tt.colIndex)
-			require.Error(t, err, "Should return error for invalid indices")
+			require.Error(t, err)
 			require.ErrorIs(t, err, tt.wantErr)
 		})
 	}
@@ -501,32 +405,26 @@ func Test_GetColumnChunkInfo_InvalidIndices(t *testing.T) {
 // Test GetAllColumnChunksInfo
 func Test_GetAllColumnChunksInfo_ValidIndex(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
-	if err != nil {
-		t.Skipf("Failed to open parquet file: %v", err)
-	}
+	require.NoError(t, err)
 	defer func() { _ = parquetReader.ReadStopWithError() }()
 
 	pr := NewParquetReader(parquetReader)
 
 	infos, err := pr.GetAllColumnChunksInfo(0)
-	require.NoError(t, err, "GetAllColumnChunksInfo(0) should succeed")
-	require.NotEmpty(t, infos, "Should have at least one column")
+	require.NoError(t, err)
+	require.NotEmpty(t, infos)
 
 	// Verify each column info is populated
 	for i, info := range infos {
 		require.Equal(t, i, info.Index, "Column %d: Index should match", i)
 		require.NotEmpty(t, info.Name, "Column %d: Name should not be empty", i)
 	}
-
-	t.Logf("Found %d columns in row group 0", len(infos))
 }
 
 // Test GetAllColumnChunksInfo with invalid index
 func Test_GetAllColumnChunksInfo_InvalidIndex(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
-	if err != nil {
-		t.Skipf("Failed to open parquet file: %v", err)
-	}
+	require.NoError(t, err)
 	defer func() { _ = parquetReader.ReadStopWithError() }()
 
 	pr := NewParquetReader(parquetReader)
@@ -542,7 +440,7 @@ func Test_GetAllColumnChunksInfo_InvalidIndex(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := pr.GetAllColumnChunksInfo(tt.rgIndex)
-			require.Error(t, err, "Should return error for invalid index")
+			require.Error(t, err)
 			require.ErrorIs(t, err, ErrInvalidRowGroupIndex)
 		})
 	}
@@ -551,35 +449,27 @@ func Test_GetAllColumnChunksInfo_InvalidIndex(t *testing.T) {
 // Test GetPageMetadataList
 func Test_GetPageMetadataList_ValidIndices(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
-	if err != nil {
-		t.Skipf("Failed to open parquet file: %v", err)
-	}
+	require.NoError(t, err)
 	defer func() { _ = parquetReader.ReadStopWithError() }()
 
 	pr := NewParquetReader(parquetReader)
 
 	pages, err := pr.GetPageMetadataList(0, 0)
-	require.NoError(t, err, "GetPageMetadataList(0, 0) should succeed")
-	require.NotEmpty(t, pages, "Should have at least one page")
+	require.NoError(t, err)
+	require.NotEmpty(t, pages)
 
 	// Verify page metadata
 	for i, page := range pages {
-		require.Equal(t, i, page.Index, "Page %d: Index should match", i)
-		require.NotEmpty(t, page.PageType, "Page %d: PageType should not be empty", i)
-
-		require.True(t, page.CompressedSize > 0 || page.UncompressedSize > 0, "Page %d: At least one size should be > 0", i)
-
-		t.Logf("Page %d: Type=%s, CompressedSize=%d, UncompressedSize=%d, NumValues=%d",
-			i, page.PageType, page.CompressedSize, page.UncompressedSize, page.NumValues)
+		require.Equal(t, i, page.Index)
+		require.NotEmpty(t, page.PageType)
+		require.True(t, page.CompressedSize > 0 || page.UncompressedSize > 0)
 	}
 }
 
 // Test GetPageMetadataList with invalid indices
 func Test_GetPageMetadataList_InvalidIndices(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
-	if err != nil {
-		t.Skipf("Failed to open parquet file: %v", err)
-	}
+	require.NoError(t, err)
 	defer func() { _ = parquetReader.ReadStopWithError() }()
 
 	pr := NewParquetReader(parquetReader)
@@ -599,7 +489,7 @@ func Test_GetPageMetadataList_InvalidIndices(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := pr.GetPageMetadataList(tt.rgIndex, tt.colIndex)
-			require.Error(t, err, "Should return error for invalid indices")
+			require.Error(t, err)
 			require.ErrorIs(t, err, tt.wantErr)
 		})
 	}
@@ -608,29 +498,22 @@ func Test_GetPageMetadataList_InvalidIndices(t *testing.T) {
 // Test GetPageMetadata
 func Test_GetPageMetadata_ValidIndices(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
-	if err != nil {
-		t.Skipf("Failed to open parquet file: %v", err)
-	}
+	require.NoError(t, err)
 	defer func() { _ = parquetReader.ReadStopWithError() }()
 
 	pr := NewParquetReader(parquetReader)
 
 	page, err := pr.GetPageMetadata(0, 0, 0)
-	require.NoError(t, err, "GetPageMetadata(0, 0, 0) should succeed")
+	require.NoError(t, err)
 
-	require.Equal(t, 0, page.Index, "Index should be 0")
-	require.NotEmpty(t, page.PageType, "PageType should not be empty")
-
-	t.Logf("Page metadata: Type=%s, Size=%d, NumValues=%d",
-		page.PageType, page.CompressedSize, page.NumValues)
+	require.Equal(t, 0, page.Index)
+	require.NotEmpty(t, page.PageType)
 }
 
 // Test GetPageMetadata with invalid indices
 func Test_GetPageMetadata_InvalidIndices(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
-	if err != nil {
-		t.Skipf("Failed to open parquet file: %v", err)
-	}
+	require.NoError(t, err)
 	defer func() { _ = parquetReader.ReadStopWithError() }()
 
 	pr := NewParquetReader(parquetReader)
@@ -650,7 +533,7 @@ func Test_GetPageMetadata_InvalidIndices(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := pr.GetPageMetadata(tt.rgIndex, tt.colIndex, tt.pageIndex)
-			require.Error(t, err, "Should return error for invalid indices")
+			require.Error(t, err)
 		})
 	}
 }
@@ -658,88 +541,55 @@ func Test_GetPageMetadata_InvalidIndices(t *testing.T) {
 // Test GetPageContent
 func Test_GetPageContent_ValidIndices(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
-	if err != nil {
-		t.Skipf("Failed to open parquet file: %v", err)
-	}
+	require.NoError(t, err)
 	defer func() { _ = parquetReader.ReadStopWithError() }()
 
 	pr := NewParquetReader(parquetReader)
 
 	// First, check if page 0 is a data page
 	pages, err := pr.GetPageMetadataList(0, 0)
-	require.NoError(t, err, "Failed to get page metadata")
+	require.NoError(t, err)
+	require.NotEqual(t, 0, len(pages))
 
-	if len(pages) == 0 {
-		t.Skip("No pages available")
-	}
-
-	// Find the first data page
-	dataPageIndex := -1
-	for i, page := range pages {
-		if page.PageType == "DATA_PAGE" || page.PageType == "DATA_PAGE_V2" {
-			dataPageIndex = i
-			break
-		}
-	}
-
-	if dataPageIndex == -1 {
-		t.Skip("No data pages found")
-	}
-
-	values, err := pr.GetPageContent(0, 0, dataPageIndex)
-	require.NoError(t, err, "GetPageContent should succeed")
-
-	if len(values) == 0 {
-		t.Log("Page has no values (could be valid for some data types)")
-	} else {
-		t.Logf("Read %d values from page %d", len(values), dataPageIndex)
-	}
+	values, err := pr.GetPageContent(0, 0, 1)
+	require.NoError(t, err)
+	require.NotEqual(t, 0, len(values))
 }
 
 // Test GetPageContent with dictionary page
 func Test_GetPageContent_DictionaryPage(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
-	if err != nil {
-		t.Skipf("Failed to open parquet file: %v", err)
-	}
+	require.NoError(t, err)
 	defer func() { _ = parquetReader.ReadStopWithError() }()
 
 	pr := NewParquetReader(parquetReader)
 
 	// Find a column with a dictionary page
 	allColumns, err := pr.GetAllColumnChunksInfo(0)
-	require.NoError(t, err, "Failed to get columns")
+	require.NoError(t, err)
+	require.Equal(t, 56, len(allColumns))
 
-	for colIdx := range allColumns {
-		pages, err := pr.GetPageMetadataList(0, colIdx)
-		if err != nil {
-			continue
-		}
+	pages, err := pr.GetPageMetadataList(0, 0)
+	require.NoError(t, err)
+	require.Equal(t, 4, len(pages))
 
-		// Find dictionary page
-		for pageIdx, page := range pages {
-			if page.PageType == "DICTIONARY_PAGE" {
-				values, err := pr.GetPageContent(0, colIdx, pageIdx)
-				if err != nil {
-					t.Logf("Dictionary page read failed (expected for some encodings): %v", err)
-					return // Test passed - we exercised the code path
-				}
+	values, err := pr.GetPageContent(0, 0, 0)
+	require.NoError(t, err)
+	require.Equal(t, 3, len(values))
 
-				t.Logf("Read %d dictionary values from column %d", len(values), colIdx)
-				return // Success
-			}
-		}
-	}
+	pages, err = pr.GetPageMetadataList(0, 16)
+	require.NoError(t, err)
+	require.Equal(t, 5, len(pages))
 
-	t.Log("No dictionary pages found (some parquet files don't use dictionaries)")
+	values, err = pr.GetPageContent(0, 1, 0)
+	require.NoError(t, err)
+	require.Equal(t, 3, len(values))
 }
 
 // Test GetPageContent with invalid indices
 func Test_GetPageContent_InvalidIndices(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
-	if err != nil {
-		t.Skipf("Failed to open parquet file: %v", err)
-	}
+	require.NoError(t, err)
 	defer func() { _ = parquetReader.ReadStopWithError() }()
 
 	pr := NewParquetReader(parquetReader)
@@ -759,7 +609,7 @@ func Test_GetPageContent_InvalidIndices(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := pr.GetPageContent(tt.rgIndex, tt.colIndex, tt.pageIndex)
-			require.Error(t, err, "Should return error for invalid indices")
+			require.Error(t, err)
 		})
 	}
 }
@@ -767,53 +617,25 @@ func Test_GetPageContent_InvalidIndices(t *testing.T) {
 // Test GetPageContentFormatted
 func Test_GetPageContentFormatted_ValidIndices(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
-	if err != nil {
-		t.Skipf("Failed to open parquet file: %v", err)
-	}
+	require.NoError(t, err)
 	defer func() { _ = parquetReader.ReadStopWithError() }()
 
 	pr := NewParquetReader(parquetReader)
 
 	// Find the first data page
 	pages, err := pr.GetPageMetadataList(0, 0)
-	require.NoError(t, err, "Failed to get page metadata")
+	require.NoError(t, err)
+	require.Equal(t, 4, len(pages))
 
-	dataPageIndex := -1
-	for i, page := range pages {
-		if page.PageType == "DATA_PAGE" || page.PageType == "DATA_PAGE_V2" {
-			dataPageIndex = i
-			break
-		}
-	}
-
-	if dataPageIndex == -1 {
-		t.Skip("No data pages found")
-	}
-
-	values, err := pr.GetPageContentFormatted(0, 0, dataPageIndex)
-	require.NoError(t, err, "GetPageContentFormatted should succeed")
-
-	// Verify all values are strings
-	for i, val := range values {
-		if val == "" {
-			// Empty strings are valid
-			continue
-		}
-		t.Logf("Value %d: %q", i, val)
-		if i >= 5 { // Only log first few values
-			break
-		}
-	}
-
-	t.Logf("Read %d formatted values", len(values))
+	values, err := pr.GetPageContentFormatted(0, 0, 1)
+	require.NoError(t, err)
+	require.Equal(t, 3, len(values))
 }
 
 // Test GetPageContentFormatted with invalid indices
 func Test_GetPageContentFormatted_InvalidIndices(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
-	if err != nil {
-		t.Skipf("Failed to open parquet file: %v", err)
-	}
+	require.NoError(t, err)
 	defer func() { _ = parquetReader.ReadStopWithError() }()
 
 	pr := NewParquetReader(parquetReader)
@@ -832,7 +654,7 @@ func Test_GetPageContentFormatted_InvalidIndices(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := pr.GetPageContentFormatted(tt.rgIndex, tt.colIndex, tt.pageIndex)
-			require.Error(t, err, "Should return error for invalid indices")
+			require.Error(t, err)
 		})
 	}
 }
@@ -840,42 +662,17 @@ func Test_GetPageContentFormatted_InvalidIndices(t *testing.T) {
 // Test readDictionaryPageContent (indirectly through GetPageContent)
 func Test_ReadDictionaryPageContent_Coverage(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
-	if err != nil {
-		t.Skipf("Failed to open parquet file: %v", err)
-	}
+	require.NoError(t, err)
 	defer func() { _ = parquetReader.ReadStopWithError() }()
 
 	pr := NewParquetReader(parquetReader)
 
 	// Scan all columns looking for dictionary pages
 	allColumns, err := pr.GetAllColumnChunksInfo(0)
-	require.NoError(t, err, "Failed to get columns")
+	require.NoError(t, err)
+	require.Equal(t, 56, len(allColumns))
 
-	dictionaryPageFound := false
-outer:
-	for colIdx := range allColumns {
-		pages, err := pr.GetPageMetadataList(0, colIdx)
-		if err != nil {
-			continue
-		}
-
-		for pageIdx, page := range pages {
-			if page.PageType == "DICTIONARY_PAGE" {
-				dictionaryPageFound = true
-				// Try to read the dictionary page
-				_, err := pr.GetPageContent(0, colIdx, pageIdx)
-				if err != nil {
-					// It's okay if we can't decode all dictionary types
-					t.Logf("Dictionary page decoding failed (may be expected): %v", err)
-				} else {
-					t.Logf("Successfully read dictionary page from column %d", colIdx)
-				}
-				break outer // We've exercised the code path
-			}
-		}
-	}
-
-	if !dictionaryPageFound {
-		t.Log("No dictionary pages found in test file")
-	}
+	values, err := pr.GetPageContent(0, 0, 1)
+	require.NoError(t, err)
+	require.Equal(t, 3, len(values))
 }
