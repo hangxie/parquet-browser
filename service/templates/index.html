@@ -106,6 +106,7 @@
             max-width: 250px;
             overflow: hidden;
             text-overflow: ellipsis;
+            font-size: 0.75em;
         }
 
         th {
@@ -114,6 +115,12 @@
             font-weight: 600;
             position: sticky;
             top: 0;
+        }
+
+        /* First column (index) - no wrapping */
+        th:first-child,
+        td:first-child {
+            white-space: nowrap;
         }
 
         tr:hover {
