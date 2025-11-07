@@ -1,12 +1,9 @@
 package model
 
 import (
-	"bytes"
 	"fmt"
 	"strings"
 
-	"github.com/hangxie/parquet-go/v2/compress"
-	"github.com/hangxie/parquet-go/v2/encoding"
 	"github.com/hangxie/parquet-go/v2/parquet"
 	"github.com/hangxie/parquet-go/v2/reader"
 )
@@ -109,14 +106,15 @@ func (pr *ParquetReader) GetFileInfo() FileInfo {
 		info.TotalUncompressedSize += rg.TotalByteSize
 		if rg.IsSetTotalCompressedSize() {
 			info.TotalCompressedSize += rg.GetTotalCompressedSize()
-		} else {
-			// Sum up compressed sizes from all columns
-			var total int64
-			for _, col := range rg.Columns {
-				total += col.MetaData.TotalCompressedSize
-			}
-			info.TotalCompressedSize += total
+			continue
 		}
+
+		// Sum up compressed sizes from all columns
+		var total int64
+		for _, col := range rg.Columns {
+			total += col.MetaData.TotalCompressedSize
+		}
+		info.TotalCompressedSize += total
 	}
 
 	// Calculate compression ratio
@@ -152,11 +150,9 @@ func (pr *ParquetReader) GetRowGroupInfo(rgIndex int) (RowGroupInfo, error) {
 		info.CompressedSize = rg.GetTotalCompressedSize()
 	} else {
 		// Sum up compressed sizes from all columns
-		var total int64
 		for _, col := range rg.Columns {
-			total += col.MetaData.TotalCompressedSize
+			info.CompressedSize += col.MetaData.TotalCompressedSize
 		}
-		info.CompressedSize = total
 	}
 
 	// Calculate compression ratio
@@ -211,9 +207,8 @@ func (pr *ParquetReader) GetColumnChunkInfo(rgIndex, colIndex int) (ColumnChunkI
 	schemaElem := findSchemaElement(pr.metadata.Schema, meta.PathInSchema)
 	if schemaElem != nil {
 		info.LogicalType = formatLogicalType(schemaElem.LogicalType)
-		if schemaElem.ConvertedType == nil {
-			info.ConvertedType = "-"
-		} else {
+		info.ConvertedType = "-"
+		if schemaElem.ConvertedType != nil {
 			info.ConvertedType = schemaElem.ConvertedType.String()
 		}
 	}
@@ -272,6 +267,63 @@ func formatColumnName(pathInSchema []string) string {
 	return strings.Join(pathInSchema, ".")
 }
 
+// convertPageHeaderInfoToMetadata converts reader.PageHeaderInfo to PageMetadata
+func convertPageHeaderInfoToMetadata(headerInfo reader.PageHeaderInfo, columnMeta *parquet.ColumnMetaData, schemaElem *parquet.SchemaElement) PageMetadata {
+	pageInfo := PageMetadata{
+		Index:            headerInfo.Index,
+		Offset:           headerInfo.Offset,
+		PageType:         headerInfo.PageType.String(),
+		CompressedSize:   headerInfo.CompressedSize,
+		UncompressedSize: headerInfo.UncompressedSize,
+		NumValues:        headerInfo.NumValues,
+		HasCRC:           headerInfo.HasCRC,
+	}
+
+	// Set encoding information based on page type
+	if headerInfo.PageType == parquet.PageType_DATA_PAGE || headerInfo.PageType == parquet.PageType_DATA_PAGE_V2 {
+		pageInfo.Encoding = headerInfo.Encoding.String()
+		pageInfo.DefLevelEncoding = headerInfo.DefLevelEncoding.String()
+		pageInfo.RepLevelEncoding = headerInfo.RepLevelEncoding.String()
+		pageInfo.HasStatistics = headerInfo.HasStatistics
+
+		// Extract statistics if available
+		if headerInfo.HasStatistics && headerInfo.Statistics != nil {
+			stats := headerInfo.Statistics
+			pageInfo.NullCount = stats.NullCount
+
+			// Prefer MinValue/MaxValue over deprecated Min/Max
+			minValueBytes := stats.MinValue
+			if len(minValueBytes) == 0 {
+				minValueBytes = stats.Min
+			}
+			maxValueBytes := stats.MaxValue
+			if len(maxValueBytes) == 0 {
+				maxValueBytes = stats.Max
+			}
+
+			// Format the values for display
+			if len(minValueBytes) > 0 && columnMeta != nil {
+				pageInfo.MinValue = FormatStatValue(minValueBytes, columnMeta, schemaElem)
+			}
+			if len(maxValueBytes) > 0 && columnMeta != nil {
+				pageInfo.MaxValue = FormatStatValue(maxValueBytes, columnMeta, schemaElem)
+			}
+		}
+	} else if headerInfo.PageType == parquet.PageType_DICTIONARY_PAGE {
+		pageInfo.Encoding = headerInfo.Encoding.String()
+	}
+
+	// Format sizes for display
+	pageInfo.CompressedSizeFormatted = FormatBytes(int64(pageInfo.CompressedSize))
+	pageInfo.UncompressedSizeFormatted = FormatBytes(int64(pageInfo.UncompressedSize))
+
+	// Keep the formatted fields for backward compatibility
+	pageInfo.MinValueFormatted = pageInfo.MinValue
+	pageInfo.MaxValueFormatted = pageInfo.MaxValue
+
+	return pageInfo
+}
+
 // GetPageMetadataList returns metadata for all pages in a column chunk
 func (pr *ParquetReader) GetPageMetadataList(rgIndex, colIndex int) ([]PageMetadata, error) {
 	if rgIndex < 0 || rgIndex >= len(pr.metadata.RowGroups) {
@@ -283,54 +335,20 @@ func (pr *ParquetReader) GetPageMetadataList(rgIndex, colIndex int) ([]PageMetad
 		return nil, ErrInvalidColumnIndex
 	}
 
-	column := rg.Columns[colIndex]
-	meta := column.MetaData
+	meta := rg.Columns[colIndex].MetaData
 
 	// Get schema element for formatting
 	schemaElem := findSchemaElement(pr.metadata.Schema, meta.PathInSchema)
 
-	var pages []PageMetadata
-	pFile := pr.Reader.PFile
-
-	// Calculate start offset
-	startOffset := meta.DataPageOffset
-	if meta.DictionaryPageOffset != nil {
-		startOffset = *meta.DictionaryPageOffset
+	pageHeaders, err := pr.Reader.GetAllPageHeaders(rgIndex, colIndex)
+	if err != nil {
+		return nil, err
 	}
 
-	// Read pages until we've read all values
-	currentOffset := startOffset
-	totalValuesRead := int64(0)
-	pageIndex := 0
-
-	for totalValuesRead < meta.NumValues {
-		pageHeader, headerSize, err := readSinglePageHeader(pFile, currentOffset)
-		if err != nil {
-			break // Can't read more pages, we're done
-		}
-
-		// Extract page info
-		pageInfo := extractPageMetadata(pageHeader, currentOffset, pageIndex, meta, schemaElem)
-		pageIndex++
-
-		// Count values for data pages
-		var valuesInPage int64
-		if pageHeader.Type == parquet.PageType_DATA_PAGE && pageHeader.DataPageHeader != nil {
-			valuesInPage = int64(pageHeader.DataPageHeader.NumValues)
-		} else if pageHeader.Type == parquet.PageType_DATA_PAGE_V2 && pageHeader.DataPageHeaderV2 != nil {
-			valuesInPage = int64(pageHeader.DataPageHeaderV2.NumValues)
-		}
-		totalValuesRead += valuesInPage
-
-		pages = append(pages, pageInfo)
-
-		// Move to next page
-		currentOffset = currentOffset + headerSize + int64(pageHeader.CompressedPageSize)
-
-		// Safety check: Don't read beyond reasonable limits
-		if len(pages) > 10000 || currentOffset > startOffset+meta.TotalCompressedSize+1024*1024 {
-			break
-		}
+	// Convert PageHeaderInfo to PageMetadata
+	pages := make([]PageMetadata, len(pageHeaders))
+	for i, headerInfo := range pageHeaders {
+		pages[i] = convertPageHeaderInfoToMetadata(headerInfo, meta, schemaElem)
 	}
 
 	return pages, nil
@@ -438,51 +456,9 @@ func (pr *ParquetReader) readDictionaryPageContent(rgIndex, colIndex, pageIndex 
 	meta := rg.Columns[colIndex].MetaData
 	pageInfo := pages[pageIndex]
 
-	// Read the raw page data
-	pFile := pr.Reader.PFile
-
-	// We need to re-read the header to get the exact header size
-	pageHeader, headerSize, err := readSinglePageHeader(pFile, pageInfo.Offset)
+	values, err := pr.Reader.ReadDictionaryPageValues(pageInfo.Offset, meta.Codec, meta.Type)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read page header: %w", err)
-	}
-
-	// Move to the actual page data (after header)
-	dataOffset := pageInfo.Offset + headerSize
-	_, err = pFile.Seek(dataOffset, 0)
-	if err != nil {
-		return nil, fmt.Errorf("failed to seek to page data: %w", err)
-	}
-
-	// Read compressed page data
-	compressedData := make([]byte, pageHeader.CompressedPageSize)
-	_, err = pFile.Read(compressedData)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read compressed page data: %w", err)
-	}
-
-	// Decompress the data
-	uncompressedData, err := compress.Uncompress(compressedData, meta.Codec)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decompress page data: %w", err)
-	}
-
-	// Decode the dictionary values based on the physical type and encoding
-	dictHeader := pageHeader.DictionaryPageHeader
-	if dictHeader == nil {
-		return nil, fmt.Errorf("missing dictionary page header")
-	}
-
-	// Dictionary pages typically use PLAIN or PLAIN_DICTIONARY encoding
-	if dictHeader.Encoding != parquet.Encoding_PLAIN && dictHeader.Encoding != parquet.Encoding_PLAIN_DICTIONARY {
-		return nil, fmt.Errorf("unsupported encoding for dictionary: %v", dictHeader.Encoding)
-	}
-
-	numValues := dictHeader.NumValues
-	bytesReader := bytes.NewReader(uncompressedData)
-	values, err := encoding.ReadPlain(bytesReader, meta.Type, uint64(numValues), 0)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode dictionary values: %w", err)
+		return nil, fmt.Errorf("failed to read dictionary page: %w", err)
 	}
 
 	return values, nil
