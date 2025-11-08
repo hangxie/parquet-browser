@@ -71,6 +71,19 @@ func FormatStatValue(value []byte, columnMeta *parquet.ColumnMetaData, schemaEle
 	)
 
 	// Format for display
+	// For complex types (maps, slices), use JSON encoding for proper formatting
+	switch jsonValue.(type) {
+	case map[string]any, []any, []map[string]any:
+		if jsonBytes, err := json.Marshal(jsonValue); err == nil {
+			str := string(jsonBytes)
+			if len(str) > 50 {
+				return str[:50] + "..."
+			}
+			return str
+		}
+	}
+
+	// For simple types, use standard formatting
 	str := fmt.Sprintf("%v", jsonValue)
 	if len(str) > 50 {
 		return str[:50] + "..."
