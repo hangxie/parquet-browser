@@ -3,7 +3,7 @@ module github.com/hangxie/parquet-browser
 go 1.24.0
 
 require (
-	github.com/alecthomas/kong v1.12.1
+	github.com/alecthomas/kong v1.13.0
 	github.com/atotto/clipboard v0.1.4
 	github.com/gdamore/tcell/v2 v2.9.0
 	github.com/gorilla/mux v1.8.1
