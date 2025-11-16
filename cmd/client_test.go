@@ -1,4 +1,4 @@
-package client
+package cmd
 
 import (
 	"encoding/json"
@@ -11,18 +11,18 @@ import (
 	"github.com/hangxie/parquet-browser/model"
 )
 
-func Test_NewParquetClient(t *testing.T) {
+func Test_newParquetClient(t *testing.T) {
 	baseURL := "http://localhost:8080"
-	client := NewParquetClient(baseURL)
+	client := newParquetClient(baseURL)
 
-	require.NotNil(t, client, "NewParquetClient() should return non-nil client")
+	require.NotNil(t, client, "newParquetClient() should return non-nil client")
 
 	require.Equal(t, baseURL, client.baseURL, "baseURL should match")
 
 	require.NotNil(t, client.client, "HTTP client should not be nil")
 }
 
-func Test_GetFileInfo(t *testing.T) {
+func Test_getFileInfo(t *testing.T) {
 	expectedInfo := model.FileInfo{
 		Version:             1,
 		NumRows:             1000,
@@ -41,16 +41,16 @@ func Test_GetFileInfo(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewParquetClient(server.URL)
-	info, err := client.GetFileInfo()
+	client := newParquetClient(server.URL)
+	info, err := client.getFileInfo()
 
-	require.NoError(t, err, "GetFileInfo() error = %v")
+	require.NoError(t, err, "getFileInfo() error = %v")
 
 	require.Equal(t, expectedInfo.CreatedBy, info.CreatedBy, "CreatedBy should match")
 	require.Equal(t, expectedInfo.NumRows, info.NumRows, "NumRows should match")
 }
 
-func Test_GetAllRowGroupsInfo(t *testing.T) {
+func Test_getAllRowGroupsInfo(t *testing.T) {
 	expectedGroups := []model.RowGroupInfo{
 		{NumRows: 100, CompressedSize: 1024, NumColumns: 5},
 		{NumRows: 200, CompressedSize: 2048, NumColumns: 5},
@@ -64,17 +64,17 @@ func Test_GetAllRowGroupsInfo(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewParquetClient(server.URL)
-	groups, err := client.GetAllRowGroupsInfo()
+	client := newParquetClient(server.URL)
+	groups, err := client.getAllRowGroupsInfo()
 
-	require.NoError(t, err, "GetAllRowGroupsInfo() error = %v")
+	require.NoError(t, err, "getAllRowGroupsInfo() error = %v")
 
 	require.Len(t, groups, 2, "Expected 2 groups")
 
 	require.Equal(t, int64(100), groups[0].NumRows, "groups[0].NumRows should match")
 }
 
-func Test_GetRowGroupInfo(t *testing.T) {
+func Test_getRowGroupInfo(t *testing.T) {
 	expectedInfo := model.RowGroupInfo{
 		NumRows:        100,
 		CompressedSize: 1024,
@@ -89,15 +89,15 @@ func Test_GetRowGroupInfo(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewParquetClient(server.URL)
-	info, err := client.GetRowGroupInfo(0)
+	client := newParquetClient(server.URL)
+	info, err := client.getRowGroupInfo(0)
 
-	require.NoError(t, err, "GetRowGroupInfo() error = %v")
+	require.NoError(t, err, "getRowGroupInfo() error = %v")
 
 	require.Equal(t, expectedInfo.NumRows, info.NumRows, "NumRows should match")
 }
 
-func Test_GetAllColumnChunksInfo(t *testing.T) {
+func Test_getAllColumnChunksInfo(t *testing.T) {
 	expectedColumns := []model.ColumnChunkInfo{
 		{Name: "col1", PathInSchema: []string{"col1"}},
 		{Name: "col2", PathInSchema: []string{"col2"}},
@@ -111,15 +111,15 @@ func Test_GetAllColumnChunksInfo(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewParquetClient(server.URL)
-	columns, err := client.GetAllColumnChunksInfo(0)
+	client := newParquetClient(server.URL)
+	columns, err := client.getAllColumnChunksInfo(0)
 
-	require.NoError(t, err, "GetAllColumnChunksInfo() error = %v")
+	require.NoError(t, err, "getAllColumnChunksInfo() error = %v")
 
 	require.Len(t, columns, 2, "Expected 2 columns")
 }
 
-func Test_GetColumnChunkInfo(t *testing.T) {
+func Test_getColumnChunkInfo(t *testing.T) {
 	expectedInfo := model.ColumnChunkInfo{
 		Name:         "col1",
 		PathInSchema: []string{"col1"},
@@ -133,15 +133,15 @@ func Test_GetColumnChunkInfo(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewParquetClient(server.URL)
-	info, err := client.GetColumnChunkInfo(0, 0)
+	client := newParquetClient(server.URL)
+	info, err := client.getColumnChunkInfo(0, 0)
 
-	require.NoError(t, err, "GetColumnChunkInfo() error = %v")
+	require.NoError(t, err, "getColumnChunkInfo() error = %v")
 
 	require.Equal(t, expectedInfo.Name, info.Name, "Name should match")
 }
 
-func Test_GetAllPagesInfo(t *testing.T) {
+func Test_getAllPagesInfo(t *testing.T) {
 	expectedPages := []model.PageMetadata{
 		{PageType: "DATA_PAGE", NumValues: 100},
 		{PageType: "DATA_PAGE", NumValues: 200},
@@ -155,15 +155,15 @@ func Test_GetAllPagesInfo(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewParquetClient(server.URL)
-	pages, err := client.GetAllPagesInfo(0, 0)
+	client := newParquetClient(server.URL)
+	pages, err := client.getAllPagesInfo(0, 0)
 
-	require.NoError(t, err, "GetAllPagesInfo() error = %v")
+	require.NoError(t, err, "getAllPagesInfo() error = %v")
 
 	require.Len(t, pages, 2, "Expected 2 pages")
 }
 
-func Test_GetPageInfo(t *testing.T) {
+func Test_getPageInfo(t *testing.T) {
 	expectedInfo := model.PageMetadata{
 		PageType:  "DATA_PAGE",
 		NumValues: 100,
@@ -178,15 +178,15 @@ func Test_GetPageInfo(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewParquetClient(server.URL)
-	info, err := client.GetPageInfo(0, 0, 0)
+	client := newParquetClient(server.URL)
+	info, err := client.getPageInfo(0, 0, 0)
 
-	require.NoError(t, err, "GetPageInfo() error = %v")
+	require.NoError(t, err, "getPageInfo() error = %v")
 
 	require.Equal(t, expectedInfo.PageType, info.PageType, "PageType should match")
 }
 
-func Test_GetPageContent(t *testing.T) {
+func Test_getPageContent(t *testing.T) {
 	expectedValues := []string{"value1", "value2", "value3"}
 	response := struct {
 		Values []string `json:"values"`
@@ -204,17 +204,17 @@ func Test_GetPageContent(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewParquetClient(server.URL)
-	values, err := client.GetPageContent(0, 0, 0)
+	client := newParquetClient(server.URL)
+	values, err := client.getPageContent(0, 0, 0)
 
-	require.NoError(t, err, "GetPageContent() error = %v")
+	require.NoError(t, err, "getPageContent() error = %v")
 
 	require.Len(t, values, 3, "Expected 3 values")
 
 	require.Equal(t, "value1", values[0], "values[0] should match")
 }
 
-func Test_GetSchemaGo(t *testing.T) {
+func Test_getSchemaGo(t *testing.T) {
 	expectedSchema := "package main\n\ntype MyStruct struct {\n\tField1 string\n}"
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -225,15 +225,15 @@ func Test_GetSchemaGo(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewParquetClient(server.URL)
-	schema, err := client.GetSchemaGo()
+	client := newParquetClient(server.URL)
+	schema, err := client.getSchemaGo()
 
-	require.NoError(t, err, "GetSchemaGo() error = %v")
+	require.NoError(t, err, "getSchemaGo() error = %v")
 
 	require.Equal(t, expectedSchema, schema, "schema should match")
 }
 
-func Test_GetSchemaJSON(t *testing.T) {
+func Test_getSchemaJSON(t *testing.T) {
 	expectedSchema := `{"type":"struct"}`
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -244,14 +244,14 @@ func Test_GetSchemaJSON(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewParquetClient(server.URL)
-	schema, err := client.GetSchemaJSON()
+	client := newParquetClient(server.URL)
+	schema, err := client.getSchemaJSON()
 
-	require.NoError(t, err, "GetSchemaJSON() should not error")
+	require.NoError(t, err, "getSchemaJSON() should not error")
 	require.Equal(t, expectedSchema, schema, "schema should match")
 }
 
-func Test_GetSchemaRaw(t *testing.T) {
+func Test_getSchemaRaw(t *testing.T) {
 	expectedSchema := `{"raw":"schema"}`
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -262,14 +262,14 @@ func Test_GetSchemaRaw(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewParquetClient(server.URL)
-	schema, err := client.GetSchemaRaw()
+	client := newParquetClient(server.URL)
+	schema, err := client.getSchemaRaw()
 
-	require.NoError(t, err, "GetSchemaRaw() should not error")
+	require.NoError(t, err, "getSchemaRaw() should not error")
 	require.Equal(t, expectedSchema, schema, "schema should match")
 }
 
-func Test_GetSchemaCSV(t *testing.T) {
+func Test_getSchemaCSV(t *testing.T) {
 	expectedSchema := "column,type,encoding\ncol1,INT32,PLAIN\ncol2,BYTE_ARRAY,PLAIN"
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -280,22 +280,22 @@ func Test_GetSchemaCSV(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewParquetClient(server.URL)
-	schema, err := client.GetSchemaCSV()
+	client := newParquetClient(server.URL)
+	schema, err := client.getSchemaCSV()
 
-	require.NoError(t, err, "GetSchemaCSV() error = %v")
+	require.NoError(t, err, "getSchemaCSV() error = %v")
 
 	require.Equal(t, expectedSchema, schema, "schema should match")
 }
 
-func Test_Get_HTTPError(t *testing.T) {
+func Test_get_HTTPError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Not Found", http.StatusNotFound)
 	}))
 	defer server.Close()
 
-	client := NewParquetClient(server.URL)
-	_, err := client.GetFileInfo()
+	client := newParquetClient(server.URL)
+	_, err := client.getFileInfo()
 
 	require.Error(t, err, "Expected error for HTTP 404, got nil")
 
@@ -303,49 +303,49 @@ func Test_Get_HTTPError(t *testing.T) {
 	require.Contains(t, err.Error(), "404", "Error should contain status code 404")
 }
 
-func Test_Get_InvalidJSON(t *testing.T) {
+func Test_get_InvalidJSON(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte("invalid json"))
 	}))
 	defer server.Close()
 
-	client := NewParquetClient(server.URL)
-	_, err := client.GetFileInfo()
+	client := newParquetClient(server.URL)
+	_, err := client.getFileInfo()
 
 	require.Error(t, err, "Expected error for invalid JSON, got nil")
 
 	require.Contains(t, err.Error(), "failed to decode", "Error should mention failed to decode")
 }
 
-func Test_GetText_HTTPError(t *testing.T) {
+func Test_getText_HTTPError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 	}))
 	defer server.Close()
 
-	client := NewParquetClient(server.URL)
-	_, err := client.GetSchemaGo()
+	client := newParquetClient(server.URL)
+	_, err := client.getSchemaGo()
 
 	require.Error(t, err, "Expected error for HTTP 500, got nil")
 
 	require.Contains(t, err.Error(), "500", "Error should contain status code 500")
 }
 
-func Test_Client_InvalidURL(t *testing.T) {
+func Test_client_InvalidURL(t *testing.T) {
 	// Create client with invalid URL that can't be reached
-	client := NewParquetClient("http://invalid-host-that-does-not-exist:99999")
+	client := newParquetClient("http://invalid-host-that-does-not-exist:99999")
 
-	_, err := client.GetFileInfo()
+	_, err := client.getFileInfo()
 	require.Error(t, err, "Expected error for unreachable server, got nil")
 
 	require.Contains(t, err.Error(), "HTTP request failed", "Error should mention HTTP request failed")
 }
 
-func Test_GetText_InvalidURL(t *testing.T) {
-	client := NewParquetClient("http://invalid-host-that-does-not-exist:99999")
+func Test_getText_InvalidURL(t *testing.T) {
+	client := newParquetClient("http://invalid-host-that-does-not-exist:99999")
 
-	_, err := client.GetSchemaGo()
+	_, err := client.getSchemaGo()
 	require.Error(t, err, "Expected error for unreachable server, got nil")
 
 	require.Contains(t, err.Error(), "HTTP request failed", "Error should mention HTTP request failed")
@@ -363,11 +363,11 @@ func Test_Multiple_Requests(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewParquetClient(server.URL)
+	client := newParquetClient(server.URL)
 
 	// Make multiple requests
 	for i := 0; i < 3; i++ {
-		_, err := client.GetFileInfo()
+		_, err := client.getFileInfo()
 		require.NoError(t, err, "Request %d should not fail", i)
 	}
 

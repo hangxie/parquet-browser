@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/hangxie/parquet-browser/client"
 	"github.com/hangxie/parquet-browser/model"
 )
 
@@ -36,7 +35,7 @@ func Test_pageTableBuilder_readPageHeadersBatch(t *testing.T) {
 				t.Cleanup(server.Close)
 
 				app := NewTUIApp()
-				app.httpClient = client.NewParquetClient(server.URL)
+				app.httpClient = newParquetClient(server.URL)
 
 				return &pageTableBuilder{
 					app:      app,
@@ -58,7 +57,7 @@ func Test_pageTableBuilder_readPageHeadersBatch(t *testing.T) {
 				t.Cleanup(server.Close)
 
 				app := NewTUIApp()
-				app.httpClient = client.NewParquetClient(server.URL)
+				app.httpClient = newParquetClient(server.URL)
 
 				return &pageTableBuilder{
 					app:      app,
@@ -176,7 +175,7 @@ func Test_pageTableBuilder_build(t *testing.T) {
 				t.Cleanup(server.Close)
 
 				app := NewTUIApp()
-				app.httpClient = client.NewParquetClient(server.URL)
+				app.httpClient = newParquetClient(server.URL)
 
 				return &pageTableBuilder{
 					app:      app,
@@ -198,7 +197,7 @@ func Test_pageTableBuilder_build(t *testing.T) {
 				t.Cleanup(server.Close)
 
 				app := NewTUIApp()
-				app.httpClient = client.NewParquetClient(server.URL)
+				app.httpClient = newParquetClient(server.URL)
 
 				return &pageTableBuilder{
 					app:      app,
@@ -362,7 +361,7 @@ func Test_pageContentBuilder_build(t *testing.T) {
 				t.Cleanup(server.Close)
 
 				app := NewTUIApp()
-				app.httpClient = client.NewParquetClient(server.URL)
+				app.httpClient = newParquetClient(server.URL)
 
 				ctx, cancel := context.WithCancel(context.Background())
 
@@ -403,7 +402,7 @@ func Test_pageContentBuilder_build(t *testing.T) {
 				t.Cleanup(server.Close)
 
 				app := NewTUIApp()
-				app.httpClient = client.NewParquetClient(server.URL)
+				app.httpClient = newParquetClient(server.URL)
 
 				ctx, cancel := context.WithCancel(context.Background())
 
