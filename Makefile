@@ -30,8 +30,6 @@ LDFLAGS		:= -w -s \
 .PHONY: all
 all: deps tools format lint test build  ## Build all common targets
 
-
-
 .PHONY: format
 format: tools  ## Format source codes
 	@echo "==> Formatting source codes"
@@ -84,7 +82,7 @@ docker-build:  ## Build docker image for local test
 	@docker build . -f package/container/Dockerfile -t parquet-browser:local
 
 # Test files to download from parquet-tools repository
-PARQUET_TOOLS_TAG := v1.37.0
+PARQUET_TOOLS_TAG := v1.38.3
 PARQUET_TOOLS_BASE := https://github.com/hangxie/parquet-tools/raw/refs/tags/$(PARQUET_TOOLS_TAG)/testdata
 TEST_FILES := \
 	all-types.parquet \
@@ -92,10 +90,9 @@ TEST_FILES := \
 	csv-good.parquet \
 	list-of-list.parquet
 
-.PHONY: test
-test: deps tools  ## Run unit tests
-	@echo "==> Running unit tests"
-	@mkdir -p $(BUILD_DIR)/test $(BUILD_DIR)/testdata
+.PHONY: pre-test
+pre-test:
+	@mkdir -p $(BUILD_DIR)/testdata
 	@echo "==> Downloading test parquet files"
 	@for file in $(TEST_FILES); do \
 		test -f $(BUILD_DIR)/testdata/$$file || \
@@ -103,6 +100,11 @@ test: deps tools  ## Run unit tests
 				$(PARQUET_TOOLS_BASE)/$$file || \
 			echo "Warning: Failed to download $$file"; \
 	done
+
+.PHONY: test
+test: deps tools pre-test  ## Run unit tests
+	@echo "==> Running unit tests"
+	@mkdir -p $(BUILD_DIR)/test
 	@set -euo pipefail ; \
 		cd $(BUILD_DIR)/test; \
 		CGO_ENABLED=1 $(GO) test -parallel 4 -race -count 1 -trimpath -coverprofile=coverage.out $(CURDIR)/... ; \

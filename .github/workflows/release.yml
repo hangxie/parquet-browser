@@ -22,6 +22,8 @@ jobs:
           cache-dependency-path: go.sum
       - name: Installing Dependencies
         run: make deps
+      - name: prepare test materials
+        run: make pre-test
       - name: Build release
         run: make release-build
       - name: Upload artifacts
@@ -39,6 +41,12 @@ jobs:
         with:
           name: release-artifacts
           path: build
+      - name: Update coverage badge
+        uses: ncruces/go-coverage-report@main
+        with:
+          report: true
+          chart: true
+          amend: true
       - name: Push to github
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -47,9 +55,3 @@ jobs:
               --title $(cat ./build/VERSION) \
               --notes-file ./build/CHANGELOG \
               ./build/release/*
-      - name: Update coverage badge
-        uses: ncruces/go-coverage-report@main
-        with:
-          report: true
-          chart: true
-          amend: true
