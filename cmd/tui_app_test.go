@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/hangxie/parquet-browser/client"
 	"github.com/hangxie/parquet-browser/model"
 )
 
@@ -281,7 +280,7 @@ func Test_TUIApp_readPageHeaders(t *testing.T) {
 	defer server.Close()
 
 	app := NewTUIApp()
-	app.httpClient = client.NewParquetClient(server.URL)
+	app.httpClient = newParquetClient(server.URL)
 
 	pages, err := app.readPageHeaders(0, 0)
 	require.NoError(t, err)
@@ -300,7 +299,7 @@ func Test_TUIApp_readPageHeaders_Error(t *testing.T) {
 	defer server.Close()
 
 	app := NewTUIApp()
-	app.httpClient = client.NewParquetClient(server.URL)
+	app.httpClient = newParquetClient(server.URL)
 
 	_, err := app.readPageHeaders(0, 0)
 	require.Error(t, err)
@@ -318,7 +317,7 @@ func Test_TUIApp_readPageContent(t *testing.T) {
 	defer server.Close()
 
 	app := NewTUIApp()
-	app.httpClient = client.NewParquetClient(server.URL)
+	app.httpClient = newParquetClient(server.URL)
 
 	// Mock metadata
 	meta := &parquet.ColumnMetaData{
@@ -371,7 +370,7 @@ func Test_TUIApp_createHeaderView(t *testing.T) {
 	defer server.Close()
 
 	app := NewTUIApp()
-	app.httpClient = client.NewParquetClient(server.URL)
+	app.httpClient = newParquetClient(server.URL)
 	app.createHeaderView()
 
 	require.NotNil(t, app.headerView)
@@ -403,7 +402,7 @@ func Test_TUIApp_createRowGroupList(t *testing.T) {
 	defer server.Close()
 
 	app := NewTUIApp()
-	app.httpClient = client.NewParquetClient(server.URL)
+	app.httpClient = newParquetClient(server.URL)
 	app.createRowGroupList()
 
 	require.NotNil(t, app.rowGroupList)
@@ -424,7 +423,7 @@ func Test_TUIApp_showSchema(t *testing.T) {
 	defer server.Close()
 
 	app := NewTUIApp()
-	app.httpClient = client.NewParquetClient(server.URL)
+	app.httpClient = newParquetClient(server.URL)
 
 	// Create a screen for the app
 	screen := tcell.NewSimulationScreen("UTF-8")

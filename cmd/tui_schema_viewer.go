@@ -108,21 +108,21 @@ func (sv *schemaViewer) updateDisplay() {
 	format := sv.schemaFormats[sv.currentFormat]
 	switch format {
 	case "go":
-		schemaText, err = sv.app.httpClient.GetSchemaGo()
+		schemaText, err = sv.app.httpClient.getSchemaGo()
 	case "csv":
-		schemaText, err = sv.app.httpClient.GetSchemaCSV()
+		schemaText, err = sv.app.httpClient.getSchemaCSV()
 	case "json":
-		schemaText, err = sv.app.httpClient.GetSchemaJSON()
+		schemaText, err = sv.app.httpClient.getSchemaJSON()
 		if err == nil && sv.isPretty {
 			schemaText = sv.formatJSON(schemaText)
 		}
 	case "raw":
-		schemaText, err = sv.app.httpClient.GetSchemaRaw()
+		schemaText, err = sv.app.httpClient.getSchemaRaw()
 		if err == nil && sv.isPretty {
 			schemaText = sv.formatJSON(schemaText)
 		}
 	default:
-		schemaText, err = sv.app.httpClient.GetSchemaGo()
+		schemaText, err = sv.app.httpClient.getSchemaGo()
 	}
 
 	if err != nil {

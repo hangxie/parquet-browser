@@ -10,7 +10,6 @@ import (
 	"github.com/hangxie/parquet-go/v2/parquet"
 	"github.com/rivo/tview"
 
-	"github.com/hangxie/parquet-browser/client"
 	"github.com/hangxie/parquet-browser/model"
 )
 
@@ -23,9 +22,9 @@ type TUIApp struct {
 	rowGroupList   *tview.Table
 	statusLine     *tview.TextView
 	currentFile    string
-	httpClient     *client.ParquetClient // HTTP client for data access
-	lastRGIndex    int                   // Track which row group we're positioned at (unused, kept for compatibility)
-	lastRGPosition int64                 // Track position within file (unused, kept for compatibility)
+	httpClient     *parquetClient // HTTP client for data access
+	lastRGIndex    int            // Track which row group we're positioned at (unused, kept for compatibility)
+	lastRGPosition int64          // Track position within file (unused, kept for compatibility)
 }
 
 // NewTUIApp creates a new TUIApp instance
@@ -41,13 +40,13 @@ func NewTUIApp() *TUIApp {
 // readPageHeaders reads all page headers from a column chunk via HTTP API
 func (app *TUIApp) readPageHeaders(rgIndex, colIndex int) ([]model.PageMetadata, error) {
 	// Use HTTP client to get page metadata
-	return app.httpClient.GetAllPagesInfo(rgIndex, colIndex)
+	return app.httpClient.getAllPagesInfo(rgIndex, colIndex)
 }
 
 // readPageContent reads and decodes the content of a specific page via HTTP API
 func (app *TUIApp) readPageContent(rgIndex, colIndex, pageIndex int, allPages []model.PageMetadata, meta *parquet.ColumnMetaData) ([]string, error) {
 	// Use HTTP client to get pre-formatted page content
-	return app.httpClient.GetPageContent(rgIndex, colIndex, pageIndex)
+	return app.httpClient.getPageContent(rgIndex, colIndex, pageIndex)
 }
 
 // buildColumnChunkInfoViewFromHTTP creates the info view for a column chunk using HTTP API data
@@ -261,7 +260,7 @@ func (app *TUIApp) showPageView(rgIndex, colIndex int) {
 		defer cancel() // Ensure context is cancelled when done
 
 		// Fetch column chunk info from HTTP API
-		colInfo, err := app.httpClient.GetColumnChunkInfo(rgIndex, colIndex)
+		colInfo, err := app.httpClient.getColumnChunkInfo(rgIndex, colIndex)
 		if err != nil {
 			app.tviewApp.QueueUpdateDraw(func() {
 				app.pages.RemovePage("page-loading")
@@ -278,7 +277,7 @@ func (app *TUIApp) showPageView(rgIndex, colIndex int) {
 		}
 
 		// Fetch page metadata from HTTP API
-		pages, err := app.httpClient.GetAllPagesInfo(rgIndex, colIndex)
+		pages, err := app.httpClient.getAllPagesInfo(rgIndex, colIndex)
 		if err != nil {
 			app.tviewApp.QueueUpdateDraw(func() {
 				app.pages.RemovePage("page-loading")
@@ -541,7 +540,7 @@ func (app *TUIApp) createHeaderView() {
 	// Line 2: Basic file info from HTTP API
 	header.WriteString("\n")
 
-	fileInfo, err := app.httpClient.GetFileInfo()
+	fileInfo, err := app.httpClient.getFileInfo()
 	if err != nil {
 		app.headerView.SetText(fmt.Sprintf("[red]Error loading file info: %v[-]", err))
 		return
@@ -590,7 +589,7 @@ func (app *TUIApp) createRowGroupList() {
 		SetTitleAlign(tview.AlignLeft)
 
 	// Get row groups from HTTP client
-	rowGroups, err := app.httpClient.GetAllRowGroupsInfo()
+	rowGroups, err := app.httpClient.getAllRowGroupsInfo()
 	if err != nil {
 		// Show error in table
 		cell := tview.NewTableCell(fmt.Sprintf("[red]Error loading row groups: %v[-]", err)).
@@ -650,7 +649,7 @@ func (app *TUIApp) createStatusLine() {
 
 func (app *TUIApp) showColumnChunksView(rgIndex int) {
 	// Get row group info from HTTP client
-	rowGroup, err := app.httpClient.GetRowGroupInfo(rgIndex)
+	rowGroup, err := app.httpClient.getRowGroupInfo(rgIndex)
 	if err != nil {
 		// Show error modal
 		errorModal := tview.NewModal().
@@ -665,7 +664,7 @@ func (app *TUIApp) showColumnChunksView(rgIndex int) {
 	}
 
 	// Get column chunks info to calculate totals
-	columns, err := app.httpClient.GetAllColumnChunksInfo(rgIndex)
+	columns, err := app.httpClient.getAllColumnChunksInfo(rgIndex)
 	if err != nil {
 		// Show error modal
 		errorModal := tview.NewModal().
@@ -770,7 +769,7 @@ func (app *TUIApp) createColumnChunksList(rgIndex int) *tview.Table {
 	table.SetBorder(false)
 
 	// Get column chunks from HTTP client
-	columns, err := app.httpClient.GetAllColumnChunksInfo(rgIndex)
+	columns, err := app.httpClient.getAllColumnChunksInfo(rgIndex)
 	if err != nil {
 		// Show error in table
 		cell := tview.NewTableCell(fmt.Sprintf("[red]Error loading columns: %v[-]", err)).

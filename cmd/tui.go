@@ -12,7 +12,6 @@ import (
 
 	pio "github.com/hangxie/parquet-tools/io"
 
-	"github.com/hangxie/parquet-browser/client"
 	"github.com/hangxie/parquet-browser/service"
 )
 
@@ -157,7 +156,7 @@ func (b TUICmd) Run() error {
 				httpServer = res.server
 
 				// Create HTTP client and store in app
-				app.httpClient = client.NewParquetClient(res.serverURL)
+				app.httpClient = newParquetClient(res.serverURL)
 				app.currentFile = b.URI
 
 				// Remove loading modal and show main view
