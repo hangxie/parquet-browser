@@ -132,8 +132,14 @@ func (pr *ParquetReader) GetFileInfo() FileInfo {
 
 // GetRowGroupInfo extracts row group information
 func (pr *ParquetReader) GetRowGroupInfo(rgIndex int) (RowGroupInfo, error) {
-	if rgIndex < 0 || rgIndex >= len(pr.metadata.RowGroups) {
+	if pr == nil || pr.metadata == nil {
 		return RowGroupInfo{}, ErrInvalidRowGroupIndex
+	}
+
+	numRowGroups := len(pr.metadata.RowGroups)
+	if rgIndex < 0 || rgIndex >= numRowGroups {
+		return RowGroupInfo{}, fmt.Errorf("row group index %d out of range [0, %d): %w",
+			rgIndex, numRowGroups, ErrInvalidRowGroupIndex)
 	}
 
 	rg := pr.metadata.RowGroups[rgIndex]
@@ -175,13 +181,21 @@ func (pr *ParquetReader) GetAllRowGroupsInfo() []RowGroupInfo {
 
 // GetColumnChunkInfo extracts column chunk information
 func (pr *ParquetReader) GetColumnChunkInfo(rgIndex, colIndex int) (ColumnChunkInfo, error) {
-	if rgIndex < 0 || rgIndex >= len(pr.metadata.RowGroups) {
+	if pr == nil || pr.metadata == nil {
 		return ColumnChunkInfo{}, ErrInvalidRowGroupIndex
 	}
 
+	numRowGroups := len(pr.metadata.RowGroups)
+	if rgIndex < 0 || rgIndex >= numRowGroups {
+		return ColumnChunkInfo{}, fmt.Errorf("row group index %d out of range [0, %d): %w",
+			rgIndex, numRowGroups, ErrInvalidRowGroupIndex)
+	}
+
 	rg := pr.metadata.RowGroups[rgIndex]
-	if colIndex < 0 || colIndex >= len(rg.Columns) {
-		return ColumnChunkInfo{}, ErrInvalidColumnIndex
+	numColumns := len(rg.Columns)
+	if colIndex < 0 || colIndex >= numColumns {
+		return ColumnChunkInfo{}, fmt.Errorf("column index %d out of range [0, %d): %w",
+			colIndex, numColumns, ErrInvalidColumnIndex)
 	}
 
 	col := rg.Columns[colIndex]
@@ -247,8 +261,14 @@ func (pr *ParquetReader) GetColumnChunkInfo(rgIndex, colIndex int) (ColumnChunkI
 
 // GetAllColumnChunksInfo returns info for all columns in a row group
 func (pr *ParquetReader) GetAllColumnChunksInfo(rgIndex int) ([]ColumnChunkInfo, error) {
-	if rgIndex < 0 || rgIndex >= len(pr.metadata.RowGroups) {
+	if pr == nil || pr.metadata == nil {
 		return nil, ErrInvalidRowGroupIndex
+	}
+
+	numRowGroups := len(pr.metadata.RowGroups)
+	if rgIndex < 0 || rgIndex >= numRowGroups {
+		return nil, fmt.Errorf("row group index %d out of range [0, %d): %w",
+			rgIndex, numRowGroups, ErrInvalidRowGroupIndex)
 	}
 
 	rg := pr.metadata.RowGroups[rgIndex]
@@ -326,13 +346,21 @@ func convertPageHeaderInfoToMetadata(headerInfo reader.PageHeaderInfo, columnMet
 
 // GetPageMetadataList returns metadata for all pages in a column chunk
 func (pr *ParquetReader) GetPageMetadataList(rgIndex, colIndex int) ([]PageMetadata, error) {
-	if rgIndex < 0 || rgIndex >= len(pr.metadata.RowGroups) {
+	if pr == nil || pr.metadata == nil {
 		return nil, ErrInvalidRowGroupIndex
 	}
 
+	numRowGroups := len(pr.metadata.RowGroups)
+	if rgIndex < 0 || rgIndex >= numRowGroups {
+		return nil, fmt.Errorf("row group index %d out of range [0, %d): %w",
+			rgIndex, numRowGroups, ErrInvalidRowGroupIndex)
+	}
+
 	rg := pr.metadata.RowGroups[rgIndex]
-	if colIndex < 0 || colIndex >= len(rg.Columns) {
-		return nil, ErrInvalidColumnIndex
+	numColumns := len(rg.Columns)
+	if colIndex < 0 || colIndex >= numColumns {
+		return nil, fmt.Errorf("column index %d out of range [0, %d): %w",
+			colIndex, numColumns, ErrInvalidColumnIndex)
 	}
 
 	meta := rg.Columns[colIndex].MetaData
@@ -361,8 +389,10 @@ func (pr *ParquetReader) GetPageMetadata(rgIndex, colIndex, pageIndex int) (Page
 		return PageMetadata{}, err
 	}
 
-	if pageIndex < 0 || pageIndex >= len(pages) {
-		return PageMetadata{}, ErrInvalidPageIndex
+	numPages := len(pages)
+	if pageIndex < 0 || pageIndex >= numPages {
+		return PageMetadata{}, fmt.Errorf("page index %d out of range [0, %d): %w",
+			pageIndex, numPages, ErrInvalidPageIndex)
 	}
 
 	return pages[pageIndex], nil
@@ -370,13 +400,21 @@ func (pr *ParquetReader) GetPageMetadata(rgIndex, colIndex, pageIndex int) (Page
 
 // GetPageContent reads and decodes the values from a specific page
 func (pr *ParquetReader) GetPageContent(rgIndex, colIndex, pageIndex int) ([]interface{}, error) {
-	if rgIndex < 0 || rgIndex >= len(pr.metadata.RowGroups) {
+	if pr == nil || pr.metadata == nil {
 		return nil, ErrInvalidRowGroupIndex
 	}
 
+	numRowGroups := len(pr.metadata.RowGroups)
+	if rgIndex < 0 || rgIndex >= numRowGroups {
+		return nil, fmt.Errorf("row group index %d out of range [0, %d): %w",
+			rgIndex, numRowGroups, ErrInvalidRowGroupIndex)
+	}
+
 	rg := pr.metadata.RowGroups[rgIndex]
-	if colIndex < 0 || colIndex >= len(rg.Columns) {
-		return nil, ErrInvalidColumnIndex
+	numColumns := len(rg.Columns)
+	if colIndex < 0 || colIndex >= numColumns {
+		return nil, fmt.Errorf("column index %d out of range [0, %d): %w",
+			colIndex, numColumns, ErrInvalidColumnIndex)
 	}
 
 	meta := rg.Columns[colIndex].MetaData
@@ -387,8 +425,10 @@ func (pr *ParquetReader) GetPageContent(rgIndex, colIndex, pageIndex int) ([]int
 		return nil, err
 	}
 
-	if pageIndex < 0 || pageIndex >= len(pages) {
-		return nil, ErrInvalidPageIndex
+	numPages := len(pages)
+	if pageIndex < 0 || pageIndex >= numPages {
+		return nil, fmt.Errorf("page index %d out of range [0, %d): %w",
+			pageIndex, numPages, ErrInvalidPageIndex)
 	}
 
 	pageInfo := pages[pageIndex]
