@@ -40,6 +40,21 @@ func FormatStatValue(value []byte, columnMeta *parquet.ColumnMetaData, schemaEle
 		return "-"
 	}
 
+	// Check if this is a type where min/max don't apply (geospatial or interval types)
+	// These types don't have meaningful min/max values in their statistics
+	if schemaElem != nil {
+		// Check for geospatial types (GEOMETRY or GEOGRAPHY)
+		if schemaElem.LogicalType != nil {
+			if schemaElem.LogicalType.IsSetGEOMETRY() || schemaElem.LogicalType.IsSetGEOGRAPHY() {
+				return "-"
+			}
+		}
+		// Check for interval type (deprecated converted type)
+		if schemaElem.ConvertedType != nil && *schemaElem.ConvertedType == parquet.ConvertedType_INTERVAL {
+			return "-"
+		}
+	}
+
 	// Retrieve the raw value from bytes
 	rawValue := retrieveStatValue(value, columnMeta.Type)
 	if rawValue == nil {
