@@ -159,8 +159,8 @@ github.com/gorilla/sessions v1.2.1 h1:DHd3rPN5lE3Ts3D8rKkQ8x/0kqfeNmBAaiSi+o7Fsg
 github.com/gorilla/sessions v1.2.1/go.mod h1:dk2InVEVJ0sfLlnXv9EAgkf6ecYs/i80K/zI+bUmuGM=
 github.com/hangxie/parquet-go/v2 v2.5.2 h1:AL2gJjamgQALY5cYXkH3ozR2IXcjvrPshBEzH+KjfqM=
 github.com/hangxie/parquet-go/v2 v2.5.2/go.mod h1:IHgltYS9ohOfKtIyoyJv2oTjzd1D2dDcstXuEU9lVWw=
-github.com/hangxie/parquet-tools v1.38.3 h1:WqV2eFXSTQiaGMpQ3UctnfWh+bZTks3S19OUFtVjgv4=
-github.com/hangxie/parquet-tools v1.38.3/go.mod h1:sq99xPh9R2btjsstutC0pvwGoRQlr7cW80lzWvWxw4A=
+github.com/hangxie/parquet-tools v1.39.0 h1:R+cBPzh7YP5GKekZfBDO5HLHQKh+96OVOhlxhsTD7eI=
+github.com/hangxie/parquet-tools v1.39.0/go.mod h1:sq99xPh9R2btjsstutC0pvwGoRQlr7cW80lzWvWxw4A=
 github.com/hashicorp/errwrap v1.0.0/go.mod h1:YH+1FKiLXxHSkmPseP+kNlulaMuP3n2brvKWEqk/Jc4=
 github.com/hashicorp/errwrap v1.1.0 h1:OxrOeh75EUXMY8TBjag2fzXGZ40LB6IKw45YeGUDY2I=
 github.com/hashicorp/errwrap v1.1.0/go.mod h1:YH+1FKiLXxHSkmPseP+kNlulaMuP3n2brvKWEqk/Jc4=
