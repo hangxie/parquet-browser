@@ -7,7 +7,7 @@ require (
 	github.com/atotto/clipboard v0.1.4
 	github.com/gdamore/tcell/v2 v2.9.0
 	github.com/gorilla/mux v1.8.1
-	github.com/hangxie/parquet-go/v2 v2.5.2
+	github.com/hangxie/parquet-go/v2 v2.5.3
 	github.com/hangxie/parquet-tools v1.38.3
 	github.com/posener/complete v1.2.3
 	github.com/rivo/tview v0.42.0
