@@ -11,9 +11,10 @@ import (
 )
 
 var cli struct {
-	TUI   cmd.TUICmd   `cmd:"" help:"Browse Parquet file with TUI."`
-	Serve cmd.ServeCmd `cmd:"" help:"Start HTTP API server for Parquet file."`
-	WebUI cmd.WebUICmd `cmd:"" help:"Start Web UI server with HTMX interface."`
+	TUI     cmd.TUICmd     `cmd:"" help:"Browse Parquet file with TUI."`
+	Serve   cmd.ServeCmd   `cmd:"" help:"Start HTTP API server for Parquet file."`
+	WebUI   cmd.WebUICmd   `cmd:"" help:"Start Web UI server with HTMX interface."`
+	Version cmd.VersionCmd `cmd:"" help:"Show build version."`
 }
 
 func main() {

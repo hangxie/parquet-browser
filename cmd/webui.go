@@ -18,6 +18,9 @@ type WebUICmd struct {
 
 // Run starts the Web UI server
 func (w WebUICmd) Run() error {
+	// Set version getter for web UI
+	service.SetVersionGetter(GetVersion)
+
 	// Create the service
 	svc, err := service.NewParquetService(w.URI, w.ReadOption)
 	if err != nil {

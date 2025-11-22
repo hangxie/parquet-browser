@@ -19,6 +19,25 @@ import (
 	"github.com/hangxie/parquet-browser/model"
 )
 
+// VersionGetter is a function type for getting version string
+type VersionGetter func() string
+
+// versionGetter holds the function to get the version
+var versionGetter VersionGetter
+
+// SetVersionGetter sets the function used to retrieve the version
+func SetVersionGetter(fn VersionGetter) {
+	versionGetter = fn
+}
+
+// getVersion returns the current version string
+func getVersion() string {
+	if versionGetter != nil {
+		return versionGetter()
+	}
+	return ""
+}
+
 //go:embed templates/*.html
 var templatesFS embed.FS
 
@@ -57,7 +76,12 @@ func (s *ParquetService) SetupWebUIRoutes(r *mux.Router) {
 // handleIndexPage serves the main HTML page
 func (s *ParquetService) handleIndexPage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	err := templates.ExecuteTemplate(w, "index.html", nil)
+	data := struct {
+		Version string
+	}{
+		Version: getVersion(),
+	}
+	err := templates.ExecuteTemplate(w, "index.html", data)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -690,8 +714,10 @@ func renderPartial(w http.ResponseWriter, r *http.Request, templateName string, 
 	// Wrap the partial content in the wrapper template
 	wrapperData := struct {
 		Content template.HTML
+		Version string
 	}{
 		Content: template.HTML(buf.String()),
+		Version: getVersion(),
 	}
 
 	return templates.ExecuteTemplate(w, "wrapper.html", wrapperData)
