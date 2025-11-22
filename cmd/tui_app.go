@@ -366,6 +366,9 @@ func (app *TUIApp) showPageView(rgIndex, colIndex int) {
 
 		// Set status line text (keys only)
 		status := " [yellow]Keys:[-] ESC=back, s=schema, ↑↓=scroll, Enter=see item details"
+		if v := GetVersion(); v != "" {
+			status += fmt.Sprintf("  [gray]%s[-]", v)
+		}
 		statusText.SetText(status)
 
 		// Check if cancelled before updating UI
@@ -477,6 +480,9 @@ func (app *TUIApp) showPageContent(rgIndex, colIndex, pageIndex int, allPages []
 
 		// Set status line text (keys only)
 		status := " [yellow]Keys:[-] ESC=back, s=schema, ↑↓=scroll"
+		if v := GetVersion(); v != "" {
+			status += fmt.Sprintf("  [gray]%s[-]", v)
+		}
 		statusText.SetText(status)
 
 		app.tviewApp.QueueUpdateDraw(func() {
@@ -644,6 +650,9 @@ func (app *TUIApp) createStatusLine() {
 		SetTextAlign(tview.AlignLeft)
 
 	status := " [yellow]Keys:[-] ESC=quit, s=schema, ↑↓=scroll, Enter=see item details"
+	if v := GetVersion(); v != "" {
+		status += fmt.Sprintf("  [gray]%s[-]", v)
+	}
 	app.statusLine.SetText(status)
 }
 
@@ -729,6 +738,9 @@ func (app *TUIApp) showColumnChunksView(rgIndex int) {
 		SetTextAlign(tview.AlignLeft)
 
 	status := " [yellow]Keys:[-] ESC=back, s=schema, ↑↓=scroll, Enter=view pages"
+	if v := GetVersion(); v != "" {
+		status += fmt.Sprintf("  [gray]%s[-]", v)
+	}
 	statusLine.SetText(status)
 
 	// Create flex layout - same structure as main view: header, table, status
