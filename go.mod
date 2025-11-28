@@ -7,7 +7,7 @@ require (
 	github.com/atotto/clipboard v0.1.4
 	github.com/gdamore/tcell/v2 v2.11.0
 	github.com/gorilla/mux v1.8.1
-	github.com/hangxie/parquet-go/v2 v2.6.1
+	github.com/hangxie/parquet-go/v2 v2.7.0
 	github.com/hangxie/parquet-tools v1.39.1
 	github.com/posener/complete v1.2.3
 	github.com/rivo/tview v0.42.0
@@ -30,6 +30,7 @@ require (
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp v1.30.0 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.54.0 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.54.0 // indirect
+	github.com/andybalholm/brotli v1.2.0 // indirect
 	github.com/apache/arrow-go/v18 v18.4.1 // indirect
 	github.com/apache/thrift v0.22.0 // indirect
 	github.com/aws/aws-sdk-go-v2 v1.40.0 // indirect
