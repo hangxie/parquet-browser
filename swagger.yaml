@@ -405,12 +405,10 @@ components:
           description: Ratio of uncompressed to compressed size
         MinValue:
           type: string
-          format: byte
-          description: Minimum value (raw bytes)
+          description: Formatted minimum value for display
         MaxValue:
           type: string
-          format: byte
-          description: Maximum value (raw bytes)
+          description: Formatted maximum value for display
         CompressedSizeFormatted:
           type: string
           description: Human-readable compressed size
@@ -419,10 +417,10 @@ components:
           description: Human-readable uncompressed size
         MinValueFormatted:
           type: string
-          description: Formatted minimum value for display
+          description: Formatted minimum value for display (same as MinValue, kept for backward compatibility)
         MaxValueFormatted:
           type: string
-          description: Formatted maximum value for display
+          description: Formatted maximum value for display (same as MaxValue, kept for backward compatibility)
 
     PageMetadata:
       type: object
@@ -466,12 +464,10 @@ components:
           description: Whether this page has a CRC checksum
         MinValue:
           type: string
-          format: byte
-          description: Minimum value in page (raw bytes)
+          description: Formatted minimum value for display
         MaxValue:
           type: string
-          format: byte
-          description: Maximum value in page (raw bytes)
+          description: Formatted maximum value for display
         NullCount:
           type: integer
           format: int64
@@ -485,10 +481,10 @@ components:
           description: Human-readable uncompressed size
         MinValueFormatted:
           type: string
-          description: Formatted minimum value for display
+          description: Formatted minimum value for display (same as MinValue, kept for backward compatibility)
         MaxValueFormatted:
           type: string
-          description: Formatted maximum value for display
+          description: Formatted maximum value for display (same as MaxValue, kept for backward compatibility)
 
     PageContent:
       type: object
