@@ -8,7 +8,7 @@ require (
 	github.com/gdamore/tcell/v2 v2.13.4
 	github.com/gorilla/mux v1.8.1
 	github.com/hangxie/parquet-go/v2 v2.9.0
-	github.com/hangxie/parquet-tools v1.40.0
+	github.com/hangxie/parquet-tools v1.41.0
 	github.com/posener/complete v1.2.3
 	github.com/rivo/tview v0.42.0
 	github.com/stretchr/testify v1.11.1
