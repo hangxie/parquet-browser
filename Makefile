@@ -82,7 +82,7 @@ docker-build:  ## Build docker image for local test
 	@docker build . -f package/container/Dockerfile -t parquet-browser:local
 
 # Test files to download from parquet-tools repository
-PARQUET_TOOLS_TAG := v1.38.3
+PARQUET_TOOLS_TAG := v1.46.2
 PARQUET_TOOLS_BASE := https://github.com/hangxie/parquet-tools/raw/refs/tags/$(PARQUET_TOOLS_TAG)/testdata
 TEST_FILES := \
 	all-types.parquet \
