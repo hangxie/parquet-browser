@@ -157,7 +157,7 @@ func (s *ParquetService) handleSchemaView(w http.ResponseWriter, r *http.Request
 
 // handleSchemaGoView returns schema in Go format for HTMX
 func (s *ParquetService) handleSchemaGoView(w http.ResponseWriter, r *http.Request) {
-	schemaRoot, err := pschema.NewSchemaTree(s.parquetReader, pschema.SchemaOption{FailOnInt96: false})
+	schemaRoot, err := pschema.NewSchemaTree(s.parquetReader, pschema.SchemaOption{FailOnInt96: false, WithCompressionCodec: true})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to generate schema: %v", err), http.StatusInternalServerError)
 		return
@@ -180,7 +180,7 @@ func (s *ParquetService) handleSchemaGoView(w http.ResponseWriter, r *http.Reque
 
 // handleSchemaJSONView returns schema in JSON format for HTMX
 func (s *ParquetService) handleSchemaJSONView(w http.ResponseWriter, r *http.Request) {
-	schemaRoot, err := pschema.NewSchemaTree(s.parquetReader, pschema.SchemaOption{FailOnInt96: false})
+	schemaRoot, err := pschema.NewSchemaTree(s.parquetReader, pschema.SchemaOption{FailOnInt96: false, WithCompressionCodec: true})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to generate schema: %v", err), http.StatusInternalServerError)
 		return
@@ -194,7 +194,7 @@ func (s *ParquetService) handleSchemaJSONView(w http.ResponseWriter, r *http.Req
 
 // handleSchemaCSVView returns schema in CSV format for HTMX
 func (s *ParquetService) handleSchemaCSVView(w http.ResponseWriter, r *http.Request) {
-	schemaRoot, err := pschema.NewSchemaTree(s.parquetReader, pschema.SchemaOption{FailOnInt96: false})
+	schemaRoot, err := pschema.NewSchemaTree(s.parquetReader, pschema.SchemaOption{FailOnInt96: false, WithCompressionCodec: true})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to generate schema: %v", err), http.StatusInternalServerError)
 		return
@@ -212,7 +212,7 @@ func (s *ParquetService) handleSchemaCSVView(w http.ResponseWriter, r *http.Requ
 
 // handleSchemaRawView returns raw schema for HTMX (compact JSON)
 func (s *ParquetService) handleSchemaRawView(w http.ResponseWriter, r *http.Request) {
-	schemaRoot, err := pschema.NewSchemaTree(s.parquetReader, pschema.SchemaOption{FailOnInt96: false})
+	schemaRoot, err := pschema.NewSchemaTree(s.parquetReader, pschema.SchemaOption{FailOnInt96: false, WithCompressionCodec: true})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to generate schema: %v", err), http.StatusInternalServerError)
 		return
