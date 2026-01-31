@@ -567,23 +567,23 @@ func Test_GetPageContent_DictionaryPage(t *testing.T) {
 	// Find a column with a dictionary page
 	allColumns, err := pr.GetAllColumnChunksInfo(0)
 	require.NoError(t, err)
-	require.Equal(t, 56, len(allColumns))
+	require.Equal(t, 57, len(allColumns))
 
 	pages, err := pr.GetPageMetadataList(0, 0)
 	require.NoError(t, err)
-	require.Equal(t, 4, len(pages))
+	require.Equal(t, 3, len(pages))
 
 	values, err := pr.GetPageContent(0, 0, 0)
 	require.NoError(t, err)
-	require.Equal(t, 3, len(values))
+	require.Equal(t, 2, len(values))
 
 	pages, err = pr.GetPageMetadataList(0, 16)
 	require.NoError(t, err)
-	require.Equal(t, 5, len(pages))
+	require.Equal(t, 4, len(pages))
 
 	values, err = pr.GetPageContent(0, 1, 0)
 	require.NoError(t, err)
-	require.Equal(t, 3, len(values))
+	require.Equal(t, 5, len(values))
 }
 
 // Test GetPageContent with invalid indices
@@ -625,11 +625,11 @@ func Test_GetPageContentFormatted_ValidIndices(t *testing.T) {
 	// Find the first data page
 	pages, err := pr.GetPageMetadataList(0, 0)
 	require.NoError(t, err)
-	require.Equal(t, 4, len(pages))
+	require.Equal(t, 3, len(pages))
 
 	values, err := pr.GetPageContentFormatted(0, 0, 1)
 	require.NoError(t, err)
-	require.Equal(t, 3, len(values))
+	require.Equal(t, 2, len(values))
 }
 
 // Test GetPageContentFormatted with invalid indices
@@ -670,9 +670,9 @@ func Test_ReadDictionaryPageContent_Coverage(t *testing.T) {
 	// Scan all columns looking for dictionary pages
 	allColumns, err := pr.GetAllColumnChunksInfo(0)
 	require.NoError(t, err)
-	require.Equal(t, 56, len(allColumns))
+	require.Equal(t, 57, len(allColumns))
 
 	values, err := pr.GetPageContent(0, 0, 1)
 	require.NoError(t, err)
-	require.Equal(t, 3, len(values))
+	require.Equal(t, 2, len(values))
 }
