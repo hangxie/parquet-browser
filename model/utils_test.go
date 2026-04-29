@@ -3,7 +3,7 @@ package model
 import (
 	"testing"
 
-	"github.com/hangxie/parquet-go/v2/parquet"
+	"github.com/hangxie/parquet-go/v3/parquet"
 	"github.com/stretchr/testify/require"
 )
 
