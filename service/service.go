@@ -7,7 +7,7 @@ import (
 	"strconv"
 
 	"github.com/gorilla/mux"
-	"github.com/hangxie/parquet-go/v2/reader"
+	"github.com/hangxie/parquet-go/v3/reader"
 	pio "github.com/hangxie/parquet-tools/io"
 	pschema "github.com/hangxie/parquet-tools/schema"
 
@@ -82,7 +82,7 @@ func (s *ParquetService) SetupRoutes(r *mux.Router) {
 
 // handleSchemaGo returns schema in Go struct format
 func (s *ParquetService) handleSchemaGo(w http.ResponseWriter, r *http.Request) {
-	schemaRoot, err := pschema.NewSchemaTree(s.parquetReader, pschema.SchemaOption{FailOnInt96: false, WithCompressionCodec: true})
+	schemaRoot, err := pschema.NewSchemaTree(s.parquetReader, pschema.SchemaOption{FailOnInt96: false})
 	if err != nil {
 		WriteError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to generate schema: %v", err))
 		return
@@ -108,7 +108,7 @@ func (s *ParquetService) handleSchemaGo(w http.ResponseWriter, r *http.Request) 
 
 // handleSchemaJSON returns schema in JSON format
 func (s *ParquetService) handleSchemaJSON(w http.ResponseWriter, r *http.Request) {
-	schemaRoot, err := pschema.NewSchemaTree(s.parquetReader, pschema.SchemaOption{FailOnInt96: false, WithCompressionCodec: true})
+	schemaRoot, err := pschema.NewSchemaTree(s.parquetReader, pschema.SchemaOption{FailOnInt96: false})
 	if err != nil {
 		WriteError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to generate schema: %v", err))
 		return
@@ -123,7 +123,7 @@ func (s *ParquetService) handleSchemaJSON(w http.ResponseWriter, r *http.Request
 
 // handleSchemaRaw returns the raw schema tree structure as JSON
 func (s *ParquetService) handleSchemaRaw(w http.ResponseWriter, r *http.Request) {
-	schemaRoot, err := pschema.NewSchemaTree(s.parquetReader, pschema.SchemaOption{FailOnInt96: false, WithCompressionCodec: true})
+	schemaRoot, err := pschema.NewSchemaTree(s.parquetReader, pschema.SchemaOption{FailOnInt96: false})
 	if err != nil {
 		WriteError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to generate schema: %v", err))
 		return
@@ -143,7 +143,7 @@ func (s *ParquetService) handleSchemaRaw(w http.ResponseWriter, r *http.Request)
 
 // handleSchemaCSV returns schema in CSV format
 func (s *ParquetService) handleSchemaCSV(w http.ResponseWriter, r *http.Request) {
-	schemaRoot, err := pschema.NewSchemaTree(s.parquetReader, pschema.SchemaOption{FailOnInt96: false, WithCompressionCodec: true})
+	schemaRoot, err := pschema.NewSchemaTree(s.parquetReader, pschema.SchemaOption{FailOnInt96: false})
 	if err != nil {
 		WriteError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to generate schema: %v", err))
 		return

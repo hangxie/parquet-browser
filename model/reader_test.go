@@ -4,8 +4,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/hangxie/parquet-go/v2/parquet"
-	"github.com/hangxie/parquet-go/v2/reader"
+	"github.com/hangxie/parquet-go/v3/parquet"
+	"github.com/hangxie/parquet-go/v3/reader"
 	pio "github.com/hangxie/parquet-tools/io"
 	"github.com/stretchr/testify/require"
 )
@@ -15,7 +15,7 @@ func Test_NewParquetReader(t *testing.T) {
 		// Open a test parquet file using parquet-tools helper
 		pr, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
 		require.NoError(t, err)
-		defer func() { _ = pr.ReadStopWithError() }()
+		defer func() { _ = pr.ReadStop() }()
 
 		// Wrap it in our ParquetReader
 		parquetReader := NewParquetReader(pr)
@@ -33,7 +33,7 @@ func Test_NewParquetReader(t *testing.T) {
 	t.Run("Gets row group info", func(t *testing.T) {
 		pr, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
 		require.NoError(t, err)
-		defer func() { _ = pr.ReadStopWithError() }()
+		defer func() { _ = pr.ReadStop() }()
 
 		parquetReader := NewParquetReader(pr)
 
@@ -48,7 +48,7 @@ func Test_NewParquetReader(t *testing.T) {
 	t.Run("Gets column chunk info", func(t *testing.T) {
 		pr, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
 		require.NoError(t, err)
-		defer func() { _ = pr.ReadStopWithError() }()
+		defer func() { _ = pr.ReadStop() }()
 
 		parquetReader := NewParquetReader(pr)
 
@@ -63,7 +63,7 @@ func Test_NewParquetReader(t *testing.T) {
 	t.Run("Gets page metadata", func(t *testing.T) {
 		pr, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
 		require.NoError(t, err)
-		defer func() { _ = pr.ReadStopWithError() }()
+		defer func() { _ = pr.ReadStop() }()
 
 		parquetReader := NewParquetReader(pr)
 
@@ -258,7 +258,7 @@ func getTestParquetFilePath() string {
 func Test_NewParquetReader_WithRealFile(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
 	require.NoError(t, err)
-	defer func() { _ = parquetReader.ReadStopWithError() }()
+	defer func() { _ = parquetReader.ReadStop() }()
 
 	pr := NewParquetReader(parquetReader)
 
@@ -274,7 +274,7 @@ func Test_NewParquetReader_WithRealFile(t *testing.T) {
 func Test_GetFileInfo_WithRealFile(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
 	require.NoError(t, err)
-	defer func() { _ = parquetReader.ReadStopWithError() }()
+	defer func() { _ = parquetReader.ReadStop() }()
 
 	pr := NewParquetReader(parquetReader)
 	info := pr.GetFileInfo()
@@ -293,7 +293,7 @@ func Test_GetFileInfo_WithRealFile(t *testing.T) {
 func Test_GetRowGroupInfo_ValidIndex(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
 	require.NoError(t, err)
-	defer func() { _ = parquetReader.ReadStopWithError() }()
+	defer func() { _ = parquetReader.ReadStop() }()
 
 	pr := NewParquetReader(parquetReader)
 
@@ -313,7 +313,7 @@ func Test_GetRowGroupInfo_ValidIndex(t *testing.T) {
 func Test_GetRowGroupInfo_InvalidIndex(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
 	require.NoError(t, err)
-	defer func() { _ = parquetReader.ReadStopWithError() }()
+	defer func() { _ = parquetReader.ReadStop() }()
 
 	pr := NewParquetReader(parquetReader)
 
@@ -338,7 +338,7 @@ func Test_GetRowGroupInfo_InvalidIndex(t *testing.T) {
 func Test_GetAllRowGroupsInfo(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
 	require.NoError(t, err)
-	defer func() { _ = parquetReader.ReadStopWithError() }()
+	defer func() { _ = parquetReader.ReadStop() }()
 
 	pr := NewParquetReader(parquetReader)
 	infos := pr.GetAllRowGroupsInfo()
@@ -357,7 +357,7 @@ func Test_GetAllRowGroupsInfo(t *testing.T) {
 func Test_GetColumnChunkInfo_ValidIndices(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
 	require.NoError(t, err)
-	defer func() { _ = parquetReader.ReadStopWithError() }()
+	defer func() { _ = parquetReader.ReadStop() }()
 
 	pr := NewParquetReader(parquetReader)
 
@@ -377,7 +377,7 @@ func Test_GetColumnChunkInfo_ValidIndices(t *testing.T) {
 func Test_GetColumnChunkInfo_InvalidIndices(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
 	require.NoError(t, err)
-	defer func() { _ = parquetReader.ReadStopWithError() }()
+	defer func() { _ = parquetReader.ReadStop() }()
 
 	pr := NewParquetReader(parquetReader)
 
@@ -406,7 +406,7 @@ func Test_GetColumnChunkInfo_InvalidIndices(t *testing.T) {
 func Test_GetAllColumnChunksInfo_ValidIndex(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
 	require.NoError(t, err)
-	defer func() { _ = parquetReader.ReadStopWithError() }()
+	defer func() { _ = parquetReader.ReadStop() }()
 
 	pr := NewParquetReader(parquetReader)
 
@@ -425,7 +425,7 @@ func Test_GetAllColumnChunksInfo_ValidIndex(t *testing.T) {
 func Test_GetAllColumnChunksInfo_InvalidIndex(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
 	require.NoError(t, err)
-	defer func() { _ = parquetReader.ReadStopWithError() }()
+	defer func() { _ = parquetReader.ReadStop() }()
 
 	pr := NewParquetReader(parquetReader)
 
@@ -450,7 +450,7 @@ func Test_GetAllColumnChunksInfo_InvalidIndex(t *testing.T) {
 func Test_GetPageMetadataList_ValidIndices(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
 	require.NoError(t, err)
-	defer func() { _ = parquetReader.ReadStopWithError() }()
+	defer func() { _ = parquetReader.ReadStop() }()
 
 	pr := NewParquetReader(parquetReader)
 
@@ -470,7 +470,7 @@ func Test_GetPageMetadataList_ValidIndices(t *testing.T) {
 func Test_GetPageMetadataList_InvalidIndices(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
 	require.NoError(t, err)
-	defer func() { _ = parquetReader.ReadStopWithError() }()
+	defer func() { _ = parquetReader.ReadStop() }()
 
 	pr := NewParquetReader(parquetReader)
 
@@ -499,7 +499,7 @@ func Test_GetPageMetadataList_InvalidIndices(t *testing.T) {
 func Test_GetPageMetadata_ValidIndices(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
 	require.NoError(t, err)
-	defer func() { _ = parquetReader.ReadStopWithError() }()
+	defer func() { _ = parquetReader.ReadStop() }()
 
 	pr := NewParquetReader(parquetReader)
 
@@ -514,7 +514,7 @@ func Test_GetPageMetadata_ValidIndices(t *testing.T) {
 func Test_GetPageMetadata_InvalidIndices(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
 	require.NoError(t, err)
-	defer func() { _ = parquetReader.ReadStopWithError() }()
+	defer func() { _ = parquetReader.ReadStop() }()
 
 	pr := NewParquetReader(parquetReader)
 
@@ -542,7 +542,7 @@ func Test_GetPageMetadata_InvalidIndices(t *testing.T) {
 func Test_GetPageContent_ValidIndices(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
 	require.NoError(t, err)
-	defer func() { _ = parquetReader.ReadStopWithError() }()
+	defer func() { _ = parquetReader.ReadStop() }()
 
 	pr := NewParquetReader(parquetReader)
 
@@ -560,7 +560,7 @@ func Test_GetPageContent_ValidIndices(t *testing.T) {
 func Test_GetPageContent_DictionaryPage(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
 	require.NoError(t, err)
-	defer func() { _ = parquetReader.ReadStopWithError() }()
+	defer func() { _ = parquetReader.ReadStop() }()
 
 	pr := NewParquetReader(parquetReader)
 
@@ -590,7 +590,7 @@ func Test_GetPageContent_DictionaryPage(t *testing.T) {
 func Test_GetPageContent_InvalidIndices(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
 	require.NoError(t, err)
-	defer func() { _ = parquetReader.ReadStopWithError() }()
+	defer func() { _ = parquetReader.ReadStop() }()
 
 	pr := NewParquetReader(parquetReader)
 
@@ -618,7 +618,7 @@ func Test_GetPageContent_InvalidIndices(t *testing.T) {
 func Test_GetPageContentFormatted_ValidIndices(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
 	require.NoError(t, err)
-	defer func() { _ = parquetReader.ReadStopWithError() }()
+	defer func() { _ = parquetReader.ReadStop() }()
 
 	pr := NewParquetReader(parquetReader)
 
@@ -636,7 +636,7 @@ func Test_GetPageContentFormatted_ValidIndices(t *testing.T) {
 func Test_GetPageContentFormatted_InvalidIndices(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
 	require.NoError(t, err)
-	defer func() { _ = parquetReader.ReadStopWithError() }()
+	defer func() { _ = parquetReader.ReadStop() }()
 
 	pr := NewParquetReader(parquetReader)
 
@@ -663,7 +663,7 @@ func Test_GetPageContentFormatted_InvalidIndices(t *testing.T) {
 func Test_ReadDictionaryPageContent_Coverage(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
 	require.NoError(t, err)
-	defer func() { _ = parquetReader.ReadStopWithError() }()
+	defer func() { _ = parquetReader.ReadStop() }()
 
 	pr := NewParquetReader(parquetReader)
 

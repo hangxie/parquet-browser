@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/hangxie/parquet-go/v2/parquet"
-	"github.com/hangxie/parquet-go/v2/reader"
+	"github.com/hangxie/parquet-go/v3/parquet"
+	"github.com/hangxie/parquet-go/v3/reader"
 )
 
 // FileInfo contains metadata about a Parquet file
@@ -453,11 +453,11 @@ func (pr *ParquetReader) GetPageContent(rgIndex, colIndex, pageIndex int) ([]int
 	}
 
 	// Create a fresh column reader
-	freshReader, err := reader.NewParquetColumnReader(pr.Reader.PFile, 4)
+	freshReader, err := reader.NewParquetColumnReader(pr.Reader.PFile, reader.WithNP(4))
 	if err != nil {
 		return nil, err
 	}
-	defer func() { _ = freshReader.ReadStopWithError() }()
+	defer func() { _ = freshReader.ReadStop() }()
 
 	// Skip to the beginning of the current row group
 	if rowsBeforeThisRG > 0 {

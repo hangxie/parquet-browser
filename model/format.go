@@ -1,23 +1,21 @@
 package model
 
 import (
-	"bytes"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"math"
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/hangxie/parquet-go/v2/encoding"
-	"github.com/hangxie/parquet-go/v2/parquet"
-	"github.com/hangxie/parquet-go/v2/types"
+	"github.com/hangxie/parquet-go/v3/parquet"
+	"github.com/hangxie/parquet-go/v3/types"
 )
 
-func init() {
-	// Configure geospatial rendering to use GeoJSON for both GEOMETRY and GEOGRAPHY types
-	// This provides human-readable coordinate data instead of hex-encoded WKB
-	types.SetGeometryJSONMode(types.GeospatialModeGeoJSON)
-	types.SetGeographyJSONMode(types.GeospatialModeGeoJSON)
-}
+var geospatialOpt = types.WithGeospatialConfig(types.NewGeospatialConfig(
+	types.WithGeometryJSONMode(types.GeospatialModeGeoJSON),
+	types.WithGeographyJSONMode(types.GeospatialModeGeoJSON),
+))
 
 // FormatBytes formats bytes as human readable size
 func FormatBytes(bytes int64) string {
@@ -61,29 +59,13 @@ func FormatStatValue(value []byte, columnMeta *parquet.ColumnMetaData, schemaEle
 		return "-"
 	}
 
-	// Get precision and scale for numeric types
-	var precision, scale int
-	if schemaElem != nil {
-		precision = int(schemaElem.GetPrecision())
-		scale = int(schemaElem.GetScale())
+	// Build a SchemaElement for type conversion
+	se := schemaElem
+	if se == nil {
+		se = &parquet.SchemaElement{Type: &columnMeta.Type}
 	}
 
-	// Convert to JSON type with logical type support
-	var convertedType *parquet.ConvertedType
-	var logicalType *parquet.LogicalType
-	if schemaElem != nil {
-		convertedType = schemaElem.ConvertedType
-		logicalType = schemaElem.LogicalType
-	}
-
-	jsonValue := types.ParquetTypeToJSONTypeWithLogical(
-		rawValue,
-		&columnMeta.Type,
-		convertedType,
-		logicalType,
-		precision,
-		scale,
-	)
+	jsonValue := types.ConvertToJSONType(rawValue, se, geospatialOpt)
 
 	// Format for display
 	// For complex types (maps, slices), use JSON encoding for proper formatting
@@ -113,21 +95,42 @@ func retrieveStatValue(value []byte, parquetType parquet.Type) any {
 		return nil
 	}
 
-	// Handle byte array types specially
-	if parquetType == parquet.Type_BYTE_ARRAY || parquetType == parquet.Type_FIXED_LEN_BYTE_ARRAY {
+	switch parquetType {
+	case parquet.Type_BYTE_ARRAY, parquet.Type_FIXED_LEN_BYTE_ARRAY:
 		return string(value)
+	case parquet.Type_BOOLEAN:
+		if len(value) < 1 {
+			return fmt.Sprintf("failed to read data as %s: insufficient bytes", parquetType.String())
+		}
+		return value[0]&1 != 0
+	case parquet.Type_INT32:
+		if len(value) < 4 {
+			return fmt.Sprintf("failed to read data as %s: insufficient bytes", parquetType.String())
+		}
+		return int32(binary.LittleEndian.Uint32(value[:4]))
+	case parquet.Type_INT64:
+		if len(value) < 8 {
+			return fmt.Sprintf("failed to read data as %s: insufficient bytes", parquetType.String())
+		}
+		return int64(binary.LittleEndian.Uint64(value[:8]))
+	case parquet.Type_INT96:
+		if len(value) < 12 {
+			return fmt.Sprintf("failed to read data as %s: insufficient bytes", parquetType.String())
+		}
+		return string(value[:12])
+	case parquet.Type_FLOAT:
+		if len(value) < 4 {
+			return fmt.Sprintf("failed to read data as %s: insufficient bytes", parquetType.String())
+		}
+		return math.Float32frombits(binary.LittleEndian.Uint32(value[:4]))
+	case parquet.Type_DOUBLE:
+		if len(value) < 8 {
+			return fmt.Sprintf("failed to read data as %s: insufficient bytes", parquetType.String())
+		}
+		return math.Float64frombits(binary.LittleEndian.Uint64(value[:8]))
+	default:
+		return fmt.Sprintf("unsupported type: %s", parquetType.String())
 	}
-
-	// Use encoding.ReadPlain for other types
-	buf := bytes.NewReader(value)
-	vals, err := encoding.ReadPlain(buf, parquetType, 1, 0)
-	if err != nil {
-		return fmt.Sprintf("failed to read data as %s: %v", parquetType.String(), err)
-	}
-	if len(vals) == 0 {
-		return nil
-	}
-	return vals[0]
 }
 
 // IsValidUTF8 checks if a string contains valid and mostly printable UTF-8
@@ -163,27 +166,14 @@ func FormatValue(val interface{}, parquetType parquet.Type, schemaElem *parquet.
 		return ""
 	}
 
-	// Get precision and scale for numeric types
-	var precision, scale int
-	var convertedType *parquet.ConvertedType
-	var logicalType *parquet.LogicalType
-
-	if schemaElem != nil {
-		precision = int(schemaElem.GetPrecision())
-		scale = int(schemaElem.GetScale())
-		convertedType = schemaElem.ConvertedType
-		logicalType = schemaElem.LogicalType
+	// Build a SchemaElement for type conversion
+	se := schemaElem
+	if se == nil {
+		se = &parquet.SchemaElement{Type: &parquetType}
 	}
 
 	// Use parquet-go's type conversion function
-	formattedVal := types.ParquetTypeToJSONTypeWithLogical(
-		val,
-		&parquetType,
-		convertedType,
-		logicalType,
-		precision,
-		scale,
-	)
+	formattedVal := types.ConvertToJSONType(val, se, geospatialOpt)
 
 	// Convert to string for display
 	// For complex types (maps, slices), use JSON encoding for proper formatting
