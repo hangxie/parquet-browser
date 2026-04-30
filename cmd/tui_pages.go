@@ -56,7 +56,7 @@ type pageTableBuilder struct {
 }
 
 // readPageHeadersBatch reads page headers in batches for lazy loading
-func (b *pageTableBuilder) readPageHeadersBatch(startIdx, count int) error {
+func (b *pageTableBuilder) readPageHeadersBatch() error {
 	if b.loadError != nil {
 		return b.loadError
 	}
@@ -79,7 +79,7 @@ func (b *pageTableBuilder) build() *tview.Table {
 	b.setupHeader()
 
 	// Load all page headers (lightweight operation)
-	err := b.readPageHeadersBatch(0, 0)
+	err := b.readPageHeadersBatch()
 	if err != nil {
 		// Show error message
 		cell := tview.NewTableCell(fmt.Sprintf("[red]Error reading pages: %v[-]", err)).
@@ -198,7 +198,7 @@ func (b *pageTableBuilder) setupHeader() {
 
 func (b *pageContentBuilder) build() (*tview.Table, error) {
 	// Read all values first
-	values, err := b.app.readPageContent(b.rgIndex, b.colIndex, b.pageIndex, b.allPages, b.meta)
+	values, err := b.app.readPageContent(b.rgIndex, b.colIndex, b.pageIndex)
 	if err != nil {
 		return nil, err
 	}
@@ -271,37 +271,37 @@ func (b *pageContentBuilder) updateHeaderInfo() {
 	var info strings.Builder
 
 	// Line 1: Page type, offset, size
-	info.WriteString(fmt.Sprintf("[yellow]Page Type:[-] %s  ", b.pageInfo.PageType))
-	info.WriteString(fmt.Sprintf("[yellow]Offset:[-] 0x%X  ", b.pageInfo.Offset))
-	info.WriteString(fmt.Sprintf("[yellow]Size:[-] %s → %s (%.2fx)",
+	_, _ = fmt.Fprintf(&info, "[yellow]Page Type:[-] %s  ", b.pageInfo.PageType)
+	_, _ = fmt.Fprintf(&info, "[yellow]Offset:[-] 0x%X  ", b.pageInfo.Offset)
+	_, _ = fmt.Fprintf(&info, "[yellow]Size:[-] %s → %s (%.2fx)",
 		b.pageInfo.CompressedSizeFormatted,
 		b.pageInfo.UncompressedSizeFormatted,
-		float64(b.pageInfo.UncompressedSize)/float64(b.pageInfo.CompressedSize)))
+		float64(b.pageInfo.UncompressedSize)/float64(b.pageInfo.CompressedSize))
 
 	// Line 2: Values, nulls, encoding
-	info.WriteString("\n")
-	info.WriteString(fmt.Sprintf("[yellow]Values:[-] %d", b.pageInfo.NumValues))
+	_, _ = info.WriteString("\n")
+	_, _ = fmt.Fprintf(&info, "[yellow]Values:[-] %d", b.pageInfo.NumValues)
 
 	// Add null count if available
 	if b.pageInfo.NullCount != nil {
-		info.WriteString(fmt.Sprintf("  [yellow]Nulls:[-] %d", *b.pageInfo.NullCount))
+		_, _ = fmt.Fprintf(&info, "  [yellow]Nulls:[-] %d", *b.pageInfo.NullCount)
 	}
 
 	if b.pageInfo.Encoding != "" {
-		info.WriteString(fmt.Sprintf("  [yellow]Encoding:[-] %s", b.pageInfo.Encoding))
+		_, _ = fmt.Fprintf(&info, "  [yellow]Encoding:[-] %s", b.pageInfo.Encoding)
 	}
 
 	// Line 3: Min/Max (if available)
 	if b.pageInfo.MinValue != "" || b.pageInfo.MaxValue != "" {
 		info.WriteString("\n")
 		if b.pageInfo.MinValue != "" {
-			info.WriteString(fmt.Sprintf("[yellow]Min:[-] %s", b.pageInfo.MinValue))
+			_, _ = fmt.Fprintf(&info, "[yellow]Min:[-] %s", b.pageInfo.MinValue)
 		}
 		if b.pageInfo.MaxValue != "" {
 			if b.pageInfo.MinValue != "" {
 				info.WriteString("  ")
 			}
-			info.WriteString(fmt.Sprintf("[yellow]Max:[-] %s", b.pageInfo.MaxValue))
+			_, _ = fmt.Fprintf(&info, "[yellow]Max:[-] %s", b.pageInfo.MaxValue)
 		}
 	}
 

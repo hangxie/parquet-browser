@@ -44,7 +44,7 @@ func (app *TUIApp) readPageHeaders(rgIndex, colIndex int) ([]model.PageMetadata,
 }
 
 // readPageContent reads and decodes the content of a specific page via HTTP API
-func (app *TUIApp) readPageContent(rgIndex, colIndex, pageIndex int, allPages []model.PageMetadata, meta *parquet.ColumnMetaData) ([]string, error) {
+func (app *TUIApp) readPageContent(rgIndex, colIndex, pageIndex int) ([]string, error) {
 	// Use HTTP client to get pre-formatted page content
 	return app.httpClient.getPageContent(rgIndex, colIndex, pageIndex)
 }
@@ -59,49 +59,49 @@ func (app *TUIApp) buildColumnChunkInfoViewFromHTTP(colInfo model.ColumnChunkInf
 	var info strings.Builder
 
 	// Line 1: Column path, type, logical type, converted type
-	info.WriteString(fmt.Sprintf("[yellow]Column:[-] %s  ", colInfo.Name))
-	info.WriteString(fmt.Sprintf("[yellow]Type:[-] %s  ", colInfo.PhysicalType))
+	_, _ = fmt.Fprintf(&info, "[yellow]Column:[-] %s  ", colInfo.Name)
+	_, _ = fmt.Fprintf(&info, "[yellow]Type:[-] %s  ", colInfo.PhysicalType)
 
 	if colInfo.LogicalType != "-" {
-		info.WriteString(fmt.Sprintf("[yellow]Logical:[-] %s  ", colInfo.LogicalType))
+		_, _ = fmt.Fprintf(&info, "[yellow]Logical:[-] %s  ", colInfo.LogicalType)
 	}
 	if colInfo.ConvertedType != "-" {
-		info.WriteString(fmt.Sprintf("[yellow]Converted:[-] %s", colInfo.ConvertedType))
+		_, _ = fmt.Fprintf(&info, "[yellow]Converted:[-] %s", colInfo.ConvertedType)
 	}
 
 	// Line 2: Values, codec, sizes
-	info.WriteString(fmt.Sprintf("\n[yellow]Values:[-] %d  ", colInfo.NumValues))
-	info.WriteString(fmt.Sprintf("[yellow]Codec:[-] %s  ", colInfo.Codec))
+	_, _ = fmt.Fprintf(&info, "\n[yellow]Values:[-] %d  ", colInfo.NumValues)
+	_, _ = fmt.Fprintf(&info, "[yellow]Codec:[-] %s  ", colInfo.Codec)
 
 	if colInfo.CompressedSize > 0 && colInfo.UncompressedSize > 0 {
-		info.WriteString(fmt.Sprintf("[yellow]Size:[-] %s → %s (%.2fx)",
+		_, _ = fmt.Fprintf(&info, "[yellow]Size:[-] %s → %s (%.2fx)",
 			model.FormatBytes(colInfo.CompressedSize),
 			model.FormatBytes(colInfo.UncompressedSize),
-			colInfo.CompressionRatio))
+			colInfo.CompressionRatio)
 	}
 
 	// Line 3: Null count (if available) and number of pages
 	if colInfo.NullCount != nil {
-		info.WriteString(fmt.Sprintf("\n[yellow]Nulls:[-] %d  ", *colInfo.NullCount))
+		_, _ = fmt.Fprintf(&info, "\n[yellow]Nulls:[-] %d  ", *colInfo.NullCount)
 	} else {
 		info.WriteString("\n")
 	}
 
 	if numPages > 0 {
-		info.WriteString(fmt.Sprintf("[yellow]Pages:[-] %d", numPages))
+		_, _ = fmt.Fprintf(&info, "[yellow]Pages:[-] %d", numPages)
 	}
 
 	// Line 4: Min/Max values (if available)
 	if colInfo.MinValue != "" || colInfo.MaxValue != "" {
 		info.WriteString("\n")
 		if colInfo.MinValue != "" {
-			info.WriteString(fmt.Sprintf("[yellow]Min:[-] %s", colInfo.MinValue))
+			_, _ = fmt.Fprintf(&info, "[yellow]Min:[-] %s", colInfo.MinValue)
 		}
 		if colInfo.MaxValue != "" {
 			if colInfo.MinValue != "" {
 				info.WriteString("  ")
 			}
-			info.WriteString(fmt.Sprintf("[yellow]Max:[-] %s", colInfo.MaxValue))
+			_, _ = fmt.Fprintf(&info, "[yellow]Max:[-] %s", colInfo.MaxValue)
 		}
 	}
 
@@ -541,7 +541,7 @@ func (app *TUIApp) createHeaderView() {
 	var header strings.Builder
 
 	// Line 1: File name
-	header.WriteString(fmt.Sprintf("[yellow]File:[-] %s", filepath.Base(app.currentFile)))
+	_, _ = fmt.Fprintf(&header, "[yellow]File:[-] %s", filepath.Base(app.currentFile))
 
 	// Line 2: Basic file info from HTTP API
 	header.WriteString("\n")
@@ -552,20 +552,20 @@ func (app *TUIApp) createHeaderView() {
 		return
 	}
 
-	header.WriteString(fmt.Sprintf("[yellow]Version:[-] %d  ", fileInfo.Version))
-	header.WriteString(fmt.Sprintf("[yellow]Row Groups:[-] %d  ", fileInfo.NumRowGroups))
-	header.WriteString(fmt.Sprintf("[yellow]Rows:[-] %d  ", fileInfo.NumRows))
-	header.WriteString(fmt.Sprintf("[yellow]Columns:[-] %d", fileInfo.NumLeafColumns))
+	_, _ = fmt.Fprintf(&header, "[yellow]Version:[-] %d  ", fileInfo.Version)
+	_, _ = fmt.Fprintf(&header, "[yellow]Row Groups:[-] %d  ", fileInfo.NumRowGroups)
+	_, _ = fmt.Fprintf(&header, "[yellow]Rows:[-] %d  ", fileInfo.NumRows)
+	_, _ = fmt.Fprintf(&header, "[yellow]Columns:[-] %d", fileInfo.NumLeafColumns)
 
 	// Line 3: Total size (compressed → uncompressed) and creator info
 	if fileInfo.TotalCompressedSize > 0 && fileInfo.TotalUncompressedSize > 0 {
-		header.WriteString(fmt.Sprintf("\n[yellow]Total Size:[-] %s → %s (%.2fx)",
+		_, _ = fmt.Fprintf(&header, "\n[yellow]Total Size:[-] %s → %s (%.2fx)",
 			model.FormatBytes(fileInfo.TotalCompressedSize),
 			model.FormatBytes(fileInfo.TotalUncompressedSize),
-			fileInfo.CompressionRatio))
+			fileInfo.CompressionRatio)
 	}
 	if fileInfo.CreatedBy != "" {
-		header.WriteString(fmt.Sprintf("  [yellow]Created By:[-] %s", fileInfo.CreatedBy))
+		_, _ = fmt.Fprintf(&header, "  [yellow]Created By:[-] %s", fileInfo.CreatedBy)
 	}
 
 	app.headerView.SetText(header.String())
@@ -706,21 +706,21 @@ func (app *TUIApp) showColumnChunksView(rgIndex int) {
 	var info strings.Builder
 
 	// Line 1: Row Group number, Rows, Columns
-	info.WriteString(fmt.Sprintf("[yellow]Row Group:[-] %d  ", rowGroup.Index))
-	info.WriteString(fmt.Sprintf("[yellow]Rows:[-] %d  ", rowGroup.NumRows))
-	info.WriteString(fmt.Sprintf("[yellow]Columns:[-] %d", rowGroup.NumColumns))
+	_, _ = fmt.Fprintf(&info, "[yellow]Row Group:[-] %d  ", rowGroup.Index)
+	_, _ = fmt.Fprintf(&info, "[yellow]Rows:[-] %d  ", rowGroup.NumRows)
+	_, _ = fmt.Fprintf(&info, "[yellow]Columns:[-] %d", rowGroup.NumColumns)
 
 	// Line 2: Total Values and Total Nulls
 	info.WriteString("\n")
-	info.WriteString(fmt.Sprintf("[yellow]Total Values:[-] %d  ", totalValues))
-	info.WriteString(fmt.Sprintf("[yellow]Total Nulls:[-] %d", totalNulls))
+	_, _ = fmt.Fprintf(&info, "[yellow]Total Values:[-] %d  ", totalValues)
+	_, _ = fmt.Fprintf(&info, "[yellow]Total Nulls:[-] %d", totalNulls)
 
 	// Line 3: Size info
 	info.WriteString("\n")
-	info.WriteString(fmt.Sprintf("[yellow]Size:[-] %s → %s (%.2fx)",
+	_, _ = fmt.Fprintf(&info, "[yellow]Size:[-] %s → %s (%.2fx)",
 		model.FormatBytes(rowGroup.CompressedSize),
 		model.FormatBytes(rowGroup.UncompressedSize),
-		rowGroup.CompressionRatio))
+		rowGroup.CompressionRatio)
 
 	headerView.SetText(info.String())
 	headerView.SetBorder(true).SetTitle(" Row Group Info ")

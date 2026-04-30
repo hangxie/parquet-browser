@@ -1319,18 +1319,19 @@ func Test_HandleSchemaCSV_Success(t *testing.T) {
 	// CSV format may not support all parquet features
 	// The test parquet file may have optional columns which CSV doesn't support
 	// So we accept either success or error
-	if w.Code == http.StatusOK {
+	switch w.Code {
+	case http.StatusOK:
 		// Verify content type
 		ct := w.Header().Get("Content-Type")
 		require.Contains(t, ct, "text/csv")
 
 		// Verify response is not empty
 		require.NotZero(t, w.Body.Len(), "Response body should not be empty")
-	} else if w.Code == http.StatusInternalServerError {
+	case http.StatusInternalServerError:
 		// CSV may not support all parquet features
 		// This is acceptable - the handler was still exercised
 		t.Logf("CSV schema failed (expected for files with unsupported features): %s", w.Body.String())
-	} else {
+	default:
 		require.Fail(t, "Unexpected status code", "Status = %d, expected 200 or 500", w.Code)
 	}
 }

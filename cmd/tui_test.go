@@ -107,12 +107,12 @@ func Test_TUICmd_FieldAccess(t *testing.T) {
 	require.Equal(t, "test.parquet", cmd.URI)
 
 	// Set ReadOption fields
-	cmd.ReadOption.Anonymous = true
-	require.True(t, cmd.ReadOption.Anonymous)
+	cmd.Anonymous = true
+	require.True(t, cmd.Anonymous)
 
-	cmd.ReadOption.ObjectVersion = "v1.0"
-	require.Equal(t, "v1.0", cmd.ReadOption.ObjectVersion)
+	cmd.ObjectVersion = "v1.0"
+	require.Equal(t, "v1.0", cmd.ObjectVersion)
 
-	cmd.ReadOption.HTTPIgnoreTLSError = true
-	require.True(t, cmd.ReadOption.HTTPIgnoreTLSError)
+	cmd.HTTPIgnoreTLSError = true
+	require.True(t, cmd.HTTPIgnoreTLSError)
 }

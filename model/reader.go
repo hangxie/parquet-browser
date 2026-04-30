@@ -300,7 +300,8 @@ func convertPageHeaderInfoToMetadata(headerInfo reader.PageHeaderInfo, columnMet
 	}
 
 	// Set encoding information based on page type
-	if headerInfo.PageType == parquet.PageType_DATA_PAGE || headerInfo.PageType == parquet.PageType_DATA_PAGE_V2 {
+	switch headerInfo.PageType {
+	case parquet.PageType_DATA_PAGE, parquet.PageType_DATA_PAGE_V2:
 		pageInfo.Encoding = headerInfo.Encoding.String()
 		pageInfo.DefLevelEncoding = headerInfo.DefLevelEncoding.String()
 		pageInfo.RepLevelEncoding = headerInfo.RepLevelEncoding.String()
@@ -329,7 +330,7 @@ func convertPageHeaderInfoToMetadata(headerInfo reader.PageHeaderInfo, columnMet
 				pageInfo.MaxValue = FormatStatValue(maxValueBytes, columnMeta, schemaElem)
 			}
 		}
-	} else if headerInfo.PageType == parquet.PageType_DICTIONARY_PAGE {
+	case parquet.PageType_DICTIONARY_PAGE:
 		pageInfo.Encoding = headerInfo.Encoding.String()
 	}
 

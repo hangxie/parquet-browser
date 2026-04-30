@@ -152,17 +152,18 @@ func (sv *schemaViewer) updateTitle() {
 	format := sv.schemaFormats[sv.currentFormat]
 	var titleText string
 
-	if format == "json" || format == "raw" {
+	switch format {
+	case "json", "raw":
 		mode := "Pretty"
 		if !sv.isPretty {
 			mode = "Compact"
 		}
 		titleText = fmt.Sprintf("[yellow]Schema [%s - %s] | ESC=close, g=go, j=json, r=raw, c=csv, p=pretty/compact, y=copy[-]", strings.ToUpper(format), mode)
-	} else if format == "go" {
+	case "go":
 		titleText = "[yellow]Schema [Go Struct] | ESC=close, g=go, j=json, r=raw, c=csv, y=copy[-]"
-	} else if format == "csv" {
+	case "csv":
 		titleText = "[yellow]Schema [CSV] | ESC=close, g=go, j=json, r=raw, c=csv, y=copy[-]"
-	} else {
+	default:
 		titleText = fmt.Sprintf("[yellow]Schema [%s] | ESC=close, g=go, j=json, r=raw, c=csv, y=copy[-]", strings.ToUpper(format))
 	}
 
