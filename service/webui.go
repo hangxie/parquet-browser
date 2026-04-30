@@ -223,7 +223,7 @@ func (s *ParquetService) handleSchemaRawView(w http.ResponseWriter, r *http.Requ
 	if err != nil {
 		// Fallback to Go's %+v format if JSON marshaling fails
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		_, _ = w.Write([]byte(fmt.Sprintf("%+v", *schemaRoot)))
+		_, _ = fmt.Fprintf(w, "%+v", *schemaRoot)
 		return
 	}
 

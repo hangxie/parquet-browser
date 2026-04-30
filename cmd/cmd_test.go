@@ -111,7 +111,6 @@ func Test_ReadOption_Integration(t *testing.T) {
 			name: "ServeCmd has ReadOption",
 			test: func(t *testing.T) {
 				cmd := ServeCmd{
-					URI:        "test.parquet",
 					ReadOption: pio.ReadOption{},
 				}
 				// Verify the ReadOption field exists
@@ -122,7 +121,6 @@ func Test_ReadOption_Integration(t *testing.T) {
 			name: "WebUICmd has ReadOption",
 			test: func(t *testing.T) {
 				cmd := WebUICmd{
-					URI:        "test.parquet",
 					ReadOption: pio.ReadOption{},
 				}
 				_ = cmd.ReadOption
@@ -132,7 +130,6 @@ func Test_ReadOption_Integration(t *testing.T) {
 			name: "TUICmd has ReadOption",
 			test: func(t *testing.T) {
 				cmd := TUICmd{
-					URI:        "test.parquet",
 					ReadOption: pio.ReadOption{},
 				}
 				_ = cmd.ReadOption
@@ -218,8 +215,8 @@ func Test_Command_Fields(t *testing.T) {
 
 func Test_MultipleCommands(t *testing.T) {
 	// Verify multiple command instances can coexist
-	serve := ServeCmd{URI: "test1.parquet", Addr: ":8081"}
-	webui := WebUICmd{URI: "test2.parquet", Addr: ":8082"}
+	serve := ServeCmd{URI: "test1.parquet"}
+	webui := WebUICmd{URI: "test2.parquet"}
 	tui := TUICmd{URI: "test3.parquet"}
 
 	require.Equal(t, "test1.parquet", serve.URI)

@@ -319,12 +319,7 @@ func Test_TUIApp_readPageContent(t *testing.T) {
 	app := NewTUIApp()
 	app.httpClient = newParquetClient(server.URL)
 
-	// Mock metadata
-	meta := &parquet.ColumnMetaData{
-		Type: parquet.Type_BYTE_ARRAY,
-	}
-
-	values, err := app.readPageContent(0, 0, 0, nil, meta)
+	values, err := app.readPageContent(0, 0, 0)
 	require.NoError(t, err)
 	require.Len(t, values, 4)
 	assert.Equal(t, "value1", values[0])
