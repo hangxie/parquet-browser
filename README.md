@@ -216,22 +216,36 @@ Display usage information and available flags.
 ### Main Screen
 
 ```
-┌─ File Info ───────────────────────────────────────────────────────────────┐
-│ File: data.parquet                                                        │
-│ Version: 1  Row Groups: 1  Rows: 3  Columns: 71                           │
-│ Total Size: 12.6 MB → 22.2 MB (1.76x)  Created By: parquet-go version ... │
-└───────────────────────────────────────────────────────────────────────────┘
-┌─ Row Groups (↑↓ to navigate) ─────────────────────────────────────────────┐
-│  #  │   Rows   │ Columns │              Size               │              │
-│  0  │     3    │   71    │   12.6 MB → 22.2 MB (1.76x)     │              │
-└───────────────────────────────────────────────────────────────────────────┘
- Keys: ESC=quit, s=schema, ↑↓=scroll, Enter=see item details
+┌ File Info ──────────────────────────────────────────────────────────────────────────────────────┐
+│File: all-types.parquet                                                                          │
+│Version: 2  Row Groups: 1  Rows: 5  Columns: 57                                                  │
+│Total Size: 15.2 KB → 14.1 KB (0.93x)  Created By: github.com/hangxie/parquet-go v2 latest       │
+└─────────────────────────────────────────────────────────────────────────────────────────────────┘
+╔ Row Groups (↑↓ to navigate) ════════════════════════════════════════════════════════════════════╗
+║#│Rows│      Size                                                                                ║
+║0│   5│15.2 KB → 14.1 KB                                                                         ║
+║                                                                                                 ║
+║                                                                                                 ║
+║                                                                                                 ║
+║                                                                                                 ║
+║                                                                                                 ║
+║                                                                                                 ║
+║                                                                                                 ║
+║                                                                                                 ║
+║                                                                                                 ║
+║                                                                                                 ║
+║                                                                                                 ║
+║                                                                                                 ║
+║                                                                                                 ║
+╚═════════════════════════════════════════════════════════════════════════════════════════════════╝
+ Keys: ESC=quit, s=schema, ↑↓=scroll, Enter=see item details  v0.0.20
 ```
+<img src="docs/screenshots/main-screen.png" width="800" />
 
 Features:
 - **File Info**: File name on top, followed by version, row groups, total rows, leaf columns count
 - **Total Size**: Shows compressed → uncompressed size with compression ratio
-- **Row Groups**: Lists all row groups with their metadata
+- **Row Groups**: Lists all row groups with index, row count, and compressed → uncompressed size
 - **Status Line**: Keyboard shortcuts only (ESC, s, arrows, Enter)
 - **Press Enter**: View column chunks for selected row group
 
@@ -240,48 +254,73 @@ Features:
 Press `Enter` on a row group:
 
 ```
-┌─ Row Group Info ──────────────────────────────────────────────────────────┐
-│ Row Group: 0  Rows: 3  Columns: 71                                        │
-│ Total Values: 213  Total Nulls: 0                                         │
-│ Size: 12.6 MB → 22.2 MB (1.76x)                                           │
-└───────────────────────────────────────────────────────────────────────────┘
-┌─ Column Chunks (↑↓ to navigate, Enter=view pages) ────────────────────────┐
-│  #  │ Name              │ Type       │ Codec  │ Size        │ Min  │ Max  │
-│  0  │ doc.id            │ INT64      │ SNAPPY │ 45 B → 51 B │ 1    │ 3    │
-│  1  │ doc.title         │ BYTE_ARRAY │ SNAPPY │ 85 B → 91 B │ "A"  │ "Z"  │
-│  2  │ doc.dataProvider  │ BYTE_ARRAY │ SNAPPY │ 165 B → 233 │ "AA" │ "ZZ" │
-│ ... │       ...         │    ...     │  ...   │     ...     │ ...  │ ...  │
-└───────────────────────────────────────────────────────────────────────────┘
- Keys: ESC=back, s=schema, ↑↓=scroll, Enter=see item details
+┌──────────────────────────────────────── Row Group Info ─────────────────────────────────────────┐
+│Row Group: 0  Rows: 5  Columns: 57                                                               │
+│Total Values: 375  Total Nulls: 38                                                               │
+│Size: 15.2 KB → 14.1 KB (0.93x)                                                                  │
+└─────────────────────────────────────────────────────────────────────────────────────────────────┘
+╔ Column Chunks (↑↓ to navigate, Enter=view pages) ═══════════════════════════════════════════════╗
+║ #│   Name   │        Type        │    Codec   │Size │          Min          │        Max        ║
+║ 0│Bool      │BOOLEAN             │UNCOMPRESSED│121 B│false                  │true               ║
+║ 1│Int32     │INT32               │SNAPPY      │204 B│0                      │4                  ║
+║ 2│Int64     │INT64               │GZIP        │365 B│0                      │4                  ║
+║ 3│Int96     │INT96               │LZ4_RAW     │293 B│2022-01-01T00:00:00....│2022-01-01T04:04:0…║
+║ 4│Float     │FLOAT               │ZSTD        │194 B│0                      │2                  ║
+║ 5│Float16Val│FIXED_LEN_BYTE_ARRAY│BROTLI      │133 B│0                      │2                  ║
+║ 6│Double    │DOUBLE              │UNCOMPRESSED│223 B│0                      │2                  ║
+║ 7│ByteArray │BYTE_ARRAY          │SNAPPY      │304 B│Qnl0ZUFycmF5LTA=       │Qnl0ZUFycmF5LTQ=   ║
+║ 8│Enum      │BYTE_ARRAY          │GZIP        │351 B│Enum-0                 │Enum-4             ║
+║ 9│Uuid      │FIXED_LEN_BYTE_ARRAY│LZ4_RAW     │331 B│00000000-0000-0000-0...│04040404-0404-0404…║
+║10│Json      │BYTE_ARRAY          │ZSTD        │303 B│{"0":0}                │{"4":4}            ║
+║11│Bson      │BYTE_ARRAY          │BROTLI      │319 B│{"0":0}                │{"4":4}            ║
+║12│Json2     │BYTE_ARRAY          │UNCOMPRESSED│267 B│{"0":0}                │{"4":4}            ║
+║13│Bson2     │BYTE_ARRAY          │SNAPPY      │324 B│{"0":0}                │{"4":4}            ║
+╚═════════════════════════════════════════════════════════════════════════════════════════════════╝
+ Keys: ESC=back, s=schema, ↑↓=scroll, Enter=view pages  v0.0.20
 ```
+<img src="docs/screenshots/row-group.png" width="800" />
 
 Features:
 - **Row Group Info**: Row group number, rows, columns, total values/nulls, size (3-line header)
-- **Column details**: Name (max 30 chars), type, codec, sizes, and Min/Max statistics
+- **Column details**: Name (max 30 chars), physical type, codec, compressed size, and Min/Max statistics
 - **Status Line**: Consistent keyboard shortcuts across all views
-- **Press Enter**: View page-level details
+- **Press Enter**: View page-level details for selected column chunk
 
 ### Page Details View
 
 Press `Enter` on a column chunk:
 
 ```
-┌─ Column Chunk Info ───────────────────────────────────────────────────────┐
-│ Column: doc.title  Type: BYTE_ARRAY  Logical: STRING  Converted: UTF8     │
-│ Values: 3  Nulls: 0  Pages: 1                                             │
-│ Size: 85 B → 91 B (1.07x)  Min: "A"  Max: "Z"                             │
-└───────────────────────────────────────────────────────────────────────────┘
-┌─ Pages (↑↓ to navigate, Enter=view values) ───────────────────────────────┐
-│  #  │ Page Type  │ Offset │ Comp  │ Uncomp │ Val │ Encoding │ Min │ Max  │
-│  0  │ DATA_PAGE  │ 0x4B2A │ 85 B  │  91 B  │  3  │ PLAIN    │ "A" │ "Z"  │
-└───────────────────────────────────────────────────────────────────────────┘
- Keys: ESC=back, s=schema, ↑↓=scroll, Enter=see item details
+┌─────────────────────────────────────── Column Chunk Info ───────────────────────────────────────┐
+│Column: Utf8  Type: BYTE_ARRAY  Logical: STRING  Converted: UTF8                                 │
+│Values: 5  Codec: ZSTD  Size: 277 B → 250 B (0.90x)                                              │
+│Nulls: 0  Pages: 4                                                                               │
+│Min: UTF8-0  Max: UTF8-4                                                                         │
+└─────────────────────────────────────────────────────────────────────────────────────────────────┘
+╔ Pages (↑↓ to navigate, Enter=view values) ══════════════════════════════════════════════════════╗
+║#│   Page Type   │Offset│Comp Size│Uncomp Size│Values│   Encoding   │  Min │  Max                ║
+║0│DICTIONARY_PAGE│0x12B2│     38 B│       50 B│     5│PLAIN         │-     │-                    ║
+║1│DATA_PAGE      │0x12E5│     24 B│       11 B│     2│RLE_DICTIONARY│UTF8-0│UTF8-1               ║
+║2│DATA_PAGE      │0x1332│     24 B│       11 B│     2│RLE_DICTIONARY│UTF8-2│UTF8-3               ║
+║3│DATA_PAGE      │0x137F│     19 B│        6 B│     1│RLE_DICTIONARY│UTF8-4│UTF8-4               ║
+║                                                                                                 ║
+║                                                                                                 ║
+║                                                                                                 ║
+║                                                                                                 ║
+║                                                                                                 ║
+║                                                                                                 ║
+║                                                                                                 ║
+║                                                                                                 ║
+║                                                                                                 ║
+╚═════════════════════════════════════════════════════════════════════════════════════════════════╝
+ Keys: ESC=back, s=schema, ↑↓=scroll, Enter=see item details  v0.0.20
 ```
+<img src="docs/screenshots/column-chunk.png" width="800" />
 
 Features:
-- **Column Chunk Info**: Detailed metadata including logical/converted types, page count (3-line header)
+- **Column Chunk Info**: Column name/type, codec, compressed/uncompressed size, null count, page count, Min/Max (4-line header)
 - **Statistics**: Min/Max values at both column chunk and page level, null counts
-- **Page List**: All pages with offsets, sizes, encodings, and Min/Max statistics
+- **Page List**: All pages with offsets, sizes, value counts, encodings, and Min/Max statistics
 - **Status Line**: Consistent keyboard shortcuts
 - **Press Enter**: View decoded page content
 
@@ -290,22 +329,34 @@ Features:
 Press `Enter` on a page:
 
 ```
-┌─ Page Info ───────────────────────────────────────────────────────────────┐
-│ Page Type: DATA_PAGE  Offset: 0x4B2A  Size: 85 B → 91 B (1.07x)           │
-│ Values: 3  Encoding: PLAIN                                                │
-│ Min: "A"  Max: "Z"                                                        │
-└───────────────────────────────────────────────────────────────────────────┘
-┌─ Page Content (↑↓ to navigate) ───────────────────────────────────────────┐
-│  #  │ Value                                                               │
-│  1  │ "Alice's Adventures in Wonderland"                                  │
-│  2  │ "The Great Gatsby"                                                  │
-│  3  │ "To Kill a Mockingbird"                                             │
-└───────────────────────────────────────────────────────────────────────────┘
- Keys: ESC=back, s=schema, ↑↓=scroll
+┌─────────────────────────────────────────── Page Info ───────────────────────────────────────────┐
+│Page Type: DATA_PAGE  Offset: 0x1332  Size: 24 B → 11 B (0.46x)                                  │
+│Values: 2  Nulls: 0  Encoding: RLE_DICTIONARY                                                    │
+│Min: UTF8-2  Max: UTF8-3                                                                         │
+└─────────────────────────────────────────────────────────────────────────────────────────────────┘
+╔ Page Content (↑↓ to navigate) ══════════════════════════════════════════════════════════════════╗
+║#│                                             Value                                             ║
+║1│UTF8-2                                                                                         ║
+║2│UTF8-3                                                                                         ║
+║                                                                                                 ║
+║                                                                                                 ║
+║                                                                                                 ║
+║                                                                                                 ║
+║                                                                                                 ║
+║                                                                                                 ║
+║                                                                                                 ║
+║                                                                                                 ║
+║                                                                                                 ║
+║                                                                                                 ║
+║                                                                                                 ║
+║                                                                                                 ║
+╚═════════════════════════════════════════════════════════════════════════════════════════════════╝
+ Keys: ESC=back, s=schema, ↑↓=scroll  v0.0.20
 ```
+<img src="docs/screenshots/page-details.png" width="800" />
 
 Features:
-- **Page Info**: Type, offset, sizes, total values count, encoding, Min/Max statistics (3-line header)
+- **Page Info**: Type, offset, compressed/uncompressed size, value count, null count, encoding, Min/Max (3-line header)
 - **All Values**: Displays all decoded values from the page
 - **Smart Formatting**: UTF-8 strings, hex for binary, NULL handling
 - **Row Numbers**: Numbered for easy reference
@@ -323,9 +374,109 @@ Shows schema in multiple formats:
 
 Direct format switching:
 - Press 'g' for Go Struct format
+```
+╔═════════════════════════════════════════════════════════════════════════════════════════════════╗
+║               Schema [Go Struct] | ESC=close, g=go, j=json, r=raw, c=csv, y=copy                ║
+║╔═══════════════════════════════════════════════════════════════════════════════════════════════╗║
+║║type Parquet_go_root struct {                                                                  ║║
+║║    Bool              bool             `parquet:"name=Bool, type=BOOLEAN, encoding=RLE, compres║║
+║║sion=UNCOMPRESSED"`                                                                            ║║
+║║    Int32             int32            `parquet:"name=Int32, type=INT32, encoding=RLE_DICTIONAR║║
+║║Y, compression=SNAPPY"`                                                                        ║║
+║║    Int64             int64            `parquet:"name=Int64, type=INT64, encoding=RLE_DICTIONAR║║
+║║Y, compression=GZIP"`                                                                          ║║
+║║    Int96             string           `parquet:"name=Int96, type=INT96, encoding=PLAIN, compre║║
+║║ssion=LZ4_RAW"`                                                                                ║║
+║║    Float             float32          `parquet:"name=Float, type=FLOAT, encoding=BYTE_STREAM_S║║
+║║PLIT, compression=ZSTD"`                                                                       ║║
+║║    Float16Val        string           `parquet:"name=Float16Val, type=FIXED_LEN_BYTE_ARRAY, le║║
+║║ngth=2, logicaltype=FLOAT16, encoding=PLAIN, compression=BROTLI"`                              ║║
+║║    Double            float64          `parquet:"name=Double, type=DOUBLE, encoding=BYTE_STREAM║║
+║║_SPLIT, compression=UNCOMPRESSED"`                                                             ║║
+║║    ByteArray         string           `parquet:"name=ByteArray, type=BYTE_ARRAY, encoding=RLE_║║
+║║DICTIONARY, compression=SNAPPY"`                                                               ║║
+║╚═══════════════════════════════════════════════════════════════════════════════════════════════╝║
+║                                                                                                 ║
+╚═════════════════════════════════════════════════════════════════════════════════════════════════╝
+```
 - Press 'j' for JSON format
+```
+╔═════════════════════════════════════════════════════════════════════════════════════════════════╗
+║    Schema [JSON - Pretty] | ESC=close, g=go, j=json, r=raw, c=csv, p=pretty/compact, y=copy     ║
+║╔═══════════════════════════════════════════════════════════════════════════════════════════════╗║
+║║{                                                                                              ║║
+║║  "Fields": [                                                                                  ║║
+║║    {                                                                                          ║║
+║║      "Tag": "name=Bool, inname=Bool, type=BOOLEAN, encoding=RLE, compression=UNCOMPRESSED"    ║║
+║║    },                                                                                         ║║
+║║    {                                                                                          ║║
+║║      "Tag": "name=Int32, inname=Int32, type=INT32, encoding=RLE_DICTIONARY, compression=SNAPPY║║
+║║                                                                                               ║║
+║║    },                                                                                         ║║
+║║    {                                                                                          ║║
+║║      "Tag": "name=Int64, inname=Int64, type=INT64, encoding=RLE_DICTIONARY, compression=GZIP" ║║
+║║    },                                                                                         ║║
+║║    {                                                                                          ║║
+║║      "Tag": "name=Int96, inname=Int96, type=INT96, encoding=PLAIN, compression=LZ4_RAW"       ║║
+║║    },                                                                                         ║║
+║║    {                                                                                          ║║
+║║      "Tag": "name=Float, inname=Float, type=FLOAT, encoding=BYTE_STREAM_SPLIT, compression=ZST║║
+║╚═══════════════════════════════════════════════════════════════════════════════════════════════╝║
+║                                                                                                 ║
+╚═════════════════════════════════════════════════════════════════════════════════════════════════╝
+```
 - Press 'r' for Raw format
-- Press 'c' for CSV format
+```
+╔═════════════════════════════════════════════════════════════════════════════════════════════════╗
+║     Schema [RAW - Pretty] | ESC=close, g=go, j=json, r=raw, c=csv, p=pretty/compact, y=copy     ║
+║╔═══════════════════════════════════════════════════════════════════════════════════════════════╗║
+║║{                                                                                              ║║
+║║  "children": [                                                                                ║║
+║║    {                                                                                          ║║
+║║      "compression_codec": "UNCOMPRESSED",                                                     ║║
+║║      "encoding": "RLE",                                                                       ║║
+║║      "field_id": 0,                                                                           ║║
+║║      "name": "Bool",                                                                          ║║
+║║      "precision": 0,                                                                          ║║
+║║      "repetition_type": "REQUIRED",                                                           ║║
+║║      "scale": 0,                                                                              ║║
+║║      "type": "BOOLEAN",                                                                       ║║
+║║      "type_length": 0                                                                         ║║
+║║    },                                                                                         ║║
+║║    {                                                                                          ║║
+║║      "compression_codec": "SNAPPY",                                                           ║║
+║║      "encoding": "RLE_DICTIONARY",                                                            ║║
+║║      "field_id": 0,                                                                           ║║
+║╚═══════════════════════════════════════════════════════════════════════════════════════════════╝║
+║                                                                                                 ║
+╚═════════════════════════════════════════════════════════════════════════════════════════════════╝
+```
+- Press 'c' for CSV format, note that CSV schema only support "flat" parquet files, ie no list/map/struct.
+```
+╔═════════════════════════════════════════════════════════════════════════════════════════════════╗
+║                     Schema  | ESC=close, g=go, j=json, r=raw, c=csv, y=copy                     ║
+║╔═══════════════════════════════════════════════════════════════════════════════════════════════╗║
+║║name=shoe_brand, type=BYTE_ARRAY, convertedtype=UTF8, logicaltype=STRING, encoding=PLAIN, compr║║
+║║ession=GZIP                                                                                    ║║
+║║name=shoe_name, type=BYTE_ARRAY, convertedtype=UTF8, logicaltype=STRING, encoding=PLAIN, compre║║
+║║ssion=GZIP                                                                                     ║║
+║║                                                                                               ║║
+║║                                                                                               ║║
+║║                                                                                               ║║
+║║                                                                                               ║║
+║║                                                                                               ║║
+║║                                                                                               ║║
+║║                                                                                               ║║
+║║                                                                                               ║║
+║║                                                                                               ║║
+║║                                                                                               ║║
+║║                                                                                               ║║
+║║                                                                                               ║║
+║║                                                                                               ║║
+║╚═══════════════════════════════════════════════════════════════════════════════════════════════╝║
+║                                                                                                 ║
+╚═════════════════════════════════════════════════════════════════════════════════════════════════╝
+```
 - Pretty/compact toggle (JSON and Raw) with 'p' key
 - Copy to clipboard with 'y' key (yank)
 - Full scrolling support
@@ -383,28 +534,30 @@ The API is documented using OpenAPI 3.0 specification in [swagger.yaml](swagger.
 The tool follows a clean three-layer architecture:
 
 ```
-┌──────────────────────┐
-│   TUI (cmd/)         │  ← Terminal UI or external HTTP clients
-│  Uses HTTP Client    │
-└──────────┬───────────┘
-           │ HTTP
-           ↓
-┌──────────────────────┐
-│  HTTP Service        │  ← RESTful API endpoints
-│  (service/)          │     (embedded or standalone)
-└──────────┬───────────┘
-           │
-           ↓
-┌──────────────────────┐
-│  Model Layer         │  ← Pure business logic
-│  (model/)            │     (no UI or HTTP dependencies)
-└──────────────────────┘
+┌──────────────────────┐  ┌───────────────────────┐
+│   TUI (cmd/)         │  │  Web UI (service/)    │
+│  Uses HTTP Client    │  │  HTMX + templates     │
+└──────────┬───────────┘  └──────────┬────────────┘
+           │ HTTP                    │ HTTP
+           └────────────┬────────────┘
+                        │
+                        ↓
+           ┌──────────────────────────┐
+           │  HTTP Service (service/) │  ← RESTful API endpoints
+           │  (embedded or standalone)│
+           └────────────┬─────────────┘
+                        │
+                        ↓
+           ┌──────────────────────────┐
+           │  Model Layer (model/)    │  ← Pure business logic
+           │  (no UI or HTTP deps)    │
+           └──────────────────────────┘
 ```
 
 **Benefits:**
 - Model layer is reusable and testable in isolation
-- HTTP API can be consumed by any client (TUI, web UI, CLI tools, etc.)
-- TUI and server modes share the same codebase
+- HTTP API can be consumed by any client (TUI, Web UI, CLI tools, etc.)
+- TUI, Web UI, and server modes all share the same service layer
 - Clean separation of concerns
 
 ## Dependencies
