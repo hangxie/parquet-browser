@@ -50,8 +50,8 @@ github.com/andybalholm/brotli v1.2.1 h1:R+f5xP285VArJDRgowrfb9DqL18yVK0gKAW/F+eT
 github.com/andybalholm/brotli v1.2.1/go.mod h1:rzTDkvFWvIrjDXZHkuS16NPggd91W3kUSvPlQ1pLaKY=
 github.com/apache/arrow-go/v18 v18.5.2 h1:3uoHjoaEie5eVsxx/Bt64hKwZx4STb+beAkqKOlq/lY=
 github.com/apache/arrow-go/v18 v18.5.2/go.mod h1:yNoizNTT4peTciJ7V01d2EgOkE1d0fQ1vZcFOsVtFsw=
-github.com/apache/thrift v0.23.0 h1:wKR6YnefQSEnxpEfmgTPuJibNG4bF0p2TK34tHLWi3s=
-github.com/apache/thrift v0.23.0/go.mod h1:zPt6WxgvTOM6hF92y8C+MkEM5LMxZuk4JcQOiU4Esvs=
+github.com/apache/thrift v0.23.1-0.20260429210525-1ebdaef5dae4 h1:BvrVIYCitQ+Eair4dlqoPUn+Y2depF96TvxZcAF0+PM=
+github.com/apache/thrift v0.23.1-0.20260429210525-1ebdaef5dae4/go.mod h1:zPt6WxgvTOM6hF92y8C+MkEM5LMxZuk4JcQOiU4Esvs=
 github.com/atotto/clipboard v0.1.4 h1:EH0zSVneZPSuFR11BlR9YppQTVDbh5+16AmcJi4g1z4=
 github.com/atotto/clipboard v0.1.4/go.mod h1:ZY9tmq7sm5xIbd9bOK4onWV4S6X0u6GY7Vn0Yu86PYI=
 github.com/aws/aws-sdk-go-v2 v1.41.6 h1:1AX0AthnBQzMx1vbmir3Y4WsnJgiydmnJjiLu+LvXOg=
@@ -155,8 +155,8 @@ github.com/gorilla/sessions v1.2.1 h1:DHd3rPN5lE3Ts3D8rKkQ8x/0kqfeNmBAaiSi+o7Fsg
 github.com/gorilla/sessions v1.2.1/go.mod h1:dk2InVEVJ0sfLlnXv9EAgkf6ecYs/i80K/zI+bUmuGM=
 github.com/hangxie/parquet-go/v3 v3.0.0-rc10 h1:bVJmtS5323//y5+sGnKgqFn3IQ3ioeBLUEu91kC+nkg=
 github.com/hangxie/parquet-go/v3 v3.0.0-rc10/go.mod h1:MYQJAOPfwcAuiAtB+Rc+asHLw7h+5UU7CG+vax+vnD4=
-github.com/hangxie/parquet-tools v1.48.0 h1:ePvP9PYBCWDAZfKKzMFk0LPnXoHJUc+DE5Qn5f8K6V0=
-github.com/hangxie/parquet-tools v1.48.0/go.mod h1:MtdJdVIeqh5SjGqePSOMxFstm7cmwWdf45IotL+H3bA=
+github.com/hangxie/parquet-tools v1.48.2 h1:wYOcxm2Z9Is5NKlXyyypG+8BSwfYZxUom/5IqQ4EttU=
+github.com/hangxie/parquet-tools v1.48.2/go.mod h1:AXmvJ9qZrf6sc83mgFlVQXDfzg18yjUd+EV5dHUb6cY=
 github.com/hashicorp/errwrap v1.0.0/go.mod h1:YH+1FKiLXxHSkmPseP+kNlulaMuP3n2brvKWEqk/Jc4=
 github.com/hashicorp/errwrap v1.1.0 h1:OxrOeh75EUXMY8TBjag2fzXGZ40LB6IKw45YeGUDY2I=
 github.com/hashicorp/errwrap v1.1.0/go.mod h1:YH+1FKiLXxHSkmPseP+kNlulaMuP3n2brvKWEqk/Jc4=
