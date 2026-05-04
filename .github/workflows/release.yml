@@ -22,8 +22,8 @@ jobs:
           cache-dependency-path: go.sum
       - name: Installing Dependencies
         run: make deps
-      - name: prepare test materials
-        run: make pre-test
+      - name: Prepare coverage
+        run: make test
       - name: Build release
         run: make release-build
       - name: Upload artifacts
@@ -47,6 +47,7 @@ jobs:
           report: true
           chart: true
           amend: true
+          coverage-file: build/test/coverage.out
       - name: Push to github
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
