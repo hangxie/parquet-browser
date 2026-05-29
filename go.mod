@@ -5,7 +5,7 @@ go 1.26
 require (
 	github.com/alecthomas/kong v1.15.0
 	github.com/atotto/clipboard v0.1.4
-	github.com/gdamore/tcell/v2 v2.13.9
+	github.com/gdamore/tcell/v2 v2.13.10
 	github.com/gorilla/mux v1.8.1
 	github.com/hangxie/parquet-go/v3 v3.0.0-rc9
 	github.com/hangxie/parquet-tools v1.48.2
