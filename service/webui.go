@@ -3,6 +3,7 @@ package service
 import (
 	"embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -14,6 +15,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	preader "github.com/hangxie/parquet-go/v3/reader"
 	pschema "github.com/hangxie/parquet-tools/schema"
 
 	"github.com/hangxie/parquet-browser/model"
@@ -127,6 +129,7 @@ func (s *ParquetService) handleMainView(w http.ResponseWriter, r *http.Request) 
 		TotalUncompressedSize string
 		CompressionRatio      string
 		CreatedBy             string
+		Encryption            string
 		RowGroups             []FormattedRowGroup
 	}{
 		FileName:              s.uri,
@@ -138,6 +141,7 @@ func (s *ParquetService) handleMainView(w http.ResponseWriter, r *http.Request) 
 		TotalUncompressedSize: model.FormatBytes(info.TotalUncompressedSize),
 		CompressionRatio:      formatRatio(info.CompressionRatio),
 		CreatedBy:             info.CreatedBy,
+		Encryption:            info.Encryption,
 		RowGroups:             formatted,
 	}
 
@@ -415,7 +419,7 @@ func (s *ParquetService) handlePagesView(w http.ResponseWriter, r *http.Request)
 
 	pages, err := s.reader.GetPageMetadataList(rgIndex, colIndex)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
+		renderPagesError(w, r, err)
 		return
 	}
 
@@ -570,12 +574,12 @@ func (s *ParquetService) handlePageContentView(w http.ResponseWriter, r *http.Re
 	// Get page metadata
 	pages, err := s.reader.GetPageMetadataList(rgIndex, colIndex)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
+		renderPagesError(w, r, err)
 		return
 	}
 
 	if pageIndex < 0 || pageIndex >= len(pages) {
-		http.Error(w, "Page index out of range", http.StatusNotFound)
+		renderPagesError(w, r, fmt.Errorf("page index %d out of range [0, %d)", pageIndex, len(pages)))
 		return
 	}
 
@@ -583,7 +587,7 @@ func (s *ParquetService) handlePageContentView(w http.ResponseWriter, r *http.Re
 
 	values, err := s.reader.GetPageContentFormatted(rgIndex, colIndex, pageIndex)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
+		renderPagesError(w, r, err)
 		return
 	}
 
@@ -721,6 +725,66 @@ func renderPartial(w http.ResponseWriter, r *http.Request, templateName string, 
 	}
 
 	return templates.ExecuteTemplate(w, "wrapper.html", wrapperData)
+}
+
+// webErrorData is the data model for the "error" template partial.
+type webErrorData struct {
+	Title   string
+	Message string
+	Detail  string
+}
+
+// renderPagesError renders the error partial as a modal popup that floats over
+// the user's current view. For HTMX requests we retarget the swap to <body>
+// with beforeend so the underlying columns/pages view is preserved — clicking
+// the modal's close button returns the user to exactly where they were. The
+// status code is 200 so that HTMX performs the swap instead of silently
+// ignoring the response. Direct browser requests keep HTTP 404 semantics while
+// rendering the same error view inside the normal wrapper.
+func renderPagesError(w http.ResponseWriter, r *http.Request, err error) {
+	title, message := describeReaderError(err)
+	data := webErrorData{
+		Title:   title,
+		Message: message,
+		Detail:  err.Error(),
+	}
+	if r.Header.Get("HX-Request") == "true" {
+		w.Header().Set("HX-Retarget", "body")
+		w.Header().Set("HX-Reswap", "beforeend")
+		w.Header().Set("HX-Push-Url", "false")
+	} else {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusNotFound)
+	}
+	if rerr := renderPartial(w, r, "error", data); rerr != nil {
+		http.Error(w, rerr.Error(), http.StatusInternalServerError)
+	}
+}
+
+// describeReaderError converts a parquet reader error into a user-facing title
+// and message, recognizing the common "decryption key required" case so the
+// user knows which flag to pass.
+func describeReaderError(err error) (title, message string) {
+	if errors.Is(err, preader.ErrColumnKeyRequired) {
+		columnPath := columnPathFromKeyRequiredError(err)
+		if columnPath != "" {
+			return "Column requires a decryption key",
+				fmt.Sprintf("Column %s is encrypted. Restart the server with --column-key=%s=<base64-key> (or --key-file=<path>) to read it.", columnPath, columnPath)
+		}
+		return "Column requires a decryption key",
+			"This column is encrypted. Restart the server with --column-key=<column>=<base64-key> (or --key-file=<path>) to read it."
+	}
+	return "Cannot read this column", err.Error()
+}
+
+func columnPathFromKeyRequiredError(err error) string {
+	const marker = " for column "
+	msg := err.Error()
+	i := strings.LastIndex(msg, marker)
+	if i < 0 {
+		return ""
+	}
+	return strings.TrimSpace(msg[i+len(marker):])
 }
 
 func formatNullCount(count *int64) string {

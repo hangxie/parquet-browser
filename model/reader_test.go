@@ -287,6 +287,8 @@ func Test_GetFileInfo_WithRealFile(t *testing.T) {
 	require.Greater(t, info.TotalUncompressedSize, int64(0))
 	require.Greater(t, info.CompressionRatio, 0.0)
 	require.NotEqual(t, "", info.CreatedBy)
+	// The bundled fixture is not encrypted.
+	require.Empty(t, info.Encryption)
 }
 
 // Test GetRowGroupInfo with valid indices

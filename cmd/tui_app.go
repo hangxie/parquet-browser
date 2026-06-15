@@ -567,6 +567,9 @@ func (app *TUIApp) createHeaderView() {
 	if fileInfo.CreatedBy != "" {
 		_, _ = fmt.Fprintf(&header, "  [yellow]Created By:[-] %s", fileInfo.CreatedBy)
 	}
+	if fileInfo.Encryption != "" {
+		_, _ = fmt.Fprintf(&header, "  [yellow]Encryption:[-] %s", fileInfo.Encryption)
+	}
 
 	app.headerView.SetText(header.String())
 }
