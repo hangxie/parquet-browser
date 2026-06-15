@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/gorilla/mux"
+	preader "github.com/hangxie/parquet-go/v3/reader"
 	pio "github.com/hangxie/parquet-tools/io"
 	"github.com/stretchr/testify/require"
 
@@ -217,6 +218,7 @@ func Test_TemplatesEmbedded(t *testing.T) {
 		"columns",
 		"pages",
 		"page_content",
+		"error",
 	}
 
 	for _, tmplName := range expectedTemplates {
@@ -1017,6 +1019,7 @@ func Test_HandlePageContentView_InvalidIndices(t *testing.T) {
 	tests := []struct {
 		name           string
 		path           string
+		htmx           bool
 		expectedStatus int
 	}{
 		{
@@ -1035,25 +1038,46 @@ func Test_HandlePageContentView_InvalidIndices(t *testing.T) {
 			expectedStatus: http.StatusBadRequest,
 		},
 		{
-			name:           "Out of range row group",
+			name:           "Out of range row group direct request",
 			path:           "/ui/rowgroups/999/columns/0/pages/0/content",
 			expectedStatus: http.StatusNotFound,
 		},
 		{
-			name:           "Out of range column",
+			name:           "Out of range column direct request",
 			path:           "/ui/rowgroups/0/columns/999/pages/0/content",
 			expectedStatus: http.StatusNotFound,
 		},
 		{
-			name:           "Out of range page",
+			name:           "Out of range page direct request",
 			path:           "/ui/rowgroups/0/columns/0/pages/999/content",
 			expectedStatus: http.StatusNotFound,
+		},
+		{
+			name:           "Out of range row group HTMX request",
+			path:           "/ui/rowgroups/999/columns/0/pages/0/content",
+			htmx:           true,
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:           "Out of range column HTMX request",
+			path:           "/ui/rowgroups/0/columns/999/pages/0/content",
+			htmx:           true,
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:           "Out of range page HTMX request",
+			path:           "/ui/rowgroups/0/columns/0/pages/999/content",
+			htmx:           true,
+			expectedStatus: http.StatusOK,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := httptest.NewRequest("GET", tt.path, nil)
+			if tt.htmx {
+				req.Header.Set("HX-Request", "true")
+			}
 			w := httptest.NewRecorder()
 
 			router.ServeHTTP(w, req)
@@ -1102,6 +1126,7 @@ func Test_HandlePagesView_InvalidIndices(t *testing.T) {
 	tests := []struct {
 		name           string
 		path           string
+		htmx           bool
 		expectedStatus int
 	}{
 		{
@@ -1115,20 +1140,35 @@ func Test_HandlePagesView_InvalidIndices(t *testing.T) {
 			expectedStatus: http.StatusBadRequest,
 		},
 		{
-			name:           "Out of range row group",
+			name:           "Out of range row group direct request",
 			path:           "/ui/rowgroups/999/columns/0/pages",
 			expectedStatus: http.StatusNotFound,
 		},
 		{
-			name:           "Out of range column",
+			name:           "Out of range column direct request",
 			path:           "/ui/rowgroups/0/columns/999/pages",
 			expectedStatus: http.StatusNotFound,
+		},
+		{
+			name:           "Out of range row group HTMX request",
+			path:           "/ui/rowgroups/999/columns/0/pages",
+			htmx:           true,
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:           "Out of range column HTMX request",
+			path:           "/ui/rowgroups/0/columns/999/pages",
+			htmx:           true,
+			expectedStatus: http.StatusOK,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := httptest.NewRequest("GET", tt.path, nil)
+			if tt.htmx {
+				req.Header.Set("HX-Request", "true")
+			}
 			w := httptest.NewRecorder()
 
 			router.ServeHTTP(w, req)
@@ -2175,6 +2215,93 @@ func Test_StartWebUIServer_PortInUse(t *testing.T) {
 	err = StartWebUIServer(svc, addr)
 	require.Error(t, err, "Should return error when port is already in use")
 	require.Contains(t, err.Error(), "address already in use")
+}
+
+// Test_HandlePagesView_ReaderError_RendersErrorPartial verifies that when the
+// pages handler hits a reader error (encrypted column, out-of-range index,
+// etc.) it responds with 200 + a modal partial that HTMX overlays on top of
+// the existing view, so the user can dismiss it without losing context.
+func Test_HandlePagesView_ReaderError_RendersErrorPartial(t *testing.T) {
+	svc := createTestServiceWithRealFile(t, "all-types.parquet")
+	if svc == nil {
+		return
+	}
+	defer func() { _ = svc.Close() }()
+
+	router := mux.NewRouter()
+	svc.SetupWebUIRoutes(router)
+
+	// colIndex 9999 is syntactically valid but out of range, triggering the
+	// same reader-error path that fires for an encrypted column without keys.
+	req := httptest.NewRequest("GET", "/ui/rowgroups/0/columns/9999/pages", nil)
+	req.Header.Set("HX-Request", "true")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code,
+		"reader-error path must return 200 so HTMX swaps the content")
+	require.Equal(t, "text/html; charset=utf-8", w.Header().Get("Content-Type"))
+	// Retarget headers keep the underlying columns view visible and floating
+	// the modal on top of <body> via beforeend.
+	require.Equal(t, "body", w.Header().Get("HX-Retarget"),
+		"modal should be appended to body, not replacing the content area")
+	require.Equal(t, "beforeend", w.Header().Get("HX-Reswap"))
+	require.Equal(t, "false", w.Header().Get("HX-Push-Url"),
+		"failed routes must not be pushed into history")
+
+	body := w.Body.String()
+	require.Contains(t, body, "Cannot read this column",
+		"generic reader errors should render the default error title")
+	require.NotContains(t, body, `id="pb-error-modal"`,
+		"error modal must not use a fixed ID because HTMX appends failures")
+	require.Contains(t, body, `class="pb-modal-overlay pb-error-modal"`,
+		"error partial should render the modal overlay element")
+	require.Contains(t, body, "pb-error-modal", "modal must include a close affordance")
+	require.Contains(t, body, `this.closest('.pb-modal-overlay').remove()`,
+		"close buttons should remove the current modal from the DOM")
+}
+
+// Test_HandlePagesView_EncryptionError_FriendlyMessage tags the encryption
+// case explicitly by faking the underlying reader error via the helper used by
+// the handler.
+func Test_HandlePagesView_EncryptionError_FriendlyMessage(t *testing.T) {
+	title, message := describeReaderError(fmt.Errorf(
+		"resolve column key: %w for column schema.double_field",
+		preader.ErrColumnKeyRequired,
+	))
+	require.Equal(t, "Column requires a decryption key", title)
+	require.Contains(t, message, "Column schema.double_field is encrypted.")
+	require.Contains(t, message, "--column-key=schema.double_field=<base64-key>")
+	require.Contains(t, message, "--key-file=")
+}
+
+// Test_HandlePageContentView_ReaderError_RendersErrorPartial verifies the
+// same recovery behavior on the page-content endpoint, which has its own set
+// of error branches.
+func Test_HandlePageContentView_ReaderError_RendersErrorPartial(t *testing.T) {
+	svc := createTestServiceWithRealFile(t, "all-types.parquet")
+	if svc == nil {
+		return
+	}
+	defer func() { _ = svc.Close() }()
+
+	router := mux.NewRouter()
+	svc.SetupWebUIRoutes(router)
+
+	req := httptest.NewRequest("GET",
+		"/ui/rowgroups/0/columns/9999/pages/0/content", nil)
+	req.Header.Set("HX-Request", "true")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code,
+		"reader-error path must return 200 so HTMX swaps the content")
+	require.Equal(t, "body", w.Header().Get("HX-Retarget"))
+	require.Equal(t, "beforeend", w.Header().Get("HX-Reswap"))
+	body := w.Body.String()
+	require.Contains(t, body, "Cannot read this column")
+	require.NotContains(t, body, `id="pb-error-modal"`)
+	require.Contains(t, body, `class="pb-modal-overlay pb-error-modal"`)
 }
 
 // Test formatNullCount function

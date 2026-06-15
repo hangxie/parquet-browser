@@ -18,6 +18,10 @@ type FileInfo struct {
 	TotalUncompressedSize int64
 	CompressionRatio      float64
 	CreatedBy             string
+	// Encryption is "" when the file is not encrypted, otherwise one of
+	// "FOOTER_KEY", "COLUMN_KEY", or "MIXED" (some columns use the footer
+	// key, some use per-column keys).
+	Encryption string
 }
 
 // RowGroupInfo contains metadata about a row group
@@ -127,7 +131,49 @@ func (pr *ParquetReader) GetFileInfo() FileInfo {
 		info.CreatedBy = *pr.metadata.CreatedBy
 	}
 
+	info.Encryption = pr.detectEncryptionMode()
+
 	return info
+}
+
+// detectEncryptionMode inspects file-level crypto metadata and per-column
+// crypto metadata to classify the file's encryption mode after parquet-go has
+// opened the footer. Plaintext-footer files with encrypted columns can be
+// classified without column keys, but encrypted-footer files require the footer
+// key before NewParquetReader is constructed.
+func (pr *ParquetReader) detectEncryptionMode() string {
+	encrypted := (pr.Reader != nil && pr.Reader.FileCrypto != nil) ||
+		(pr.metadata != nil && pr.metadata.IsSetEncryptionAlgorithm())
+
+	sawFooter, sawColumn := false, false
+	for _, rg := range pr.metadata.RowGroups {
+		for _, col := range rg.Columns {
+			cm := col.GetCryptoMetadata()
+			if cm == nil {
+				continue
+			}
+			if cm.ENCRYPTION_WITH_FOOTER_KEY != nil {
+				sawFooter = true
+			}
+			if cm.ENCRYPTION_WITH_COLUMN_KEY != nil {
+				sawColumn = true
+			}
+		}
+	}
+
+	switch {
+	case sawFooter && sawColumn:
+		return "MIXED"
+	case sawColumn:
+		return "COLUMN_KEY"
+	case sawFooter:
+		return "FOOTER_KEY"
+	case encrypted:
+		// File-level encryption present but no per-column metadata: this is
+		// uniform footer-key encryption.
+		return "FOOTER_KEY"
+	}
+	return ""
 }
 
 // GetRowGroupInfo extracts row group information

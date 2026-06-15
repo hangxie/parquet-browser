@@ -329,6 +329,17 @@ components:
         CreatedBy:
           type: string
           description: Tool that created this Parquet file
+        Encryption:
+          type: string
+          description: |
+            File encryption mode. Empty string when the file is not encrypted;
+            otherwise one of "FOOTER_KEY" (uniform footer-key encryption),
+            "COLUMN_KEY" (per-column keys), or "MIXED" (both modes used).
+          enum:
+            - ""
+            - FOOTER_KEY
+            - COLUMN_KEY
+            - MIXED
 
     RowGroupInfo:
       type: object

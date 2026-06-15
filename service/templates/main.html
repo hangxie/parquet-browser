@@ -36,6 +36,12 @@
             <span>{{.CreatedBy}}</span>
         </div>
         {{end}}
+        {{if .Encryption}}
+        <div class="info-item">
+            <strong>Encryption</strong>
+            <span>{{.Encryption}}</span>
+        </div>
+        {{end}}
     </div>
 </div>
 

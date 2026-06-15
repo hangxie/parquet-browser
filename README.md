@@ -169,6 +169,87 @@ Works in all three modes (TUI, server, and web UI):
 ./parquet-browser tui --http-ignore-tls-error https://example.com/file.parquet
 ```
 
+### Open Encrypted Files
+
+All three modes accept decryption keys for files written with Parquet Modular Encryption. Keys may be passed inline:
+
+```bash
+./parquet-browser tui --footer-key <base64-AES-key> file.parquet
+
+# Per-column keys, repeatable
+./parquet-browser tui \
+    --column-key user.email=<base64-AES-key> \
+    --column-key user.ssn=<base64-AES-key> \
+    file.parquet
+
+# AAD prefix (only when not stored in the file)
+./parquet-browser tui --aad-prefix <base64> file.parquet
+```
+
+For files with many encrypted columns, or to keep keys out of shell history and `ps` output, point `--key-file` at a JSON file:
+
+```bash
+./parquet-browser tui --key-file ~/.parquet/keys.json file.parquet
+```
+
+The schema is:
+
+```json
+{
+  "footer_key": "base64-encoded AES-128/192/256 key",
+  "aad_prefix": "base64-encoded AAD prefix",
+  "column_keys": {
+    "user.email": "base64-encoded AES key",
+    "user.ssn":   "base64-encoded AES key"
+  }
+}
+```
+
+All fields are optional and any combination may be supplied. CLI flags take precedence over file values, and per-column keys from the file are merged with `--column-key` flags (CLI wins on the same column path). Set the key file's permissions to `600` so other users cannot read it.
+
+The home page (TUI header / Web UI File Information card) shows an `Encryption` field as `FOOTER_KEY`, `COLUMN_KEY`, or `MIXED` for encrypted files, and omits it otherwise.
+
+Opening an encrypted column without its key surfaces a dismissible popup; closing it leaves you on the column-chunks view, so you can try another column without losing context:
+
+```
+┌────────────────────────────────────────── Row Group Info ───────────────────────────────────────────┐
+│Row Group: 0  Rows: 50  Columns: 8                                                                   │
+│Total Values: 450  Total Nulls: 25                                                                   │
+│Size: 3.1 KB → 3.7 KB (1.22x)                                                                        │
+└─────────────────────────────────────────────────────────────────────────────────────────────────────┘
+┌ Column Chunks (↑↓ to navigate, Enter=view pages) ───────────────────────────────────────────────────┐
+│#│    Name     │        Type        │ Codec│Size │       Min      │       Max                        │
+│0│Boolean_field│BOOLEAN             │SNAPPY│ 31 B│false           │true                              │
+│1│Int32_field  │INT32               │SNAPPY│283 B│00:00:00.000    │00:00:00.049                      │
+│2│Int64_field  │INT64          ╔════════════════════════════════════╗000000000000                    │
+│3│Int96_field  │INT96          ║                                    ║                                │
+│4│Float_field  │FLOAT          ║        Error loading pages:        ║                                │
+│5│Double_field │DOUBLE         ║             HTTP 404: {            ║                                │
+│6│Ba_field     │BYTE_ARRAY     ║    "error": "resolve column key:   ║FycXVldDA0OA==                  │
+│7│Flba_field   │FIXED_LEN_BYTE_║    decryption key required for     ║ExMTExMTExMQ==                  │
+│                               ║     column schema.double_field"    ║                                │
+│                               ║                  }                 ║                                │
+│                               ║                                    ║                                │
+│                               ║                                    ║                                │
+│                               ║        Press ESC to go back        ║                                │
+│                               ║                                    ║                                │
+│                               ║                 OK                 ║                                │
+│                               ║                                    ║                                │
+│                               ╚════════════════════════════════════╝                                │
+│                                                                                                     │
+│                                                                                                     │
+│                                                                                                     │
+│                                                                                                     │
+│                                                                                                     │
+│                                                                                                     │
+│                                                                                                     │
+│                                                                                                     │
+└─────────────────────────────────────────────────────────────────────────────────────────────────────┘
+ Keys: ESC=back, s=schema, ↑↓=scroll, Enter=view pages
+```
+
+<img src="docs/screenshots/encrypted-column-error.png" width="800" />
+
 ### Help
 
 ```bash
