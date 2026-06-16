@@ -52,7 +52,7 @@ func Test_CountLeafColumns(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := countLeafColumns(tt.schema)
-			require.Equal(t, tt.expected, result, "countLeafColumns() should match")
+			require.Equal(t, tt.expected, result)
 		})
 	}
 }
@@ -120,7 +120,7 @@ func Test_FormatLogicalType(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := formatLogicalType(tt.logicalType)
-			require.Equal(t, tt.expected, result, "formatLogicalType() should match")
+			require.Equal(t, tt.expected, result)
 		})
 	}
 }

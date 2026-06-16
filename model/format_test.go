@@ -28,7 +28,7 @@ func Test_FormatBytes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := FormatBytes(tt.bytes)
-			require.Equal(t, tt.expected, result, "FormatBytes(%d) should match", tt.bytes)
+			require.Equal(t, tt.expected, result)
 		})
 	}
 }
@@ -87,7 +87,7 @@ func Test_FormatStatValue(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := FormatStatValue(tt.value, &parquet.ColumnMetaData{Type: tt.parquetType}, nil)
-			require.Equal(t, tt.expected, result, "FormatStatValue() should match")
+			require.Equal(t, tt.expected, result)
 		})
 	}
 }
@@ -158,7 +158,7 @@ func Test_RetrieveRawValue(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := retrieveStatValue(tt.value, tt.parquetType)
-			require.Equal(t, tt.expected, result, "retrieveStatValue() should match")
+			require.Equal(t, tt.expected, result)
 		})
 	}
 }
@@ -214,7 +214,7 @@ func Test_IsValidUTF8(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := IsValidUTF8(tt.input)
-			require.Equal(t, tt.expected, result, "IsValidUTF8(%q) should match", tt.input)
+			require.Equal(t, tt.expected, result)
 		})
 	}
 }
@@ -284,7 +284,7 @@ func Test_FormatValue(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := FormatValue(tt.val, tt.parquetType, tt.schemaElem)
-			require.Equal(t, tt.expected, result, "FormatValue() should match")
+			require.Equal(t, tt.expected, result)
 		})
 	}
 }
@@ -297,8 +297,8 @@ func Test_FormatValue_Truncation(t *testing.T) {
 	}
 
 	result := FormatValue(string(longString), parquet.Type_BYTE_ARRAY, nil)
-	require.Equal(t, 203, len(result), "FormatValue() length should be 203 (200 chars + '...')")
-	require.Equal(t, "...", result[200:], "FormatValue() should end with '...'")
+	require.Equal(t, 203, len(result))
+	require.Equal(t, "...", result[200:])
 }
 
 func Test_FormatValue_WithLogicalType(t *testing.T) {
@@ -310,7 +310,7 @@ func Test_FormatValue_WithLogicalType(t *testing.T) {
 	}
 
 	result := FormatValue("hello", parquet.Type_BYTE_ARRAY, schema)
-	require.Equal(t, "hello", result, "FormatValue() with STRING logical type should match")
+	require.Equal(t, "hello", result)
 }
 
 func Test_FindSchemaElementByPath(t *testing.T) {
@@ -360,10 +360,10 @@ func Test_FindSchemaElementByPath(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := findSchemaElement(tt.schema, tt.path)
 			if tt.expectNil {
-				require.Nil(t, result, "findSchemaElement() should return nil")
+				require.Nil(t, result)
 			} else {
-				require.NotNil(t, result, "findSchemaElement() should return non-nil")
-				require.Equal(t, tt.expectedName, result.Name, "findSchemaElement() name should match")
+				require.NotNil(t, result)
+				require.Equal(t, tt.expectedName, result.Name)
 			}
 		})
 	}
@@ -377,8 +377,8 @@ func Test_FindSchemaElementByPath_CaseInsensitive(t *testing.T) {
 
 	// Should match case-insensitively
 	result := findSchemaElement(schema, []string{"myfield"})
-	require.NotNil(t, result, "findSchemaElement() with different case should find element")
-	require.Equal(t, "MyField", result.Name, "findSchemaElement() name should match")
+	require.NotNil(t, result)
+	require.Equal(t, "MyField", result.Name)
 }
 
 // Test retrieveStatValue error paths - when binary.Read fails
@@ -445,10 +445,10 @@ func Test_RetrieveRawValue_ErrorPaths(t *testing.T) {
 			if tt.expectError {
 				// Should return an error string
 				resultStr, ok := result.(string)
-				require.True(t, ok, "Result should be a string for error case")
-				require.Contains(t, resultStr, "failed to read data as", "Error string should contain 'failed to read data as'")
+				require.True(t, ok)
+				require.Contains(t, resultStr, "failed to read data as")
 			} else {
-				require.NotContains(t, fmt.Sprintf("%v", result), "failed to read data as", "Result should not contain error")
+				require.NotContains(t, fmt.Sprintf("%v", result), "failed to read data as")
 			}
 		})
 	}
@@ -509,7 +509,7 @@ func Test_RetrieveRawValue_EdgeCases(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := retrieveStatValue(tt.value, tt.parquetType)
-			require.Equal(t, tt.expected, result, "retrieveStatValue() should match")
+			require.Equal(t, tt.expected, result)
 		})
 	}
 }
@@ -563,7 +563,7 @@ func Test_RetrieveRawValue_MinMaxValues(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := retrieveStatValue(tt.value, tt.parquetType)
-			require.Equal(t, tt.expected, result, "retrieveStatValue() should match")
+			require.Equal(t, tt.expected, result)
 		})
 	}
 }

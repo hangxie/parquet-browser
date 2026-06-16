@@ -23,8 +23,8 @@ func Test_WriteJSON(t *testing.T) {
 			validateBody: func(t *testing.T, body string) {
 				var result map[string]string
 				err := json.Unmarshal([]byte(body), &result)
-				require.NoError(t, err, "Failed to unmarshal response")
-				require.Equal(t, "value", result["key"], "Expected key=value")
+				require.NoError(t, err)
+				require.Equal(t, "value", result["key"])
 			},
 		},
 		{
@@ -34,8 +34,8 @@ func Test_WriteJSON(t *testing.T) {
 			validateBody: func(t *testing.T, body string) {
 				var result struct{ Name string }
 				err := json.Unmarshal([]byte(body), &result)
-				require.NoError(t, err, "Failed to unmarshal response")
-				require.Equal(t, "test", result.Name, "Expected Name=test")
+				require.NoError(t, err)
+				require.Equal(t, "test", result.Name)
 			},
 		},
 		{
@@ -45,8 +45,8 @@ func Test_WriteJSON(t *testing.T) {
 			validateBody: func(t *testing.T, body string) {
 				var result []int
 				err := json.Unmarshal([]byte(body), &result)
-				require.NoError(t, err, "Failed to unmarshal response")
-				require.Len(t, result, 3, "Expected 3 elements")
+				require.NoError(t, err)
+				require.Len(t, result, 3)
 			},
 		},
 		{
@@ -54,7 +54,7 @@ func Test_WriteJSON(t *testing.T) {
 			data:           nil,
 			expectedStatus: http.StatusOK,
 			validateBody: func(t *testing.T, body string) {
-				require.Equal(t, "null\n", body, "Expected 'null\\n'")
+				require.Equal(t, "null\n", body)
 			},
 		},
 	}
@@ -64,10 +64,10 @@ func Test_WriteJSON(t *testing.T) {
 			w := httptest.NewRecorder()
 			WriteJSON(w, tt.expectedStatus, tt.data)
 
-			require.Equal(t, tt.expectedStatus, w.Code, "Status code should match")
+			require.Equal(t, tt.expectedStatus, w.Code)
 
 			contentType := w.Header().Get("Content-Type")
-			require.Equal(t, "application/json", contentType, "Content-Type should be application/json")
+			require.Equal(t, "application/json", contentType)
 
 			if tt.validateBody != nil {
 				tt.validateBody(t, w.Body.String())
@@ -108,13 +108,13 @@ func Test_WriteError(t *testing.T) {
 			w := httptest.NewRecorder()
 			WriteError(w, tt.status, tt.message)
 
-			require.Equal(t, tt.expectedStatus, w.Code, "Status code should match")
+			require.Equal(t, tt.expectedStatus, w.Code)
 
 			var result map[string]string
 			err := json.Unmarshal(w.Body.Bytes(), &result)
-			require.NoError(t, err, "Failed to unmarshal error response")
+			require.NoError(t, err)
 
-			require.Equal(t, tt.message, result["error"], "Error message should match")
+			require.Equal(t, tt.message, result["error"])
 		})
 	}
 }
@@ -131,15 +131,15 @@ func Test_CORSMiddleware(t *testing.T) {
 		handler.ServeHTTP(w, req)
 
 		origin := w.Header().Get("Access-Control-Allow-Origin")
-		require.Equal(t, "*", origin, "Access-Control-Allow-Origin should be *")
+		require.Equal(t, "*", origin)
 
 		methods := w.Header().Get("Access-Control-Allow-Methods")
-		require.NotEmpty(t, methods, "Access-Control-Allow-Methods should be set")
+		require.NotEmpty(t, methods)
 
 		headers := w.Header().Get("Access-Control-Allow-Headers")
-		require.NotEmpty(t, headers, "Access-Control-Allow-Headers should be set")
+		require.NotEmpty(t, headers)
 
-		require.Equal(t, http.StatusOK, w.Code, "Status code should match")
+		require.Equal(t, http.StatusOK, w.Code)
 	})
 
 	t.Run("OPTIONS request", func(t *testing.T) {
@@ -153,7 +153,7 @@ func Test_CORSMiddleware(t *testing.T) {
 
 		handler.ServeHTTP(w, req)
 
-		require.Equal(t, http.StatusOK, w.Code, "Status code should match")
+		require.Equal(t, http.StatusOK, w.Code)
 	})
 }
 
@@ -170,8 +170,8 @@ func Test_LoggingMiddleware(t *testing.T) {
 
 		handler.ServeHTTP(w, req)
 
-		require.True(t, called, "Handler should have been called")
-		require.Equal(t, http.StatusOK, w.Code, "Status code should match")
+		require.True(t, called)
+		require.Equal(t, http.StatusOK, w.Code)
 	})
 
 	t.Run("Request with query params", func(t *testing.T) {
@@ -186,7 +186,7 @@ func Test_LoggingMiddleware(t *testing.T) {
 
 		handler.ServeHTTP(w, req)
 
-		require.True(t, called, "Handler should have been called")
+		require.True(t, called)
 	})
 
 	t.Run("POST request", func(t *testing.T) {
@@ -201,8 +201,8 @@ func Test_LoggingMiddleware(t *testing.T) {
 
 		handler.ServeHTTP(w, req)
 
-		require.True(t, called, "Handler should have been called")
-		require.Equal(t, http.StatusCreated, w.Code, "Status code should match")
+		require.True(t, called)
+		require.Equal(t, http.StatusCreated, w.Code)
 	})
 }
 
@@ -243,9 +243,9 @@ func Test_FormatGoCode(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := FormatGoCode(tt.input)
 			if tt.expectErr {
-				require.Error(t, err, "FormatGoCode() should return error for invalid code")
+				require.Error(t, err)
 			} else {
-				require.NoError(t, err, "FormatGoCode() should not return error")
+				require.NoError(t, err)
 				// Note: empty string input returns empty result, which is valid
 			}
 		})
@@ -263,14 +263,14 @@ func main() {
 }
 `
 	result, err := FormatGoCode(input)
-	require.NoError(t, err, "FormatGoCode() should not return error")
+	require.NoError(t, err)
 
 	// The formatted code should still be valid
-	require.NotEmpty(t, result, "FormatGoCode() should not return empty string")
+	require.NotEmpty(t, result)
 
 	// Should contain the essential parts
-	require.True(t, contains(result, "package main"), "Formatted code should contain 'package main'")
-	require.True(t, contains(result, "func main()"), "Formatted code should contain 'func main()'")
+	require.True(t, contains(result, "package main"))
+	require.True(t, contains(result, "func main()"))
 }
 
 // Helper function

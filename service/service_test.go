@@ -37,7 +37,7 @@ func Test_ParquetService_Close(t *testing.T) {
 	}
 
 	err := service.Close()
-	require.NoError(t, err, "Close() should not return error")
+	require.NoError(t, err)
 }
 
 func Test_CreateRouter(t *testing.T) {
@@ -45,12 +45,12 @@ func Test_CreateRouter(t *testing.T) {
 
 	t.Run("With logging middleware", func(t *testing.T) {
 		router := CreateRouter(service, false)
-		require.NotNil(t, router, "CreateRouter() should return non-nil router")
+		require.NotNil(t, router)
 	})
 
 	t.Run("Without logging middleware (quiet mode)", func(t *testing.T) {
 		router := CreateRouter(service, true)
-		require.NotNil(t, router, "CreateRouter() should return non-nil router")
+		require.NotNil(t, router)
 	})
 }
 
@@ -90,8 +90,7 @@ func Test_HandleRowGroupInfo_InvalidIndex(t *testing.T) {
 			router.ServeHTTP(w, req)
 
 			// Router may return 404 for empty/invalid paths before handler is reached
-			require.True(t, w.Code == tt.expectedStatus || w.Code == http.StatusNotFound,
-				"Expected status %d or 404, got %d", tt.expectedStatus, w.Code)
+			require.True(t, w.Code == tt.expectedStatus || w.Code == http.StatusNotFound)
 		})
 	}
 }
@@ -136,8 +135,7 @@ func Test_HandleColumnChunkInfo_InvalidIndices(t *testing.T) {
 			router.ServeHTTP(w, req)
 
 			// Check that we get an error status
-			require.True(t, w.Code == tt.expectedStatus || w.Code == http.StatusNotFound,
-				"Expected status %d or 404, got %d", tt.expectedStatus, w.Code)
+			require.True(t, w.Code == tt.expectedStatus || w.Code == http.StatusNotFound)
 		})
 	}
 }
@@ -183,8 +181,7 @@ func Test_HandlePageInfo_InvalidIndices(t *testing.T) {
 			router.ServeHTTP(w, req)
 
 			// Should get BadRequest or NotFound
-			require.True(t, w.Code == http.StatusBadRequest || w.Code == http.StatusNotFound,
-				"Expected status 400 or 404, got %d", w.Code)
+			require.True(t, w.Code == http.StatusBadRequest || w.Code == http.StatusNotFound)
 		})
 	}
 }
@@ -199,8 +196,7 @@ func Test_HandleColumnChunks_InvalidIndex(t *testing.T) {
 
 	router.ServeHTTP(w, req)
 
-	require.True(t, w.Code == http.StatusBadRequest || w.Code == http.StatusNotFound,
-		"Expected status 400 or 404, got %d", w.Code)
+	require.True(t, w.Code == http.StatusBadRequest || w.Code == http.StatusNotFound)
 }
 
 func Test_HandlePages_InvalidIndices(t *testing.T) {
@@ -233,8 +229,7 @@ func Test_HandlePages_InvalidIndices(t *testing.T) {
 
 			router.ServeHTTP(w, req)
 
-			require.True(t, w.Code == http.StatusBadRequest || w.Code == http.StatusNotFound,
-				"Expected status 400 or 404, got %d", w.Code)
+			require.True(t, w.Code == http.StatusBadRequest || w.Code == http.StatusNotFound)
 		})
 	}
 }
@@ -279,8 +274,7 @@ func Test_HandlePageContent_InvalidIndices(t *testing.T) {
 
 			router.ServeHTTP(w, req)
 
-			require.True(t, w.Code == http.StatusBadRequest || w.Code == http.StatusNotFound,
-				"Expected status 400 or 404, got %d", w.Code)
+			require.True(t, w.Code == http.StatusBadRequest || w.Code == http.StatusNotFound)
 		})
 	}
 }
@@ -288,10 +282,10 @@ func Test_HandlePageContent_InvalidIndices(t *testing.T) {
 func Test_NewParquetService_InvalidFile(t *testing.T) {
 	// Test with non-existent file
 	_, err := NewParquetService("nonexistent.parquet", pio.ReadOption{})
-	require.Error(t, err, "NewParquetService() should return error for non-existent file")
+	require.Error(t, err)
 
 	// Check error message
-	require.Contains(t, err.Error(), "failed to open parquet file", "Error message should mention failed to open parquet file")
+	require.Contains(t, err.Error(), "failed to open parquet file")
 }
 
 // Helper function - reuse from http_helpers_test.go
@@ -313,10 +307,10 @@ func Test_ErrorResponseStructure(t *testing.T) {
 	if w.Code == http.StatusBadRequest {
 		var response map[string]interface{}
 		err := json.Unmarshal(w.Body.Bytes(), &response)
-		require.NoError(t, err, "Error response should be valid JSON")
+		require.NoError(t, err)
 
 		_, ok := response["error"]
-		require.True(t, ok, "Error response should contain 'error' field")
+		require.True(t, ok)
 	}
 }
 
@@ -340,7 +334,7 @@ func Test_SchemaEndpointQueryParams(t *testing.T) {
 
 			// Just verify the route is registered, don't actually call it
 			// since we don't have a real parquet file
-			require.True(t, router.Match(req, &match), "Route should be registered")
+			require.True(t, router.Match(req, &match))
 		})
 	}
 }
@@ -362,7 +356,7 @@ func Test_SchemaEndpoints(t *testing.T) {
 		t.Run(endpoint, func(t *testing.T) {
 			req := httptest.NewRequest("GET", endpoint, nil)
 			var match mux.RouteMatch
-			require.True(t, router.Match(req, &match), "Endpoint %s should be registered", endpoint)
+			require.True(t, router.Match(req, &match))
 		})
 	}
 }
@@ -397,7 +391,7 @@ func Test_RouteMatching(t *testing.T) {
 			var routeMatch mux.RouteMatch
 			matched := router.Match(req, &routeMatch)
 
-			require.Equal(t, tt.match, matched, "Route match should be %v", tt.match)
+			require.Equal(t, tt.match, matched)
 		})
 	}
 }
@@ -430,16 +424,16 @@ func Test_WriteJSON_WithIndentation(t *testing.T) {
 
 	WriteJSON(w, http.StatusOK, data)
 
-	require.Equal(t, http.StatusOK, w.Code, "Status should match")
+	require.Equal(t, http.StatusOK, w.Code)
 
 	body := w.Body.String()
 	// Check for indentation (newlines indicate pretty printing)
-	require.Contains(t, body, "\n", "JSON should be indented")
+	require.Contains(t, body, "\n")
 
 	// Verify valid JSON
 	var result map[string]interface{}
 	err := json.Unmarshal(w.Body.Bytes(), &result)
-	require.NoError(t, err, "Should produce valid JSON")
+	require.NoError(t, err)
 }
 
 // Test FormatGoCode with various valid inputs
@@ -469,11 +463,11 @@ func Test_FormatGoCode_ValidInputs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := FormatGoCode(tt.input)
-			require.NoError(t, err, "FormatGoCode() should not return error")
-			require.NotEmpty(t, result, "Result should not be empty")
+			require.NoError(t, err)
+			require.NotEmpty(t, result)
 
 			// Verify it's still valid Go code
-			require.Contains(t, result, "package main", "Should contain package declaration")
+			require.Contains(t, result, "package main")
 		})
 	}
 }
@@ -483,14 +477,14 @@ func Test_FormatGoCode_InvalidSyntax(t *testing.T) {
 	invalidCode := "package main\nthis is not valid go syntax!!!"
 
 	_, err := FormatGoCode(invalidCode)
-	require.Error(t, err, "Should return error for invalid Go syntax")
+	require.Error(t, err)
 }
 
 // Test FormatGoCode with empty input
 func Test_FormatGoCode_EmptyInput(t *testing.T) {
 	result, err := FormatGoCode("")
-	require.NoError(t, err, "Empty input should not error")
-	require.Empty(t, result, "Empty input should produce empty output")
+	require.NoError(t, err)
+	require.Empty(t, result)
 }
 
 // Test NewParquetService with various invalid URIs
@@ -507,11 +501,11 @@ func Test_NewParquetService_InvalidURIs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			svc, err := NewParquetService(tt.uri, pio.ReadOption{})
-			require.Error(t, err, "Expected error for invalid URI")
+			require.Error(t, err)
 			if svc != nil {
 				_ = svc.Close()
 			}
-			require.Contains(t, err.Error(), "failed to open parquet file", "Error should mention failed to open")
+			require.Contains(t, err.Error(), "failed to open parquet file")
 		})
 	}
 }
@@ -520,7 +514,7 @@ func Test_NewParquetService_InvalidURIs(t *testing.T) {
 func Test_Close_NilReader(t *testing.T) {
 	svc := &ParquetService{reader: nil}
 	err := svc.Close()
-	require.NoError(t, err, "Close with nil reader should not error")
+	require.NoError(t, err)
 }
 
 // Test CreateRouter quiet and verbose modes
@@ -529,11 +523,11 @@ func Test_CreateRouter_Modes(t *testing.T) {
 
 	// Test quiet mode
 	router := CreateRouter(svc, true)
-	require.NotNil(t, router, "Router should not be nil")
+	require.NotNil(t, router)
 
 	// Test verbose mode
 	router = CreateRouter(svc, false)
-	require.NotNil(t, router, "Router should not be nil")
+	require.NotNil(t, router)
 }
 
 // Test SetupRoutes registers all routes
@@ -566,7 +560,7 @@ func Test_SetupRoutes_AllRoutes(t *testing.T) {
 			req := httptest.NewRequest(route.method, route.path, nil)
 			var match mux.RouteMatch
 			matched := router.Match(req, &match)
-			require.True(t, matched, "Route %s %s should be registered", route.method, route.path)
+			require.True(t, matched)
 		})
 	}
 }
@@ -604,7 +598,7 @@ func Test_Handlers_InvalidParameters(t *testing.T) {
 				err := json.Unmarshal(w.Body.Bytes(), &errResp)
 				if err == nil {
 					_, ok := errResp["error"]
-					require.True(t, ok, "Error response should have 'error' field")
+					require.True(t, ok)
 				}
 			}
 		})
@@ -624,12 +618,12 @@ func Test_CORSMiddleware_Headers(t *testing.T) {
 
 	handler.ServeHTTP(w, req)
 
-	require.True(t, called, "Inner handler should be called for non-OPTIONS request")
+	require.True(t, called)
 
 	// Check CORS headers
-	require.Equal(t, "*", w.Header().Get("Access-Control-Allow-Origin"), "Should set Access-Control-Allow-Origin to *")
-	require.NotEmpty(t, w.Header().Get("Access-Control-Allow-Methods"), "Should set Access-Control-Allow-Methods")
-	require.NotEmpty(t, w.Header().Get("Access-Control-Allow-Headers"), "Should set Access-Control-Allow-Headers")
+	require.Equal(t, "*", w.Header().Get("Access-Control-Allow-Origin"))
+	require.NotEmpty(t, w.Header().Get("Access-Control-Allow-Methods"))
+	require.NotEmpty(t, w.Header().Get("Access-Control-Allow-Headers"))
 }
 
 // Test CORS middleware OPTIONS handling
@@ -643,10 +637,10 @@ func Test_CORSMiddleware_OPTIONS(t *testing.T) {
 
 	handler.ServeHTTP(w, req)
 
-	require.Equal(t, http.StatusOK, w.Code, "OPTIONS should return OK")
+	require.Equal(t, http.StatusOK, w.Code)
 
 	// CORS headers should still be set
-	require.NotEmpty(t, w.Header().Get("Access-Control-Allow-Origin"), "Should set CORS headers for OPTIONS")
+	require.NotEmpty(t, w.Header().Get("Access-Control-Allow-Origin"))
 }
 
 // Test LoggingMiddleware logs requests
@@ -675,8 +669,8 @@ func Test_LoggingMiddleware_Logging(t *testing.T) {
 
 			handler.ServeHTTP(w, req)
 
-			require.True(t, called, "Inner handler should be called")
-			require.Equal(t, http.StatusOK, w.Code, "Status should match")
+			require.True(t, called)
+			require.Equal(t, http.StatusOK, w.Code)
 		})
 	}
 }
@@ -686,18 +680,18 @@ func Test_Write_Functions_Together(t *testing.T) {
 	// Test WriteJSON
 	w1 := httptest.NewRecorder()
 	WriteJSON(w1, http.StatusOK, map[string]string{"key": "value"})
-	require.Equal(t, http.StatusOK, w1.Code, "WriteJSON status should match")
+	require.Equal(t, http.StatusOK, w1.Code)
 
 	// Test WriteError
 	w2 := httptest.NewRecorder()
 	WriteError(w2, http.StatusBadRequest, "test error")
-	require.Equal(t, http.StatusBadRequest, w2.Code, "WriteError status should match")
+	require.Equal(t, http.StatusBadRequest, w2.Code)
 
 	var errResp map[string]string
 	err := json.Unmarshal(w2.Body.Bytes(), &errResp)
-	require.NoError(t, err, "WriteError should produce valid JSON")
+	require.NoError(t, err)
 
-	require.Equal(t, "test error", errResp["error"], "Error message should match")
+	require.Equal(t, "test error", errResp["error"])
 }
 
 // Test JSON encoding/decoding roundtrip
@@ -717,14 +711,14 @@ func Test_JSON_Roundtrip(t *testing.T) {
 
 	var decoded map[string]interface{}
 	err := json.NewDecoder(bytes.NewReader(w.Body.Bytes())).Decode(&decoded)
-	require.NoError(t, err, "Failed to decode JSON")
+	require.NoError(t, err)
 
-	require.Equal(t, "value", decoded["string"], "String value should be preserved")
+	require.Equal(t, "value", decoded["string"])
 
 	// Note: JSON numbers are decoded as float64
-	require.Equal(t, float64(42), decoded["number"].(float64), "Number value should be preserved")
+	require.Equal(t, float64(42), decoded["number"].(float64))
 
-	require.Equal(t, true, decoded["boolean"], "Boolean value should be preserved")
+	require.Equal(t, true, decoded["boolean"])
 }
 
 // Test Close when reader is nil (else branch)
@@ -737,7 +731,7 @@ func Test_Close_NilReaderBranch(t *testing.T) {
 	}
 
 	err := service.Close()
-	require.NoError(t, err, "Close() with nil reader should not error")
+	require.NoError(t, err)
 }
 
 // Test Close when reader is not nil
@@ -754,7 +748,7 @@ func Test_Close_NonNilReaderBranch(t *testing.T) {
 
 	// This still tests the if branch
 	err := service.Close()
-	require.NoError(t, err, "Close() should not error")
+	require.NoError(t, err)
 }
 
 // The issue is that both branches of Close return nil, so coverage
@@ -779,7 +773,7 @@ func Test_Close_BothBranches(t *testing.T) {
 			}
 
 			err := service.Close()
-			require.NoError(t, err, "Close() should not error")
+			require.NoError(t, err)
 		})
 	}
 }
@@ -799,10 +793,10 @@ func Test_NewParquetService_Success_Path(t *testing.T) {
 	}
 	defer func() { _ = service.Close() }()
 
-	require.NotNil(t, service, "Service should not be nil")
-	require.NotNil(t, service.reader, "Service reader should not be nil")
-	require.NotNil(t, service.parquetReader, "Service parquetReader should not be nil")
-	require.Equal(t, parquetFile, service.uri, "URI should match")
+	require.NotNil(t, service)
+	require.NotNil(t, service.reader)
+	require.NotNil(t, service.parquetReader)
+	require.Equal(t, parquetFile, service.uri)
 }
 
 // Test Close with non-nil reader (success path)
@@ -820,7 +814,7 @@ func Test_Close_Success_Path(t *testing.T) {
 
 	// Close with non-nil reader
 	err = service.Close()
-	require.NoError(t, err, "Close() should not error")
+	require.NoError(t, err)
 }
 
 // Test all handler functions with a real service
@@ -868,10 +862,10 @@ func Test_AllHandlers_WithRealService(t *testing.T) {
 			router.ServeHTTP(w, req)
 
 			body, _ := io.ReadAll(w.Body)
-			require.Equalf(t, tt.status, w.Code, "Status should match. Body: %s", string(body))
+			require.Equal(t, tt.status, w.Code)
 
 			// Verify response is not empty
-			require.NotZero(t, len(body), "Response body should not be empty")
+			require.NotZero(t, len(body))
 		})
 	}
 }
@@ -898,7 +892,7 @@ func Test_HandleSchemaJSON_JSONUnmarshalError(t *testing.T) {
 
 	router.ServeHTTP(w, req)
 
-	require.Equal(t, http.StatusOK, w.Code, "Status should match")
+	require.Equal(t, http.StatusOK, w.Code)
 }
 
 // Test handler error responses
@@ -958,7 +952,7 @@ func Test_StartServer_Success(t *testing.T) {
 
 	// Find a free port
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	require.NoError(t, err, "Failed to find free port")
+	require.NoError(t, err)
 	addr := listener.Addr().String()
 	_ = listener.Close()
 
@@ -1119,13 +1113,13 @@ func Test_HandlePageContent_ResponseStructure(t *testing.T) {
 	if w.Code == http.StatusOK {
 		var response map[string]interface{}
 		err := json.NewDecoder(bytes.NewReader(w.Body.Bytes())).Decode(&response)
-		require.NoError(t, err, "Response should be valid JSON")
+		require.NoError(t, err)
 
 		_, ok := response["values"]
-		require.True(t, ok, "Response should have 'values' field")
+		require.True(t, ok)
 
 		_, ok = response["count"]
-		require.True(t, ok, "Response should have 'count' field")
+		require.True(t, ok)
 	}
 }
 
@@ -1165,7 +1159,7 @@ func Test_SchemaEndpoints_ContentTypes(t *testing.T) {
 
 			if w.Code == http.StatusOK {
 				ct := w.Header().Get("Content-Type")
-				require.Contains(t, ct, tt.contentType, "Content-Type should contain expected type")
+				require.Contains(t, ct, tt.contentType)
 			}
 		})
 	}
@@ -1230,14 +1224,14 @@ func Test_HandleSchemaGo_Success(t *testing.T) {
 
 	router.ServeHTTP(w, req)
 
-	require.Equal(t, http.StatusOK, w.Code, "Response body: %s", w.Body.String())
+	require.Equal(t, http.StatusOK, w.Code)
 
 	// Verify content type
 	ct := w.Header().Get("Content-Type")
 	require.Contains(t, ct, "text/plain")
 
 	// Verify response is not empty
-	require.NotZero(t, w.Body.Len(), "Response body should not be empty")
+	require.NotZero(t, w.Body.Len())
 
 	// Verify it looks like Go code
 	body := w.Body.String()
@@ -1262,14 +1256,14 @@ func Test_HandleSchemaJSON_Success(t *testing.T) {
 
 	router.ServeHTTP(w, req)
 
-	require.Equal(t, http.StatusOK, w.Code, "Response body: %s", w.Body.String())
+	require.Equal(t, http.StatusOK, w.Code)
 
 	// Verify content type
 	ct := w.Header().Get("Content-Type")
 	require.Contains(t, ct, "application/json")
 
 	// Verify response is not empty
-	require.NotZero(t, w.Body.Len(), "Response body should not be empty")
+	require.NotZero(t, w.Body.Len())
 }
 
 // Test handleSchemaRaw returns raw schema tree
@@ -1288,7 +1282,7 @@ func Test_HandleSchemaRaw_Success(t *testing.T) {
 
 	router.ServeHTTP(w, req)
 
-	require.Equal(t, http.StatusOK, w.Code, "Response body: %s", w.Body.String())
+	require.Equal(t, http.StatusOK, w.Code)
 
 	// Verify content type
 	ct := w.Header().Get("Content-Type")
@@ -1297,7 +1291,7 @@ func Test_HandleSchemaRaw_Success(t *testing.T) {
 	// Verify response is valid JSON
 	var jsonData interface{}
 	err = json.Unmarshal(w.Body.Bytes(), &jsonData)
-	require.NoError(t, err, "Response should be valid JSON")
+	require.NoError(t, err)
 }
 
 // Test handleSchemaCSV returns CSV format or error
@@ -1326,13 +1320,13 @@ func Test_HandleSchemaCSV_Success(t *testing.T) {
 		require.Contains(t, ct, "text/csv")
 
 		// Verify response is not empty
-		require.NotZero(t, w.Body.Len(), "Response body should not be empty")
+		require.NotZero(t, w.Body.Len())
 	case http.StatusInternalServerError:
 		// CSV may not support all parquet features
 		// This is acceptable - the handler was still exercised
 		t.Logf("CSV schema failed (expected for files with unsupported features): %s", w.Body.String())
 	default:
-		require.Fail(t, "Unexpected status code", "Status = %d, expected 200 or 500", w.Code)
+		require.Fail(t, "Unexpected status code")
 	}
 }
 
@@ -1352,18 +1346,18 @@ func Test_HandleFileInfo_Success(t *testing.T) {
 
 	router.ServeHTTP(w, req)
 
-	require.Equal(t, http.StatusOK, w.Code, "Response body: %s", w.Body.String())
+	require.Equal(t, http.StatusOK, w.Code)
 
 	// Verify response is valid JSON
 	var info map[string]interface{}
 	err = json.Unmarshal(w.Body.Bytes(), &info)
-	require.NoError(t, err, "Response should be valid JSON")
+	require.NoError(t, err)
 
 	// Log the actual response to see what fields are present
 	t.Logf("File info response: %+v", info)
 
 	// The response should have some fields - check if it's not empty
-	require.NotEmpty(t, info, "Info response should not be empty")
+	require.NotEmpty(t, info)
 }
 
 // Test handleRowGroups returns all row groups
@@ -1382,14 +1376,14 @@ func Test_HandleRowGroups_Success(t *testing.T) {
 
 	router.ServeHTTP(w, req)
 
-	require.Equal(t, http.StatusOK, w.Code, "Response body: %s", w.Body.String())
+	require.Equal(t, http.StatusOK, w.Code)
 
 	// Verify response is valid JSON array
 	var rowGroups []interface{}
 	err = json.Unmarshal(w.Body.Bytes(), &rowGroups)
-	require.NoError(t, err, "Response should be valid JSON array")
+	require.NoError(t, err)
 
-	require.NotEmpty(t, rowGroups, "Should have at least one row group")
+	require.NotEmpty(t, rowGroups)
 }
 
 // Test all schema handlers together
@@ -1430,12 +1424,12 @@ func Test_AllSchemaHandlers_Integration(t *testing.T) {
 				return
 			}
 
-			require.Equal(t, http.StatusOK, w.Code, "Response body: %s", w.Body.String())
+			require.Equal(t, http.StatusOK, w.Code)
 
 			ct := w.Header().Get("Content-Type")
 			require.Contains(t, ct, tt.contentType)
 
-			require.NotZero(t, w.Body.Len(), "Response body should not be empty")
+			require.NotZero(t, w.Body.Len())
 		})
 	}
 }
@@ -1468,7 +1462,7 @@ func createTestServiceWithRealFile(t *testing.T, filename string) *ParquetServic
 	}
 
 	svc, err := NewParquetService(path, pio.ReadOption{})
-	require.NoError(t, err, "Failed to create service with %s", filename)
+	require.NoError(t, err)
 
 	return svc
 }
@@ -1602,9 +1596,7 @@ func Test_APIHandlers_OutOfRangeIndices(t *testing.T) {
 
 			router.ServeHTTP(w, req)
 
-			require.Equal(t, tt.expectedStatus, w.Code,
-				"Expected %d for %s, got %d. Body: %s",
-				tt.expectedStatus, tt.path, w.Code, w.Body.String())
+			require.Equal(t, tt.expectedStatus, w.Code)
 		})
 	}
 }
@@ -1748,8 +1740,7 @@ func Test_SchemaHandlers_AllPaths(t *testing.T) {
 				router.ServeHTTP(w, req)
 
 				if ep.expectOK {
-					require.Equal(t, http.StatusOK, w.Code,
-						"Expected OK for %s with %s", ep.path, filename)
+					require.Equal(t, http.StatusOK, w.Code)
 					require.NotEmpty(t, w.Body.String())
 				}
 			}
@@ -1852,7 +1843,7 @@ func Test_HandleSchemaJSON_SuccessPath_ComplexSchema(t *testing.T) {
 	// Verify it's valid JSON
 	var jsonData interface{}
 	err := json.Unmarshal(w.Body.Bytes(), &jsonData)
-	require.NoError(t, err, "Response should be valid JSON")
+	require.NoError(t, err)
 }
 
 // Test handleSchemaRaw success with complex schema (list-of-list)
@@ -1880,7 +1871,7 @@ func Test_HandleSchemaRaw_SuccessPath_ComplexSchema(t *testing.T) {
 	// Verify it's valid JSON
 	var jsonData interface{}
 	err := json.Unmarshal(w.Body.Bytes(), &jsonData)
-	require.NoError(t, err, "Response should be valid JSON")
+	require.NoError(t, err)
 }
 
 // Test handleSchemaGo with different file types
@@ -1940,7 +1931,7 @@ func Test_HandleSchemaJSON_DifferentFileTypes(t *testing.T) {
 			// Verify it's valid JSON
 			var jsonData interface{}
 			err := json.Unmarshal(w.Body.Bytes(), &jsonData)
-			require.NoError(t, err, "Response should be valid JSON")
+			require.NoError(t, err)
 		})
 	}
 }
@@ -1973,7 +1964,7 @@ func Test_HandleSchemaRaw_DifferentFileTypes(t *testing.T) {
 			// Verify it's valid JSON
 			var jsonData interface{}
 			err := json.Unmarshal(w.Body.Bytes(), &jsonData)
-			require.NoError(t, err, "Response should be valid JSON")
+			require.NoError(t, err)
 		})
 	}
 }
