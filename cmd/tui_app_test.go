@@ -434,6 +434,435 @@ func Test_TUIApp_showSchema(t *testing.T) {
 	})
 }
 
+func Test_TUIApp_showMainView(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/info":
+			_, _ = w.Write([]byte(`{
+				"Version": 2,
+				"NumRows": 1000,
+				"NumRowGroups": 1,
+				"NumLeafColumns": 2,
+				"TotalCompressedSize": 512,
+				"TotalUncompressedSize": 1024,
+				"CompressionRatio": 2.0,
+				"CreatedBy": "test-writer"
+			}`))
+		case "/rowgroups":
+			_, _ = w.Write([]byte(`[
+				{
+					"Index": 0,
+					"NumRows": 1000,
+					"NumColumns": 2,
+					"CompressedSize": 512,
+					"UncompressedSize": 1024,
+					"CompressionRatio": 2.0
+				}
+			]`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	app := NewTUIApp()
+	app.httpClient = newParquetClient(server.URL)
+	app.currentFile = "/tmp/example.parquet"
+
+	app.showMainView()
+
+	require.NotNil(t, app.mainLayout)
+	require.NotNil(t, app.headerView)
+	require.NotNil(t, app.rowGroupList)
+	require.NotNil(t, app.statusLine)
+	assert.Contains(t, app.headerView.GetText(false), "example.parquet")
+	assert.Contains(t, app.headerView.GetText(false), "test-writer")
+	assert.Equal(t, 2, app.rowGroupList.GetRowCount())
+	assert.Contains(t, app.statusLine.GetText(false), "Enter=see item details")
+}
+
+func Test_TUIApp_createHeaderView_Error(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "broken", http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	app := NewTUIApp()
+	app.httpClient = newParquetClient(server.URL)
+
+	app.createHeaderView()
+
+	require.NotNil(t, app.headerView)
+	assert.Contains(t, app.headerView.GetText(false), "Error loading file info")
+}
+
+func Test_TUIApp_createRowGroupList_Error(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "broken", http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	app := NewTUIApp()
+	app.httpClient = newParquetClient(server.URL)
+
+	app.createRowGroupList()
+
+	require.NotNil(t, app.rowGroupList)
+	cell := app.rowGroupList.GetCell(1, 0)
+	require.NotNil(t, cell)
+	assert.Contains(t, cell.Text, "Error loading row groups")
+}
+
+func Test_TUIApp_createColumnChunksList(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/rowgroups/0/columnchunks" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`[
+			{
+				"Index": 0,
+				"Name": "user.email",
+				"PhysicalType": "BYTE_ARRAY",
+				"Codec": "SNAPPY",
+				"CompressedSize": 2048,
+				"MinValue": "abcdefghijklmnopqrstuvwxyz",
+				"MaxValue": "zyxwvutsrqponmlkjihgfedcba"
+			}
+		]`))
+	}))
+	defer server.Close()
+
+	app := NewTUIApp()
+	app.httpClient = newParquetClient(server.URL)
+
+	table := app.createColumnChunksList(0)
+
+	require.NotNil(t, table)
+	assert.Equal(t, 2, table.GetRowCount())
+	assert.Equal(t, "#", table.GetCell(0, 0).Text)
+	assert.Equal(t, "Name", table.GetCell(0, 1).Text)
+	assert.Equal(t, "user.email", table.GetCell(1, 1).Text)
+	assert.Equal(t, "BYTE_ARRAY", table.GetCell(1, 2).Text)
+	assert.Equal(t, "SNAPPY", table.GetCell(1, 3).Text)
+	assert.Equal(t, "2.0 KB", table.GetCell(1, 4).Text)
+	assert.Equal(t, "abcdefghijklmnopqrst...", table.GetCell(1, 5).Text)
+	assert.Equal(t, "zyxwvutsrqponmlkjihg...", table.GetCell(1, 6).Text)
+}
+
+func Test_TUIApp_createColumnChunksList_Error(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "broken", http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	app := NewTUIApp()
+	app.httpClient = newParquetClient(server.URL)
+
+	table := app.createColumnChunksList(0)
+
+	require.NotNil(t, table)
+	cell := table.GetCell(1, 0)
+	require.NotNil(t, cell)
+	assert.Contains(t, cell.Text, "Error loading columns")
+}
+
+func Test_TUIApp_showColumnChunksView(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/rowgroups/0":
+			_, _ = w.Write([]byte(`{
+				"Index": 0,
+				"NumRows": 1000,
+				"NumColumns": 2,
+				"CompressedSize": 1024,
+				"UncompressedSize": 2048,
+				"CompressionRatio": 2.0
+			}`))
+		case "/rowgroups/0/columnchunks":
+			_, _ = w.Write([]byte(`[
+				{
+					"Index": 0,
+					"Name": "id",
+					"PhysicalType": "INT32",
+					"Codec": "SNAPPY",
+					"NumValues": 1000,
+					"NullCount": 1,
+					"CompressedSize": 1024
+				}
+			]`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	app := NewTUIApp()
+	app.httpClient = newParquetClient(server.URL)
+
+	app.showColumnChunksView(0)
+
+	assert.True(t, app.pages.HasPage("columnsview"))
+}
+
+func Test_TUIApp_showColumnChunksView_Error(t *testing.T) {
+	tests := []struct {
+		name    string
+		handler http.HandlerFunc
+	}{
+		{
+			name: "row group request fails",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				http.Error(w, "broken", http.StatusInternalServerError)
+			},
+		},
+		{
+			name: "column chunks request fails",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/rowgroups/0" {
+					w.Header().Set("Content-Type", "application/json")
+					_, _ = w.Write([]byte(`{
+						"Index": 0,
+						"NumRows": 1000,
+						"NumColumns": 2,
+						"CompressedSize": 1024,
+						"UncompressedSize": 2048,
+						"CompressionRatio": 2.0
+					}`))
+					return
+				}
+				http.Error(w, "broken", http.StatusInternalServerError)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := httptest.NewServer(tt.handler)
+			defer server.Close()
+
+			app := NewTUIApp()
+			app.httpClient = newParquetClient(server.URL)
+
+			app.showColumnChunksView(0)
+
+			assert.True(t, app.pages.HasPage("error"))
+		})
+	}
+}
+
+func Test_TUIApp_showPageView(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/rowgroups/0/columnchunks/0":
+			_, _ = w.Write([]byte(`{
+				"Name": "id",
+				"PathInSchema": ["id"],
+				"PhysicalType": "INT32",
+				"Codec": "SNAPPY",
+				"NumValues": 3,
+				"CompressedSize": 128,
+				"UncompressedSize": 256
+			}`))
+		case "/rowgroups/0/columnchunks/0/pages":
+			_, _ = w.Write([]byte(`[
+				{
+					"Index": 0,
+					"Offset": 1024,
+					"PageType": "DATA_PAGE",
+					"CompressedSize": 64,
+					"UncompressedSize": 128,
+					"CompressedSizeFormatted": "64 B",
+					"UncompressedSizeFormatted": "128 B",
+					"NumValues": 3,
+					"Encoding": "PLAIN",
+					"MinValue": "1",
+					"MaxValue": "3"
+				}
+			]`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	app := NewTUIApp()
+	app.httpClient = newParquetClient(server.URL)
+	stop := startTUIAppForTest(t, app)
+	defer stop()
+
+	queueTUIUpdate(t, app, func() {
+		app.showPageView(0, 0)
+	})
+
+	primitive := waitForTUIPage(t, app, "pageview")
+	require.IsType(t, &tview.Flex{}, primitive)
+	var hasLoading bool
+	queueTUIUpdate(t, app, func() {
+		hasLoading = app.pages.HasPage("page-loading")
+	})
+	assert.False(t, hasLoading)
+}
+
+func Test_TUIApp_showPageView_Error(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "broken", http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	app := NewTUIApp()
+	app.httpClient = newParquetClient(server.URL)
+	stop := startTUIAppForTest(t, app)
+	defer stop()
+
+	queueTUIUpdate(t, app, func() {
+		app.showPageView(0, 0)
+	})
+
+	primitive := waitForTUIPage(t, app, "page-error")
+	require.IsType(t, &tview.Modal{}, primitive)
+	var hasLoading bool
+	queueTUIUpdate(t, app, func() {
+		hasLoading = app.pages.HasPage("page-loading")
+	})
+	assert.False(t, hasLoading)
+}
+
+func Test_TUIApp_showPageView_PagesError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path == "/rowgroups/0/columnchunks/0" {
+			_, _ = w.Write([]byte(`{
+				"Name": "id",
+				"PathInSchema": ["id"],
+				"PhysicalType": "INT32",
+				"Codec": "SNAPPY",
+				"NumValues": 3,
+				"CompressedSize": 128,
+				"UncompressedSize": 256
+			}`))
+			return
+		}
+		http.Error(w, "broken", http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	app := NewTUIApp()
+	app.httpClient = newParquetClient(server.URL)
+	stop := startTUIAppForTest(t, app)
+	defer stop()
+
+	queueTUIUpdate(t, app, func() {
+		app.showPageView(0, 0)
+	})
+
+	primitive := waitForTUIPage(t, app, "page-error")
+	require.IsType(t, &tview.Modal{}, primitive)
+	var hasLoading bool
+	queueTUIUpdate(t, app, func() {
+		hasLoading = app.pages.HasPage("page-loading")
+	})
+	assert.False(t, hasLoading)
+}
+
+func Test_TUIApp_showPageContent(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/rowgroups/0/columnchunks/0/pages/0/content" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"values": ["1", "2", "3"], "count": 3}`))
+	}))
+	defer server.Close()
+
+	app := NewTUIApp()
+	app.httpClient = newParquetClient(server.URL)
+	stop := startTUIAppForTest(t, app)
+	defer stop()
+
+	pages := []model.PageMetadata{
+		{
+			Index:                     0,
+			Offset:                    1024,
+			PageType:                  "DATA_PAGE",
+			CompressedSize:            64,
+			UncompressedSize:          128,
+			CompressedSizeFormatted:   "64 B",
+			UncompressedSizeFormatted: "128 B",
+			NumValues:                 3,
+			Encoding:                  "PLAIN",
+		},
+	}
+	meta := &parquet.ColumnMetaData{Type: parquet.Type_INT32}
+
+	queueTUIUpdate(t, app, func() {
+		app.showPageContent(0, 0, 0, pages, meta)
+	})
+
+	primitive := waitForTUIPage(t, app, "page-content")
+	require.IsType(t, &tview.Flex{}, primitive)
+	var (
+		hasLoading bool
+		focus      tview.Primitive
+	)
+	queueTUIUpdate(t, app, func() {
+		hasLoading = app.pages.HasPage("page-content-loading")
+		focus = app.tviewApp.GetFocus()
+	})
+	assert.False(t, hasLoading)
+	assert.IsType(t, &tview.Table{}, focus)
+}
+
+func Test_TUIApp_showPageContent_Error(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "broken", http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	app := NewTUIApp()
+	app.httpClient = newParquetClient(server.URL)
+	stop := startTUIAppForTest(t, app)
+	defer stop()
+
+	pages := []model.PageMetadata{
+		{
+			Index:                     0,
+			Offset:                    1024,
+			PageType:                  "DATA_PAGE",
+			CompressedSize:            64,
+			UncompressedSize:          128,
+			CompressedSizeFormatted:   "64 B",
+			UncompressedSizeFormatted: "128 B",
+			NumValues:                 3,
+			Encoding:                  "PLAIN",
+		},
+	}
+	meta := &parquet.ColumnMetaData{Type: parquet.Type_INT32}
+
+	queueTUIUpdate(t, app, func() {
+		app.showPageContent(0, 0, 0, pages, meta)
+	})
+
+	primitive := waitForTUIPage(t, app, "page-content")
+	errorView, ok := primitive.(*tview.TextView)
+	require.True(t, ok)
+	var (
+		text       string
+		hasLoading bool
+	)
+	queueTUIUpdate(t, app, func() {
+		text = errorView.GetText(false)
+		hasLoading = app.pages.HasPage("page-content-loading")
+	})
+	assert.Contains(t, text, "Error reading page content")
+	assert.False(t, hasLoading)
+}
+
 func Test_TUIApp_buildColumnChunkInfoViewFromHTTP(t *testing.T) {
 	app := NewTUIApp()
 

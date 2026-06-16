@@ -418,8 +418,8 @@ func Test_GetAllColumnChunksInfo_ValidIndex(t *testing.T) {
 
 	// Verify each column info is populated
 	for i, info := range infos {
-		require.Equal(t, i, info.Index, "Column %d: Index should match", i)
-		require.NotEmpty(t, info.Name, "Column %d: Name should not be empty", i)
+		require.Equal(t, i, info.Index)
+		require.NotEmpty(t, info.Name)
 	}
 }
 

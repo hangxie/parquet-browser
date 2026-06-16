@@ -29,6 +29,11 @@ type serverResult struct {
 	err       error
 }
 
+var (
+	newTUIAppForRun       = NewTUIApp
+	startHTTPServerForRun = startHTTPServer
+)
+
 // startHTTPServer starts an embedded HTTP server for serving Parquet file data
 // It runs in a goroutine and sends the result (server URL and instance, or error) to resultChan
 func startHTTPServer(ctx context.Context, uri string, readOpt pio.ReadOption, resultChan chan<- serverResult) {
@@ -99,7 +104,7 @@ func (b TUICmd) Run() error {
 	if err := loadKeyFile(b.KeyFile, &b.ReadOption); err != nil {
 		return err
 	}
-	app := NewTUIApp()
+	app := newTUIAppForRun()
 
 	// Create a loading modal with cancellation instructions
 	modal := tview.NewModal().
@@ -131,7 +136,7 @@ func (b TUICmd) Run() error {
 	resultChan := make(chan serverResult, 1)
 
 	// Start embedded HTTP server in background
-	go startHTTPServer(ctx, b.URI, b.ReadOption, resultChan)
+	go startHTTPServerForRun(ctx, b.URI, b.ReadOption, resultChan)
 
 	// Start the app and wait for server startup
 	var httpServer *http.Server

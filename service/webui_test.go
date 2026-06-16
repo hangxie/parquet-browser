@@ -43,8 +43,7 @@ func Test_SetupWebUIRoutes(t *testing.T) {
 			router.ServeHTTP(w, req)
 
 			// Index page should work without real data
-			require.Equal(t, http.StatusOK, w.Code,
-				"Route %s should be registered and return 200", route.path)
+			require.Equal(t, http.StatusOK, w.Code)
 		})
 	}
 
@@ -55,7 +54,7 @@ func Test_SetupWebUIRoutes(t *testing.T) {
 		routeCount++
 		return nil
 	})
-	require.Greater(t, routeCount, 10, "Should have at least 11 routes registered")
+	require.Greater(t, routeCount, 10)
 }
 
 func Test_HandleIndexPage(t *testing.T) {
@@ -68,14 +67,13 @@ func Test_HandleIndexPage(t *testing.T) {
 
 	router.ServeHTTP(w, req)
 
-	require.Equal(t, http.StatusOK, w.Code, "Index page should return 200 OK")
-	require.Equal(t, "text/html; charset=utf-8", w.Header().Get("Content-Type"),
-		"Content-Type should be text/html")
+	require.Equal(t, http.StatusOK, w.Code)
+	require.Equal(t, "text/html; charset=utf-8", w.Header().Get("Content-Type"))
 
 	body := w.Body.String()
-	require.Contains(t, body, "<!DOCTYPE html>", "Response should contain HTML doctype")
-	require.Contains(t, body, "Parquet Browser", "Response should contain page title")
-	require.Contains(t, body, "htmx", "Response should include HTMX")
+	require.Contains(t, body, "<!DOCTYPE html>")
+	require.Contains(t, body, "Parquet Browser")
+	require.Contains(t, body, "htmx")
 }
 
 func Test_HandleSchemaView(t *testing.T) {
@@ -88,16 +86,15 @@ func Test_HandleSchemaView(t *testing.T) {
 
 	router.ServeHTTP(w, req)
 
-	require.Equal(t, http.StatusOK, w.Code, "Schema view should return 200 OK")
-	require.Equal(t, "text/html; charset=utf-8", w.Header().Get("Content-Type"),
-		"Content-Type should be text/html")
+	require.Equal(t, http.StatusOK, w.Code)
+	require.Equal(t, "text/html; charset=utf-8", w.Header().Get("Content-Type"))
 
 	body := w.Body.String()
-	require.Contains(t, body, "Schema Viewer", "Response should contain schema viewer")
-	require.Contains(t, body, "Go Struct", "Response should have Go Struct button")
-	require.Contains(t, body, "JSON", "Response should have JSON button")
-	require.Contains(t, body, "CSV", "Response should have CSV button")
-	require.Contains(t, body, "Raw", "Response should have Raw button")
+	require.Contains(t, body, "Schema Viewer")
+	require.Contains(t, body, "Go Struct")
+	require.Contains(t, body, "JSON")
+	require.Contains(t, body, "CSV")
+	require.Contains(t, body, "Raw")
 }
 
 func Test_HandleSchemaFormats_InvalidService(t *testing.T) {
@@ -139,8 +136,7 @@ func Test_HandleRowGroupsView_InvalidIndices(t *testing.T) {
 
 			router.ServeHTTP(w, req)
 
-			require.Equal(t, tt.expectedStatus, w.Code,
-				"Should return %d for %s", tt.expectedStatus, tt.name)
+			require.Equal(t, tt.expectedStatus, w.Code)
 		})
 	}
 }
@@ -150,7 +146,7 @@ func Test_CreateWebUIRouter(t *testing.T) {
 
 	router := CreateWebUIRouter(service)
 
-	require.NotNil(t, router, "CreateWebUIRouter should return non-nil router")
+	require.NotNil(t, router)
 
 	// Test that the router has middleware
 	req := httptest.NewRequest("GET", "/", nil)
@@ -159,8 +155,7 @@ func Test_CreateWebUIRouter(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	// Should have CORS headers from middleware
-	require.NotEmpty(t, w.Header().Get("Access-Control-Allow-Origin"),
-		"Should have CORS headers")
+	require.NotEmpty(t, w.Header().Get("Access-Control-Allow-Origin"))
 }
 
 func Test_FormatBytes(t *testing.T) {
@@ -207,7 +202,7 @@ func Test_FormatRatio(t *testing.T) {
 
 func Test_TemplatesEmbedded(t *testing.T) {
 	// Test that templates are properly embedded and parsed
-	require.NotNil(t, templates, "Templates should be initialized")
+	require.NotNil(t, templates)
 
 	// Test that all expected templates exist
 	expectedTemplates := []string{
@@ -224,7 +219,7 @@ func Test_TemplatesEmbedded(t *testing.T) {
 	for _, tmplName := range expectedTemplates {
 		t.Run(tmplName, func(t *testing.T) {
 			tmpl := templates.Lookup(tmplName)
-			require.NotNil(t, tmpl, "Template %s should exist", tmplName)
+			require.NotNil(t, tmpl)
 		})
 	}
 }
@@ -247,8 +242,7 @@ func Test_HandleSchemaView_URLPushUrl(t *testing.T) {
 	body := w.Body.String()
 
 	// Verify that schema format buttons have hx-push-url
-	require.Contains(t, body, `hx-push-url="true"`,
-		"Schema view should have hx-push-url for format buttons")
+	require.Contains(t, body, `hx-push-url="true"`)
 }
 
 func Test_HandleColumnsView_Breadcrumbs(t *testing.T) {
@@ -279,8 +273,7 @@ func Test_HandleIndexPage_HTMXIncluded(t *testing.T) {
 	body := w.Body.String()
 
 	// Verify HTMX is included from CDN
-	require.Contains(t, body, "unpkg.com/htmx.org",
-		"Index page should include HTMX from CDN")
+	require.Contains(t, body, "unpkg.com/htmx.org")
 }
 
 func Test_HandleIndexPage_ContentArea(t *testing.T) {
@@ -296,14 +289,11 @@ func Test_HandleIndexPage_ContentArea(t *testing.T) {
 	body := w.Body.String()
 
 	// Verify content area exists for HTMX target
-	require.Contains(t, body, `id="content-area"`,
-		"Index page should have content-area div")
+	require.Contains(t, body, `id="content-area"`)
 
 	// Verify it loads main view on page load
-	require.Contains(t, body, `hx-get="/ui/main"`,
-		"Content area should load main view")
-	require.Contains(t, body, `hx-trigger="load"`,
-		"Content area should trigger on load")
+	require.Contains(t, body, `hx-get="/ui/main"`)
+	require.Contains(t, body, `hx-trigger="load"`)
 }
 
 func Test_RouteMethodRestrictions(t *testing.T) {
@@ -328,8 +318,7 @@ func Test_RouteMethodRestrictions(t *testing.T) {
 			router.ServeHTTP(w, req)
 
 			// Should return 405 Method Not Allowed
-			require.Equal(t, http.StatusMethodNotAllowed, w.Code,
-				"POST to %s should return 405", route)
+			require.Equal(t, http.StatusMethodNotAllowed, w.Code)
 		})
 	}
 }
@@ -396,7 +385,7 @@ func Test_HandleIndexPage_ErrorHandling(t *testing.T) {
 
 	service.handleIndexPage(w, req)
 
-	require.Equal(t, http.StatusOK, w.Code, "Index page should return 200 even with test service")
+	require.Equal(t, http.StatusOK, w.Code)
 }
 
 func Test_HandleSchemaView_Response(t *testing.T) {
@@ -437,8 +426,7 @@ func Test_NotFoundHandler(t *testing.T) {
 
 			router.ServeHTTP(w, req)
 
-			require.Equal(t, http.StatusNotFound, w.Code,
-				"Should return 404 for %s", path)
+			require.Equal(t, http.StatusNotFound, w.Code)
 		})
 	}
 }
@@ -461,15 +449,15 @@ func Test_HandleSchemaView_ButtonOrder(t *testing.T) {
 	goIndex := strings.Index(body, "Go Struct</button>")
 	csvIndex := strings.Index(body, "CSV</button>")
 
-	require.NotEqual(t, -1, jsonIndex, "JSON button should exist")
-	require.NotEqual(t, -1, rawIndex, "Raw button should exist")
-	require.NotEqual(t, -1, goIndex, "Go Struct button should exist")
-	require.NotEqual(t, -1, csvIndex, "CSV button should exist")
+	require.NotEqual(t, -1, jsonIndex)
+	require.NotEqual(t, -1, rawIndex)
+	require.NotEqual(t, -1, goIndex)
+	require.NotEqual(t, -1, csvIndex)
 
 	// Verify order
-	require.Less(t, jsonIndex, rawIndex, "JSON should come before Raw")
-	require.Less(t, rawIndex, goIndex, "Raw should come before Go Struct")
-	require.Less(t, goIndex, csvIndex, "Go Struct should come before CSV")
+	require.Less(t, jsonIndex, rawIndex)
+	require.Less(t, rawIndex, goIndex)
+	require.Less(t, goIndex, csvIndex)
 }
 
 func Test_HandleIndexPage_IIFEScript(t *testing.T) {
@@ -502,7 +490,7 @@ func Test_HandleSchemaView_ActiveButton(t *testing.T) {
 	body := w.Body.String()
 
 	// Verify that JSON button has "active" class
-	require.Contains(t, body, `class="schema-btn active"`, "JSON button should have active class")
+	require.Contains(t, body, `class="schema-btn active"`)
 }
 
 func Test_OpenBrowser_AllPlatforms(t *testing.T) {
@@ -590,17 +578,17 @@ func Test_HandleSchemaView_IIFE(t *testing.T) {
 
 func Test_TemplatesFunctions(t *testing.T) {
 	// Verify templates are loaded and not nil
-	require.NotNil(t, templates, "Templates should be initialized")
+	require.NotNil(t, templates)
 
 	// Verify specific templates exist
 	tmpl := templates.Lookup("index.html")
-	require.NotNil(t, tmpl, "index.html template should exist")
+	require.NotNil(t, tmpl)
 
 	tmpl = templates.Lookup("schema")
-	require.NotNil(t, tmpl, "schema template should exist")
+	require.NotNil(t, tmpl)
 
 	tmpl = templates.Lookup("main")
-	require.NotNil(t, tmpl, "main template should exist")
+	require.NotNil(t, tmpl)
 }
 
 func Test_HandleSchemaView_DataAttributes(t *testing.T) {
@@ -633,7 +621,7 @@ func Test_RouteRegistration(t *testing.T) {
 	})
 
 	// Should have 11 routes + NotFoundHandler
-	require.Greater(t, routeCount, 10, "Should have all routes registered")
+	require.Greater(t, routeCount, 10)
 }
 
 func Test_NotFoundHandler_ContentType(t *testing.T) {
@@ -678,7 +666,7 @@ func createTestServiceWithFile(t *testing.T, filename string) *ParquetService {
 	}
 
 	svc, err := NewParquetService(path, pio.ReadOption{})
-	require.NoError(t, err, "Failed to create service with %s", filename)
+	require.NoError(t, err)
 
 	return svc
 }
@@ -765,7 +753,7 @@ func Test_HandleSchemaJSONView_WithRealFile(t *testing.T) {
 	// Verify it's valid JSON by unmarshaling
 	var jsonData interface{}
 	err := json.Unmarshal(w.Body.Bytes(), &jsonData)
-	require.NoError(t, err, "Response should be valid JSON")
+	require.NoError(t, err)
 }
 
 func Test_HandleSchemaCSVView_WithRealFile(t *testing.T) {
@@ -819,7 +807,7 @@ func Test_HandleSchemaRawView_WithRealFile(t *testing.T) {
 	// Verify it's valid JSON by unmarshaling
 	var jsonData interface{}
 	err := json.Unmarshal(w.Body.Bytes(), &jsonData)
-	require.NoError(t, err, "Response should be valid JSON")
+	require.NoError(t, err)
 }
 
 func Test_HandleRowGroupsView_WithRealFile(t *testing.T) {
@@ -969,8 +957,8 @@ func Test_AllSchemaFormats_WithDifferentFiles(t *testing.T) {
 
 			router.ServeHTTP(w, req)
 
-			require.Equal(t, http.StatusOK, w.Code, "Should handle %s", tc.endpoint)
-			require.NotEmpty(t, w.Body.String(), "Response should not be empty")
+			require.Equal(t, http.StatusOK, w.Code)
+			require.NotEmpty(t, w.Body.String())
 		})
 	}
 }
@@ -1082,8 +1070,7 @@ func Test_HandlePageContentView_InvalidIndices(t *testing.T) {
 
 			router.ServeHTTP(w, req)
 
-			require.Equal(t, tt.expectedStatus, w.Code,
-				"Should return %d for %s", tt.expectedStatus, tt.name)
+			require.Equal(t, tt.expectedStatus, w.Code)
 		})
 	}
 }
@@ -1106,8 +1093,7 @@ func Test_HandleColumnsView_InvalidRowGroupIndex(t *testing.T) {
 
 	router.ServeHTTP(w, req)
 
-	require.Equal(t, http.StatusNotFound, w.Code,
-		"Should return 404 for out of range row group")
+	require.Equal(t, http.StatusNotFound, w.Code)
 }
 
 // Test handlePagesView with invalid indices
@@ -1173,8 +1159,7 @@ func Test_HandlePagesView_InvalidIndices(t *testing.T) {
 
 			router.ServeHTTP(w, req)
 
-			require.Equal(t, tt.expectedStatus, w.Code,
-				"Should return %d for %s", tt.expectedStatus, tt.name)
+			require.Equal(t, tt.expectedStatus, w.Code)
 		})
 	}
 }
@@ -1759,9 +1744,7 @@ func Test_WebUI_AllSchemaHandlers_Comprehensive(t *testing.T) {
 					continue
 				}
 
-				require.Equal(t, http.StatusOK, w.Code,
-					"Expected OK for %s with %s. Body: %s",
-					endpoint, filename, w.Body.String())
+				require.Equal(t, http.StatusOK, w.Code)
 			}
 		})
 	}
@@ -1822,8 +1805,7 @@ func Test_WebUI_MaximizeCoverage(t *testing.T) {
 
 			router.ServeHTTP(w, req)
 
-			require.Equal(t, http.StatusOK, w.Code,
-				"Expected OK for %s. Body: %s", endpoint, w.Body.String())
+			require.Equal(t, http.StatusOK, w.Code)
 			require.NotEmpty(t, w.Body.String())
 		})
 	}
@@ -2009,7 +1991,7 @@ func Test_StartWebUIServer_Success(t *testing.T) {
 
 	// Find a free port
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	require.NoError(t, err, "Failed to find free port")
+	require.NoError(t, err)
 	addr := listener.Addr().String()
 	_ = listener.Close()
 
@@ -2028,12 +2010,12 @@ func Test_StartWebUIServer_Success(t *testing.T) {
 		defer func() {
 			_ = resp.Body.Close()
 		}()
-		require.Equal(t, http.StatusOK, resp.StatusCode, "Server should respond with 200 OK")
+		require.Equal(t, http.StatusOK, resp.StatusCode)
 
 		// Verify response contains expected HTML
 		body, _ := io.ReadAll(resp.Body)
-		require.Contains(t, string(body), "<!DOCTYPE html>", "Response should contain HTML doctype")
-		require.Contains(t, string(body), "Parquet Browser", "Response should contain page title")
+		require.Contains(t, string(body), "<!DOCTYPE html>")
+		require.Contains(t, string(body), "Parquet Browser")
 	} else {
 		t.Logf("Server may not have started yet: %v", err)
 	}
@@ -2062,7 +2044,7 @@ func Test_StartWebUIServer_AddressFormat(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Find a free port first
 			listener, err := net.Listen("tcp", tt.addr)
-			require.NoError(t, err, "Failed to find free port")
+			require.NoError(t, err)
 			actualAddr := listener.Addr().String()
 			_ = listener.Close()
 
@@ -2132,8 +2114,7 @@ func Test_StartWebUIServer_RouterSetup(t *testing.T) {
 				defer func() {
 					_ = resp.Body.Close()
 				}()
-				require.Equal(t, route.expectedStatus, resp.StatusCode,
-					"Route %s should return %d", route.path, route.expectedStatus)
+				require.Equal(t, route.expectedStatus, resp.StatusCode)
 			}
 		})
 	}
@@ -2171,8 +2152,7 @@ func Test_StartWebUIServer_CORSHeaders(t *testing.T) {
 		}()
 
 		// Should have CORS headers from middleware
-		require.NotEmpty(t, resp.Header.Get("Access-Control-Allow-Origin"),
-			"Should have CORS headers")
+		require.NotEmpty(t, resp.Header.Get("Access-Control-Allow-Origin"))
 	}
 }
 
@@ -2190,7 +2170,7 @@ func Test_StartWebUIServer_InvalidAddress(t *testing.T) {
 	invalidAddr := "invalid:address:format"
 
 	err := StartWebUIServer(svc, invalidAddr)
-	require.Error(t, err, "Should return error for invalid address")
+	require.Error(t, err)
 }
 
 // Test StartWebUIServer - port already in use
@@ -2213,7 +2193,7 @@ func Test_StartWebUIServer_PortInUse(t *testing.T) {
 
 	// Try to start server on the same port
 	err = StartWebUIServer(svc, addr)
-	require.Error(t, err, "Should return error when port is already in use")
+	require.Error(t, err)
 	require.Contains(t, err.Error(), "address already in use")
 }
 
@@ -2238,27 +2218,20 @@ func Test_HandlePagesView_ReaderError_RendersErrorPartial(t *testing.T) {
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
-	require.Equal(t, http.StatusOK, w.Code,
-		"reader-error path must return 200 so HTMX swaps the content")
+	require.Equal(t, http.StatusOK, w.Code)
 	require.Equal(t, "text/html; charset=utf-8", w.Header().Get("Content-Type"))
 	// Retarget headers keep the underlying columns view visible and floating
 	// the modal on top of <body> via beforeend.
-	require.Equal(t, "body", w.Header().Get("HX-Retarget"),
-		"modal should be appended to body, not replacing the content area")
+	require.Equal(t, "body", w.Header().Get("HX-Retarget"))
 	require.Equal(t, "beforeend", w.Header().Get("HX-Reswap"))
-	require.Equal(t, "false", w.Header().Get("HX-Push-Url"),
-		"failed routes must not be pushed into history")
+	require.Equal(t, "false", w.Header().Get("HX-Push-Url"))
 
 	body := w.Body.String()
-	require.Contains(t, body, "Cannot read this column",
-		"generic reader errors should render the default error title")
-	require.NotContains(t, body, `id="pb-error-modal"`,
-		"error modal must not use a fixed ID because HTMX appends failures")
-	require.Contains(t, body, `class="pb-modal-overlay pb-error-modal"`,
-		"error partial should render the modal overlay element")
-	require.Contains(t, body, "pb-error-modal", "modal must include a close affordance")
-	require.Contains(t, body, `this.closest('.pb-modal-overlay').remove()`,
-		"close buttons should remove the current modal from the DOM")
+	require.Contains(t, body, "Cannot read this column")
+	require.NotContains(t, body, `id="pb-error-modal"`)
+	require.Contains(t, body, `class="pb-modal-overlay pb-error-modal"`)
+	require.Contains(t, body, "pb-error-modal")
+	require.Contains(t, body, `this.closest('.pb-modal-overlay').remove()`)
 }
 
 // Test_HandlePagesView_EncryptionError_FriendlyMessage tags the encryption
@@ -2294,8 +2267,7 @@ func Test_HandlePageContentView_ReaderError_RendersErrorPartial(t *testing.T) {
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
-	require.Equal(t, http.StatusOK, w.Code,
-		"reader-error path must return 200 so HTMX swaps the content")
+	require.Equal(t, http.StatusOK, w.Code)
 	require.Equal(t, "body", w.Header().Get("HX-Retarget"))
 	require.Equal(t, "beforeend", w.Header().Get("HX-Reswap"))
 	body := w.Body.String()
@@ -2308,18 +2280,18 @@ func Test_HandlePageContentView_ReaderError_RendersErrorPartial(t *testing.T) {
 func Test_formatNullCount(t *testing.T) {
 	t.Run("Nil value", func(t *testing.T) {
 		result := formatNullCount(nil)
-		require.Equal(t, "-", result, "Should return '-' for nil")
+		require.Equal(t, "-", result)
 	})
 
 	t.Run("Non-nil value", func(t *testing.T) {
 		count := int64(42)
 		result := formatNullCount(&count)
-		require.Equal(t, "42", result, "Should format the count")
+		require.Equal(t, "42", result)
 	})
 
 	t.Run("Zero count", func(t *testing.T) {
 		count := int64(0)
 		result := formatNullCount(&count)
-		require.Equal(t, "0", result, "Should format zero")
+		require.Equal(t, "0", result)
 	})
 }

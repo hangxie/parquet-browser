@@ -37,8 +37,8 @@ func Test_ErrorVariables(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			require.NotNil(t, tt.err, "%s should not be nil", tt.name)
-			require.Equal(t, tt.expected, tt.err.Error(), "%s.Error() should match", tt.name)
+			require.NotNil(t, tt.err)
+			require.Equal(t, tt.expected, tt.err.Error())
 		})
 	}
 }
@@ -46,26 +46,26 @@ func Test_ErrorVariables(t *testing.T) {
 func Test_ErrorComparison(t *testing.T) {
 	t.Run("ErrInvalidRowGroupIndex can be compared", func(t *testing.T) {
 		err := ErrInvalidRowGroupIndex
-		require.ErrorIs(t, err, ErrInvalidRowGroupIndex, "errors.Is() should return true for same error")
-		require.NotErrorIs(t, err, ErrInvalidColumnIndex, "errors.Is() should return false for different error")
+		require.ErrorIs(t, err, ErrInvalidRowGroupIndex)
+		require.NotErrorIs(t, err, ErrInvalidColumnIndex)
 	})
 
 	t.Run("ErrInvalidColumnIndex can be compared", func(t *testing.T) {
 		err := ErrInvalidColumnIndex
-		require.ErrorIs(t, err, ErrInvalidColumnIndex, "errors.Is() should return true for same error")
-		require.NotErrorIs(t, err, ErrInvalidPageIndex, "errors.Is() should return false for different error")
+		require.ErrorIs(t, err, ErrInvalidColumnIndex)
+		require.NotErrorIs(t, err, ErrInvalidPageIndex)
 	})
 
 	t.Run("ErrInvalidPageIndex can be compared", func(t *testing.T) {
 		err := ErrInvalidPageIndex
-		require.ErrorIs(t, err, ErrInvalidPageIndex, "errors.Is() should return true for same error")
-		require.NotErrorIs(t, err, ErrInvalidRowGroupIndex, "errors.Is() should return false for different error")
+		require.ErrorIs(t, err, ErrInvalidPageIndex)
+		require.NotErrorIs(t, err, ErrInvalidRowGroupIndex)
 	})
 
 	t.Run("ErrInvalidPageType can be compared", func(t *testing.T) {
 		err := ErrInvalidPageType
-		require.ErrorIs(t, err, ErrInvalidPageType, "errors.Is() should return true for same error")
-		require.NotErrorIs(t, err, ErrInvalidColumnIndex, "errors.Is() should return false for different error")
+		require.ErrorIs(t, err, ErrInvalidPageType)
+		require.NotErrorIs(t, err, ErrInvalidColumnIndex)
 	})
 }
 
@@ -122,7 +122,7 @@ func Test_AllErrorsAreDifferent(t *testing.T) {
 	for i, err1 := range allErrors {
 		for j, err2 := range allErrors {
 			if i != j {
-				require.NotEqual(t, err1, err2, "Error at index %d and %d should be different", i, j)
+				require.NotEqual(t, err1, err2)
 			}
 		}
 	}
@@ -165,8 +165,8 @@ func Test_ErrorMessages(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			msg := tt.err.Error()
-			require.GreaterOrEqual(t, len(msg), tt.minLength, "Error message too short: %q", msg)
-			require.Contains(t, msg, tt.shouldContain, "Error message should contain expected substring")
+			require.GreaterOrEqual(t, len(msg), tt.minLength)
+			require.Contains(t, msg, tt.shouldContain)
 		})
 	}
 }
