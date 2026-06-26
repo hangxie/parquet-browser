@@ -7,8 +7,8 @@ require (
 	github.com/atotto/clipboard v0.1.4
 	github.com/gdamore/tcell/v2 v2.13.10
 	github.com/gorilla/mux v1.8.1
-	github.com/hangxie/parquet-go/v3 v3.2.1
-	github.com/hangxie/parquet-tools v1.50.0
+	github.com/hangxie/parquet-go/v3 v3.3.0
+	github.com/hangxie/parquet-tools v1.51.0
 	github.com/posener/complete v1.2.3
 	github.com/rivo/tview v0.42.0
 	github.com/stretchr/testify v1.11.1
@@ -46,7 +46,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.9.22 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.29 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.19.29 // indirect
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.103.3 // indirect
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.104.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/signin v1.2.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sso v1.31.3 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.36.6 // indirect
@@ -87,7 +87,7 @@ require (
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/riywo/loginshell v0.0.0-20200815045211-7d26008be1ab // indirect
 	github.com/spiffe/go-spiffe/v2 v2.6.0 // indirect
-	go.mongodb.org/mongo-driver/v2 v2.6.0 // indirect
+	go.mongodb.org/mongo-driver/v2 v2.7.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
 	go.opentelemetry.io/contrib/detectors/gcp v1.43.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.68.0 // indirect
@@ -97,19 +97,19 @@ require (
 	go.opentelemetry.io/otel/sdk v1.43.0 // indirect
 	go.opentelemetry.io/otel/sdk/metric v1.43.0 // indirect
 	go.opentelemetry.io/otel/trace v1.43.0 // indirect
-	golang.org/x/crypto v0.52.0 // indirect
+	golang.org/x/crypto v0.53.0 // indirect
 	golang.org/x/exp v0.0.0-20260508232706-74f9aab9d74a // indirect
-	golang.org/x/net v0.55.0 // indirect
+	golang.org/x/net v0.56.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/sync v0.21.0 // indirect
-	golang.org/x/sys v0.45.0 // indirect
-	golang.org/x/term v0.43.0 // indirect
-	golang.org/x/text v0.37.0 // indirect
+	golang.org/x/sys v0.46.0 // indirect
+	golang.org/x/term v0.44.0 // indirect
+	golang.org/x/text v0.38.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
-	google.golang.org/api v0.284.0 // indirect
+	google.golang.org/api v0.285.0 // indirect
 	google.golang.org/genproto v0.0.0-20260522204824-7f3bc5b78da9 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260522204824-7f3bc5b78da9 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260526163538-3dc84a4a5aaa // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260610212136-7ab31c22f7ad // indirect
 	google.golang.org/grpc v1.81.1 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
