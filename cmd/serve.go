@@ -18,13 +18,28 @@ type ServeCmd struct {
 
 // Run starts the HTTP API server
 func (s ServeCmd) Run() error {
+	// Application-lifetime context cancelled on SIGINT/SIGTERM so that opening
+	// the source and the running server shut down gracefully on termination.
+	ctx, stop := notifyContext()
+	defer stop()
+	return s.run(ctx)
+}
+
+// run performs the work of Run against ctx, split out so the interrupt-handling
+// behavior is unit-testable without installing signal handlers.
+func (s ServeCmd) run(ctx context.Context) error {
 	// Create the service
-	svc, err := service.NewParquetService(context.Background(), s.URI, s.ReadOption)
+	svc, err := service.NewParquetService(ctx, s.URI, s.ReadOption)
 	if err != nil {
+		if ctx.Err() != nil {
+			// Interrupted while opening the source: exit cleanly, like the
+			// graceful-shutdown path, rather than printing the cancellation.
+			return nil
+		}
 		return fmt.Errorf("failed to create service: %w", err)
 	}
 	defer func() { _ = svc.Close() }()
 
 	// Start the server
-	return service.StartServer(svc, s.Addr)
+	return service.StartServer(ctx, svc, s.Addr)
 }
