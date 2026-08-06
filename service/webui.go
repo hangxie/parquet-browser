@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"embed"
 	"encoding/json"
 	"errors"
@@ -16,7 +17,6 @@ import (
 
 	"github.com/gorilla/mux"
 	preader "github.com/hangxie/parquet-go/v3/reader"
-	pschema "github.com/hangxie/parquet-tools/schema"
 
 	"github.com/hangxie/parquet-browser/model"
 )
@@ -161,9 +161,9 @@ func (s *ParquetService) handleSchemaView(w http.ResponseWriter, r *http.Request
 
 // handleSchemaGoView returns schema in Go format for HTMX
 func (s *ParquetService) handleSchemaGoView(w http.ResponseWriter, r *http.Request) {
-	schemaRoot, err := pschema.NewSchemaTree(r.Context(), s.parquetReader, pschema.SchemaOption{FailOnInt96: false})
+	schemaRoot, err := s.schemaTree(r.Context())
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to generate schema: %v", err), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Failed to generate schema: %v", err), contextErrorStatus(err, http.StatusInternalServerError))
 		return
 	}
 
@@ -184,9 +184,9 @@ func (s *ParquetService) handleSchemaGoView(w http.ResponseWriter, r *http.Reque
 
 // handleSchemaJSONView returns schema in JSON format for HTMX
 func (s *ParquetService) handleSchemaJSONView(w http.ResponseWriter, r *http.Request) {
-	schemaRoot, err := pschema.NewSchemaTree(r.Context(), s.parquetReader, pschema.SchemaOption{FailOnInt96: false})
+	schemaRoot, err := s.schemaTree(r.Context())
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to generate schema: %v", err), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Failed to generate schema: %v", err), contextErrorStatus(err, http.StatusInternalServerError))
 		return
 	}
 
@@ -198,9 +198,9 @@ func (s *ParquetService) handleSchemaJSONView(w http.ResponseWriter, r *http.Req
 
 // handleSchemaCSVView returns schema in CSV format for HTMX
 func (s *ParquetService) handleSchemaCSVView(w http.ResponseWriter, r *http.Request) {
-	schemaRoot, err := pschema.NewSchemaTree(r.Context(), s.parquetReader, pschema.SchemaOption{FailOnInt96: false})
+	schemaRoot, err := s.schemaTree(r.Context())
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to generate schema: %v", err), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Failed to generate schema: %v", err), contextErrorStatus(err, http.StatusInternalServerError))
 		return
 	}
 
@@ -216,9 +216,9 @@ func (s *ParquetService) handleSchemaCSVView(w http.ResponseWriter, r *http.Requ
 
 // handleSchemaRawView returns raw schema for HTMX (compact JSON)
 func (s *ParquetService) handleSchemaRawView(w http.ResponseWriter, r *http.Request) {
-	schemaRoot, err := pschema.NewSchemaTree(r.Context(), s.parquetReader, pschema.SchemaOption{FailOnInt96: false})
+	schemaRoot, err := s.schemaTree(r.Context())
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to generate schema: %v", err), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Failed to generate schema: %v", err), contextErrorStatus(err, http.StatusInternalServerError))
 		return
 	}
 
@@ -660,7 +660,7 @@ func openBrowser(url string) error {
 }
 
 // StartWebUIServer starts the web UI server
-func StartWebUIServer(service *ParquetService, addr string) error {
+func StartWebUIServer(ctx context.Context, service *ParquetService, addr string) error {
 	r := CreateWebUIRouter(service)
 
 	// Construct the full URL
@@ -677,16 +677,22 @@ func StartWebUIServer(service *ParquetService, addr string) error {
 	fmt.Printf("Opening browser to: %s\n", url)
 	fmt.Println()
 
-	// Open browser in a goroutine with a small delay to ensure server is ready
+	// Open browser in a goroutine with a small delay to ensure server is ready.
+	// Skip it if the context is already cancelled (e.g. shutdown before the
+	// delay elapses) so we do not launch a browser at a URL that never came up.
 	go func() {
-		time.Sleep(500 * time.Millisecond)
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(500 * time.Millisecond):
+		}
 		if err := openBrowser(url); err != nil {
 			fmt.Printf("Note: Could not automatically open browser: %v\n", err)
 			fmt.Printf("Please open your browser and navigate to: %s\n", url)
 		}
 	}()
 
-	return http.ListenAndServe(addr, r)
+	return serveWithShutdown(ctx, addr, r)
 }
 
 // Helper functions for formatting display values
@@ -734,13 +740,9 @@ type webErrorData struct {
 	Detail  string
 }
 
-// renderPagesError renders the error partial as a modal popup that floats over
-// the user's current view. For HTMX requests we retarget the swap to <body>
-// with beforeend so the underlying columns/pages view is preserved — clicking
-// the modal's close button returns the user to exactly where they were. The
-// status code is 200 so that HTMX performs the swap instead of silently
-// ignoring the response. Direct browser requests keep HTTP 404 semantics while
-// rendering the same error view inside the normal wrapper.
+// renderPagesError renders the error partial as a modal over the current view.
+// HTMX requests are retargeted to <body>/beforeend with status 200 so the swap
+// happens and the view is preserved; direct requests use contextErrorStatus.
 func renderPagesError(w http.ResponseWriter, r *http.Request, err error) {
 	title, message := describeReaderError(err)
 	data := webErrorData{
@@ -754,7 +756,7 @@ func renderPagesError(w http.ResponseWriter, r *http.Request, err error) {
 		w.Header().Set("HX-Push-Url", "false")
 	} else {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.WriteHeader(http.StatusNotFound)
+		w.WriteHeader(contextErrorStatus(err, http.StatusNotFound))
 	}
 	if rerr := renderPartial(w, r, "error", data); rerr != nil {
 		http.Error(w, rerr.Error(), http.StatusInternalServerError)
@@ -765,6 +767,9 @@ func renderPagesError(w http.ResponseWriter, r *http.Request, err error) {
 // and message, recognizing the common "decryption key required" case so the
 // user knows which flag to pass.
 func describeReaderError(err error) (title, message string) {
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return "Request interrupted", "The request was cancelled before it completed."
+	}
 	if errors.Is(err, preader.ErrColumnKeyRequired) {
 		columnPath := columnPathFromKeyRequiredError(err)
 		if columnPath != "" {

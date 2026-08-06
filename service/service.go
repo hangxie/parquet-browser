@@ -36,12 +36,26 @@ func NewParquetService(ctx context.Context, uri string, readOpts pio.ReadOption)
 	}, nil
 }
 
-// Close closes the underlying parquet file
+// Close releases the underlying parquet file handles. It is called at teardown
+// once the server has stopped and no requests are in flight.
 func (s *ParquetService) Close() error {
 	if s.reader != nil {
-		return nil // The reader doesn't expose Close, handle at caller level
+		return s.reader.Close()
 	}
 	return nil
+}
+
+// schemaTree builds the parquet schema tree while holding the reader lock,
+// honoring ctx both while waiting and during generation. Routing every schema
+// handler through it guarantees none can forget the lock.
+func (s *ParquetService) schemaTree(ctx context.Context) (*pschema.SchemaNode, error) {
+	var root *pschema.SchemaNode
+	err := s.reader.WithLock(ctx, func() error {
+		var e error
+		root, e = pschema.NewSchemaTree(ctx, s.parquetReader, pschema.SchemaOption{FailOnInt96: false})
+		return e
+	})
+	return root, err
 }
 
 // CreateRouter creates a new router with all routes configured
@@ -83,9 +97,9 @@ func (s *ParquetService) SetupRoutes(r *mux.Router) {
 
 // handleSchemaGo returns schema in Go struct format
 func (s *ParquetService) handleSchemaGo(w http.ResponseWriter, r *http.Request) {
-	schemaRoot, err := pschema.NewSchemaTree(r.Context(), s.parquetReader, pschema.SchemaOption{FailOnInt96: false})
+	schemaRoot, err := s.schemaTree(r.Context())
 	if err != nil {
-		WriteError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to generate schema: %v", err))
+		WriteError(w, contextErrorStatus(err, http.StatusInternalServerError), fmt.Sprintf("Failed to generate schema: %v", err))
 		return
 	}
 
@@ -109,9 +123,9 @@ func (s *ParquetService) handleSchemaGo(w http.ResponseWriter, r *http.Request) 
 
 // handleSchemaJSON returns schema in JSON format
 func (s *ParquetService) handleSchemaJSON(w http.ResponseWriter, r *http.Request) {
-	schemaRoot, err := pschema.NewSchemaTree(r.Context(), s.parquetReader, pschema.SchemaOption{FailOnInt96: false})
+	schemaRoot, err := s.schemaTree(r.Context())
 	if err != nil {
-		WriteError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to generate schema: %v", err))
+		WriteError(w, contextErrorStatus(err, http.StatusInternalServerError), fmt.Sprintf("Failed to generate schema: %v", err))
 		return
 	}
 
@@ -124,9 +138,9 @@ func (s *ParquetService) handleSchemaJSON(w http.ResponseWriter, r *http.Request
 
 // handleSchemaRaw returns the raw schema tree structure as JSON
 func (s *ParquetService) handleSchemaRaw(w http.ResponseWriter, r *http.Request) {
-	schemaRoot, err := pschema.NewSchemaTree(r.Context(), s.parquetReader, pschema.SchemaOption{FailOnInt96: false})
+	schemaRoot, err := s.schemaTree(r.Context())
 	if err != nil {
-		WriteError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to generate schema: %v", err))
+		WriteError(w, contextErrorStatus(err, http.StatusInternalServerError), fmt.Sprintf("Failed to generate schema: %v", err))
 		return
 	}
 
@@ -144,9 +158,9 @@ func (s *ParquetService) handleSchemaRaw(w http.ResponseWriter, r *http.Request)
 
 // handleSchemaCSV returns schema in CSV format
 func (s *ParquetService) handleSchemaCSV(w http.ResponseWriter, r *http.Request) {
-	schemaRoot, err := pschema.NewSchemaTree(r.Context(), s.parquetReader, pschema.SchemaOption{FailOnInt96: false})
+	schemaRoot, err := s.schemaTree(r.Context())
 	if err != nil {
-		WriteError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to generate schema: %v", err))
+		WriteError(w, contextErrorStatus(err, http.StatusInternalServerError), fmt.Sprintf("Failed to generate schema: %v", err))
 		return
 	}
 
@@ -250,7 +264,7 @@ func (s *ParquetService) handlePages(w http.ResponseWriter, r *http.Request) {
 
 	pages, err := s.reader.GetPageMetadataList(r.Context(), rgIndex, colIndex)
 	if err != nil {
-		WriteError(w, http.StatusNotFound, err.Error())
+		WriteError(w, contextErrorStatus(err, http.StatusNotFound), err.Error())
 		return
 	}
 
@@ -280,7 +294,7 @@ func (s *ParquetService) handlePageInfo(w http.ResponseWriter, r *http.Request) 
 
 	pageInfo, err := s.reader.GetPageMetadata(r.Context(), rgIndex, colIndex, pageIndex)
 	if err != nil {
-		WriteError(w, http.StatusNotFound, err.Error())
+		WriteError(w, contextErrorStatus(err, http.StatusNotFound), err.Error())
 		return
 	}
 
@@ -311,7 +325,7 @@ func (s *ParquetService) handlePageContent(w http.ResponseWriter, r *http.Reques
 	// Get pre-formatted values ready for display
 	values, err := s.reader.GetPageContentFormatted(r.Context(), rgIndex, colIndex, pageIndex)
 	if err != nil {
-		WriteError(w, http.StatusNotFound, err.Error())
+		WriteError(w, contextErrorStatus(err, http.StatusNotFound), err.Error())
 		return
 	}
 
@@ -323,8 +337,9 @@ func (s *ParquetService) handlePageContent(w http.ResponseWriter, r *http.Reques
 	WriteJSON(w, http.StatusOK, response)
 }
 
-// StartServer starts the HTTP server with verbose output
-func StartServer(service *ParquetService, addr string) error {
+// StartServer starts the HTTP server with verbose output. It serves until the
+// server fails or ctx is cancelled, at which point it shuts down gracefully.
+func StartServer(ctx context.Context, service *ParquetService, addr string) error {
 	r := CreateRouter(service, false) // verbose mode (not quiet)
 
 	fmt.Printf("Starting Parquet Browser API server on %s\n", addr)
@@ -343,5 +358,5 @@ func StartServer(service *ParquetService, addr string) error {
 	fmt.Printf("  GET /rowgroups/{rgIndex}/columnchunks/{colIndex}/pages/{pageIndex}/content - Page content\n")
 	fmt.Println()
 
-	return http.ListenAndServe(addr, r)
+	return serveWithShutdown(ctx, addr, r)
 }

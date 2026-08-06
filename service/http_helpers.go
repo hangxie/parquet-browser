@@ -1,12 +1,33 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"go/format"
 	"net/http"
 	"strings"
 )
+
+// StatusClientClosedRequest is the non-standard status (popularized by nginx)
+// used when the client's request context is cancelled before a response is
+// produced. It avoids misreporting a cancelled request as 404 Not Found.
+const StatusClientClosedRequest = 499
+
+// contextErrorStatus maps a cancelled or timed-out request context to an
+// appropriate HTTP status, returning fallback otherwise, so handlers do not
+// report an interrupted request as a missing resource.
+func contextErrorStatus(err error, fallback int) int {
+	switch {
+	case errors.Is(err, context.Canceled):
+		return StatusClientClosedRequest
+	case errors.Is(err, context.DeadlineExceeded):
+		return http.StatusServiceUnavailable
+	default:
+		return fallback
+	}
+}
 
 // WriteJSON writes a JSON response with pretty printing
 func WriteJSON(w http.ResponseWriter, status int, data interface{}) {

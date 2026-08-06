@@ -1999,7 +1999,7 @@ func Test_StartWebUIServer_Success(t *testing.T) {
 	// Start server in background
 	serverErr := make(chan error, 1)
 	go func() {
-		serverErr <- StartWebUIServer(svc, addr)
+		serverErr <- StartWebUIServer(context.Background(), svc, addr)
 	}()
 
 	// Wait for server to start
@@ -2052,7 +2052,7 @@ func Test_StartWebUIServer_AddressFormat(t *testing.T) {
 			// Start server in background
 			serverErr := make(chan error, 1)
 			go func() {
-				serverErr <- StartWebUIServer(svc, actualAddr)
+				serverErr <- StartWebUIServer(context.Background(), svc, actualAddr)
 			}()
 
 			// Wait for server to start
@@ -2090,7 +2090,7 @@ func Test_StartWebUIServer_RouterSetup(t *testing.T) {
 
 	// Start server
 	go func() {
-		_ = StartWebUIServer(svc, addr)
+		_ = StartWebUIServer(context.Background(), svc, addr)
 	}()
 
 	// Wait for server to start
@@ -2139,7 +2139,7 @@ func Test_StartWebUIServer_CORSHeaders(t *testing.T) {
 
 	// Start server
 	go func() {
-		_ = StartWebUIServer(svc, addr)
+		_ = StartWebUIServer(context.Background(), svc, addr)
 	}()
 
 	// Wait for server to start
@@ -2170,7 +2170,7 @@ func Test_StartWebUIServer_InvalidAddress(t *testing.T) {
 	// Use an invalid address format
 	invalidAddr := "invalid:address:format"
 
-	err := StartWebUIServer(svc, invalidAddr)
+	err := StartWebUIServer(context.Background(), svc, invalidAddr)
 	require.Error(t, err)
 }
 
@@ -2193,7 +2193,7 @@ func Test_StartWebUIServer_PortInUse(t *testing.T) {
 	}()
 
 	// Try to start server on the same port
-	err = StartWebUIServer(svc, addr)
+	err = StartWebUIServer(context.Background(), svc, addr)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "address already in use")
 }

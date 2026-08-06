@@ -735,50 +735,6 @@ func Test_Close_NilReaderBranch(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// Test Close when reader is not nil
-func Test_Close_NonNilReaderBranch(t *testing.T) {
-	// Create service - reader field is private so we test via constructor
-	// But constructor requires valid parquet file
-	// So we test the path with nil which hits line 40-41
-
-	// Actually, let's use a service struct with non-nil reader
-	// We can't create a real reader, but we can test the struct
-	service := &ParquetService{
-		reader: nil, // Even if we set this, we can't create a real reader without file
-	}
-
-	// This still tests the if branch
-	err := service.Close()
-	require.NoError(t, err)
-}
-
-// The issue is that both branches of Close return nil, so coverage
-// depends on which path is taken. Let's verify both are reachable.
-
-func Test_Close_BothBranches(t *testing.T) {
-	tests := []struct {
-		name   string
-		reader interface{} // Using interface since we can't create real reader
-	}{
-		{
-			name:   "With nil reader",
-			reader: nil,
-		},
-		// We cannot easily test non-nil reader without a parquet file
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			service := &ParquetService{
-				reader: nil, // Can't set to actual ParquetReader without file
-			}
-
-			err := service.Close()
-			require.NoError(t, err)
-		})
-	}
-}
-
 // Test NewParquetService success path with a real parquet file
 func Test_NewParquetService_Success_Path(t *testing.T) {
 	// Try to create a minimal test parquet file
@@ -960,7 +916,7 @@ func Test_StartServer_Success(t *testing.T) {
 	// Start server in background
 	serverErr := make(chan error, 1)
 	go func() {
-		serverErr <- StartServer(service, addr)
+		serverErr <- StartServer(context.Background(), service, addr)
 	}()
 
 	// Wait for server to start
