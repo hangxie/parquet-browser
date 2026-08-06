@@ -1,11 +1,22 @@
 package cmd
 
 import (
+	"context"
 	"testing"
 
 	pio "github.com/hangxie/parquet-tools/io"
 	"github.com/stretchr/testify/require"
 )
+
+// A cancelled context (e.g. Ctrl-C during a slow open) makes run exit cleanly
+// with nil rather than surfacing the cancellation as a command failure.
+func Test_WebUICmd_run_CleanExitOnCancelledContext(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	cmd := WebUICmd{URI: "nonexistent.parquet", Addr: ":0"}
+	require.NoError(t, cmd.run(ctx))
+}
 
 func Test_WebUICmd_Run_InvalidFile(t *testing.T) {
 	cmd := WebUICmd{

@@ -19,12 +19,26 @@ type WebUICmd struct {
 
 // Run starts the Web UI server
 func (w WebUICmd) Run() error {
+	// Application-lifetime context cancelled on SIGINT/SIGTERM so that opening
+	// the source and the running server shut down gracefully on termination.
+	ctx, stop := notifyContext()
+	defer stop()
+	return w.run(ctx)
+}
+
+// run performs the work of Run against ctx, split out so the interrupt-handling
+// behavior is unit-testable without installing signal handlers.
+func (w WebUICmd) run(ctx context.Context) error {
 	// Set version getter for web UI
 	service.SetVersionGetter(GetVersion)
 
 	// Create the service
-	svc, err := service.NewParquetService(context.Background(), w.URI, w.ReadOption)
+	svc, err := service.NewParquetService(ctx, w.URI, w.ReadOption)
 	if err != nil {
+		if ctx.Err() != nil {
+			// Interrupted while opening the source: exit cleanly.
+			return nil
+		}
 		return fmt.Errorf("failed to create service: %w", err)
 	}
 	defer func() { _ = svc.Close() }()
@@ -41,5 +55,5 @@ func (w WebUICmd) Run() error {
 	}
 
 	// Start the web UI server with HTML interface
-	return service.StartWebUIServer(svc, addr)
+	return service.StartWebUIServer(ctx, svc, addr)
 }

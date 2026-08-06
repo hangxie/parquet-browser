@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"net"
 	"net/http"
 	"testing"
@@ -21,6 +22,17 @@ func Test_ServeCmd_Run_InvalidFile(t *testing.T) {
 	err := cmd.Run()
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "failed to create service")
+}
+
+// A cancelled context (e.g. Ctrl-C during a slow open) makes run exit cleanly
+// with nil rather than as a command failure — unlike Test_ServeCmd_Run_InvalidFile,
+// where the same bad URI with a live context returns an error.
+func Test_ServeCmd_run_CleanExitOnCancelledContext(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	cmd := ServeCmd{URI: "nonexistent.parquet", Addr: ":0"}
+	require.NoError(t, cmd.run(ctx))
 }
 
 func Test_ServeCmd_FieldAccess(t *testing.T) {

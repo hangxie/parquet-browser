@@ -2,9 +2,11 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/gdamore/tcell/v2"
@@ -21,10 +23,16 @@ type TUICmd struct {
 	pio.ReadOption
 }
 
+// tuiShutdownGrace bounds the embedded server's graceful shutdown before
+// connections are force-closed.
+const tuiShutdownGrace = 5 * time.Second
+
 // serverResult contains the result of HTTP server startup
 type serverResult struct {
 	serverURL string
 	server    *http.Server
+	serveErr  <-chan error            // carries ListenAndServe's result for shutdown
+	svc       *service.ParquetService // owned by the caller; must be closed on teardown
 	err       error
 }
 
@@ -50,6 +58,7 @@ func startHTTPServer(ctx context.Context, uri string, readOpt pio.ReadOption, re
 	// Find an available port
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
+		_ = svc.Close() // release the reader we just opened
 		select {
 		case <-ctx.Done():
 			return
@@ -67,16 +76,15 @@ func startHTTPServer(ctx context.Context, uri string, readOpt pio.ReadOption, re
 		Handler: router,
 	}
 
-	// Start server in background
+	// Start server in background, capturing ListenAndServe's result so the
+	// shutdown path can wait for it (same lifecycle as serve/web-ui).
+	serveErrCh := make(chan error, 1)
 	go func() {
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			// Server error - ignore if already cancelled
-			select {
-			case <-ctx.Done():
-			default:
-				// Log error but don't send to channel as it may be full
-			}
+		err := server.ListenAndServe()
+		if errors.Is(err, http.ErrServerClosed) {
+			err = nil
 		}
+		serveErrCh <- err
 	}()
 
 	// Wait for server to be ready
@@ -92,9 +100,10 @@ func startHTTPServer(ctx context.Context, uri string, readOpt pio.ReadOption, re
 
 	select {
 	case <-ctx.Done():
-		_ = server.Shutdown(context.Background())
+		_ = service.ShutdownServer(server, serveErrCh, tuiShutdownGrace)
+		_ = svc.Close()
 		return
-	case resultChan <- serverResult{serverURL: serverURL, server: server}:
+	case resultChan <- serverResult{serverURL: serverURL, server: server, serveErr: serveErrCh, svc: svc}:
 	}
 }
 
@@ -134,14 +143,24 @@ func (b TUICmd) Run() error {
 	// Start embedded HTTP server in background
 	go startHTTPServerForRun(ctx, b.URI, b.ReadOption, resultChan)
 
-	// Start the app and wait for server startup
-	var httpServer *http.Server
+	// Start the app and wait for server startup. The receiver records the result
+	// under mu as soon as it arrives — before the UI callback, which may never run
+	// after Stop — and recvDone lets cleanup wait for it to stop using resultChan.
+	var (
+		mu       sync.Mutex
+		result   *serverResult
+		recvDone = make(chan struct{})
+	)
 	go func() {
+		defer close(recvDone)
 		select {
 		case <-ctx.Done():
-			// User cancelled
+			// User cancelled before startup completed.
 			return
 		case res := <-resultChan:
+			mu.Lock()
+			result = &res
+			mu.Unlock()
 			app.tviewApp.QueueUpdateDraw(func() {
 				if res.err != nil {
 					// Show error modal
@@ -156,9 +175,6 @@ func (b TUICmd) Run() error {
 					app.pages.SwitchToPage("error")
 					return
 				}
-
-				// Store server reference for cleanup
-				httpServer = res.server
 
 				// Create HTTP client and store in app
 				app.httpClient = newParquetClient(res.serverURL)
@@ -176,11 +192,33 @@ func (b TUICmd) Run() error {
 	// Run the app
 	err := app.tviewApp.Run()
 
-	// Clean up - shutdown HTTP server
-	if httpServer != nil {
-		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer shutdownCancel()
-		_ = httpServer.Shutdown(shutdownCtx)
+	// Ensure the receiver goroutine has exited (so it no longer competes for
+	// resultChan), then clean up whatever startup produced — regardless of
+	// whether the UI callback ran.
+	cancel()
+	<-recvDone
+
+	mu.Lock()
+	res := result
+	mu.Unlock()
+	if res == nil {
+		// The receiver exited via ctx.Done without consuming; a result may still
+		// be buffered if the server came up just as we cancelled.
+		select {
+		case buffered := <-resultChan:
+			res = &buffered
+		default:
+		}
+	}
+	if res != nil {
+		// Shutdown the server (force-closing and waiting for its goroutine),
+		// then release the reader's file handles.
+		if res.server != nil {
+			_ = service.ShutdownServer(res.server, res.serveErr, tuiShutdownGrace)
+		}
+		if res.svc != nil {
+			_ = res.svc.Close()
+		}
 	}
 
 	// If cancelled, return nil (successful cancellation)
