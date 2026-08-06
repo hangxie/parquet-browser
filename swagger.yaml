@@ -1,7 +1,18 @@
 openapi: 3.0.0
 info:
   title: Parquet Browser API
-  description: This document describes the HTTP API endpoints provided by the Parquet Browser service.
+  description: |
+    This document describes the HTTP API endpoints provided by the Parquet Browser service.
+
+    Endpoints that read the underlying Parquet source (the schema and page
+    endpoints) may additionally return:
+    - 499 (Client Closed Request) if the client disconnects before the read
+      completes, or the request is interrupted by server shutdown.
+    - 503 (Service Unavailable) if the request context exceeds its deadline.
+
+    These statuses reuse the standard error response shape and are only produced
+    when the request could not be completed; a connected client that waits for a
+    response never observes them.
   version: 1.0.0
 servers:
   - url: http://localhost:8080
