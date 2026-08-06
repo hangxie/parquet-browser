@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -281,7 +282,7 @@ func Test_HandlePageContent_InvalidIndices(t *testing.T) {
 
 func Test_NewParquetService_InvalidFile(t *testing.T) {
 	// Test with non-existent file
-	_, err := NewParquetService("nonexistent.parquet", pio.ReadOption{})
+	_, err := NewParquetService(context.Background(), "nonexistent.parquet", pio.ReadOption{})
 	require.Error(t, err)
 
 	// Check error message
@@ -500,7 +501,7 @@ func Test_NewParquetService_InvalidURIs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			svc, err := NewParquetService(tt.uri, pio.ReadOption{})
+			svc, err := NewParquetService(context.Background(), tt.uri, pio.ReadOption{})
 			require.Error(t, err)
 			if svc != nil {
 				_ = svc.Close()
@@ -787,7 +788,7 @@ func Test_NewParquetService_Success_Path(t *testing.T) {
 	}
 	defer func() { _ = os.Remove(parquetFile) }()
 
-	service, err := NewParquetService(parquetFile, pio.ReadOption{})
+	service, err := NewParquetService(context.Background(), parquetFile, pio.ReadOption{})
 	if err != nil {
 		t.Skipf("Failed to create service (parquet-tools not available): %v", err)
 	}
@@ -807,7 +808,7 @@ func Test_Close_Success_Path(t *testing.T) {
 	}
 	defer func() { _ = os.Remove(parquetFile) }()
 
-	service, err := NewParquetService(parquetFile, pio.ReadOption{})
+	service, err := NewParquetService(context.Background(), parquetFile, pio.ReadOption{})
 	if err != nil {
 		t.Skipf("Failed to create service: %v", err)
 	}
@@ -825,7 +826,7 @@ func Test_AllHandlers_WithRealService(t *testing.T) {
 	}
 	defer func() { _ = os.Remove(parquetFile) }()
 
-	service, err := NewParquetService(parquetFile, pio.ReadOption{})
+	service, err := NewParquetService(context.Background(), parquetFile, pio.ReadOption{})
 	if err != nil {
 		t.Skipf("Failed to create service: %v", err)
 	}
@@ -878,7 +879,7 @@ func Test_HandleSchemaJSON_JSONUnmarshalError(t *testing.T) {
 	}
 	defer func() { _ = os.Remove(parquetFile) }()
 
-	service, err := NewParquetService(parquetFile, pio.ReadOption{})
+	service, err := NewParquetService(context.Background(), parquetFile, pio.ReadOption{})
 	if err != nil {
 		t.Skipf("Failed to create service: %v", err)
 	}
@@ -903,7 +904,7 @@ func Test_Handlers_ErrorResponses(t *testing.T) {
 	}
 	defer func() { _ = os.Remove(parquetFile) }()
 
-	service, err := NewParquetService(parquetFile, pio.ReadOption{})
+	service, err := NewParquetService(context.Background(), parquetFile, pio.ReadOption{})
 	if err != nil {
 		t.Skipf("Failed to create service: %v", err)
 	}
@@ -944,7 +945,7 @@ func Test_StartServer_Success(t *testing.T) {
 	}
 	defer func() { _ = os.Remove(parquetFile) }()
 
-	service, err := NewParquetService(parquetFile, pio.ReadOption{})
+	service, err := NewParquetService(context.Background(), parquetFile, pio.ReadOption{})
 	if err != nil {
 		t.Skipf("Failed to create service: %v", err)
 	}
@@ -1040,7 +1041,7 @@ func Test_Handler_CoveragePaths(t *testing.T) {
 	}
 	defer func() { _ = os.Remove(parquetFile) }()
 
-	service, err := NewParquetService(parquetFile, pio.ReadOption{})
+	service, err := NewParquetService(context.Background(), parquetFile, pio.ReadOption{})
 	if err != nil {
 		t.Skipf("Failed to create service: %v", err)
 	}
@@ -1096,7 +1097,7 @@ func Test_HandlePageContent_ResponseStructure(t *testing.T) {
 	}
 	defer func() { _ = os.Remove(parquetFile) }()
 
-	service, err := NewParquetService(parquetFile, pio.ReadOption{})
+	service, err := NewParquetService(context.Background(), parquetFile, pio.ReadOption{})
 	if err != nil {
 		t.Skipf("Failed to create service: %v", err)
 	}
@@ -1131,7 +1132,7 @@ func Test_SchemaEndpoints_ContentTypes(t *testing.T) {
 	}
 	defer func() { _ = os.Remove(parquetFile) }()
 
-	service, err := NewParquetService(parquetFile, pio.ReadOption{})
+	service, err := NewParquetService(context.Background(), parquetFile, pio.ReadOption{})
 	if err != nil {
 		t.Skipf("Failed to create service: %v", err)
 	}
@@ -1173,7 +1174,7 @@ func Test_Handlers_Concurrent(t *testing.T) {
 	}
 	defer func() { _ = os.Remove(parquetFile) }()
 
-	service, err := NewParquetService(parquetFile, pio.ReadOption{})
+	service, err := NewParquetService(context.Background(), parquetFile, pio.ReadOption{})
 	if err != nil {
 		t.Skipf("Failed to create service: %v", err)
 	}
@@ -1210,7 +1211,7 @@ func getTestParquetFile() string {
 
 // Test handleSchemaGo returns Go struct format
 func Test_HandleSchemaGo_Success(t *testing.T) {
-	service, err := NewParquetService(getTestParquetFile(), pio.ReadOption{})
+	service, err := NewParquetService(context.Background(), getTestParquetFile(), pio.ReadOption{})
 	if err != nil {
 		t.Skipf("Failed to create service: %v", err)
 	}
@@ -1242,7 +1243,7 @@ func Test_HandleSchemaGo_Success(t *testing.T) {
 
 // Test handleSchemaJSON returns JSON format
 func Test_HandleSchemaJSON_Success(t *testing.T) {
-	service, err := NewParquetService(getTestParquetFile(), pio.ReadOption{})
+	service, err := NewParquetService(context.Background(), getTestParquetFile(), pio.ReadOption{})
 	if err != nil {
 		t.Skipf("Failed to create service: %v", err)
 	}
@@ -1268,7 +1269,7 @@ func Test_HandleSchemaJSON_Success(t *testing.T) {
 
 // Test handleSchemaRaw returns raw schema tree
 func Test_HandleSchemaRaw_Success(t *testing.T) {
-	service, err := NewParquetService(getTestParquetFile(), pio.ReadOption{})
+	service, err := NewParquetService(context.Background(), getTestParquetFile(), pio.ReadOption{})
 	if err != nil {
 		t.Skipf("Failed to create service: %v", err)
 	}
@@ -1296,7 +1297,7 @@ func Test_HandleSchemaRaw_Success(t *testing.T) {
 
 // Test handleSchemaCSV returns CSV format or error
 func Test_HandleSchemaCSV_Success(t *testing.T) {
-	service, err := NewParquetService(getTestParquetFile(), pio.ReadOption{})
+	service, err := NewParquetService(context.Background(), getTestParquetFile(), pio.ReadOption{})
 	if err != nil {
 		t.Skipf("Failed to create service: %v", err)
 	}
@@ -1332,7 +1333,7 @@ func Test_HandleSchemaCSV_Success(t *testing.T) {
 
 // Test handleFileInfo returns file metadata
 func Test_HandleFileInfo_Success(t *testing.T) {
-	service, err := NewParquetService(getTestParquetFile(), pio.ReadOption{})
+	service, err := NewParquetService(context.Background(), getTestParquetFile(), pio.ReadOption{})
 	if err != nil {
 		t.Skipf("Failed to create service: %v", err)
 	}
@@ -1362,7 +1363,7 @@ func Test_HandleFileInfo_Success(t *testing.T) {
 
 // Test handleRowGroups returns all row groups
 func Test_HandleRowGroups_Success(t *testing.T) {
-	service, err := NewParquetService(getTestParquetFile(), pio.ReadOption{})
+	service, err := NewParquetService(context.Background(), getTestParquetFile(), pio.ReadOption{})
 	if err != nil {
 		t.Skipf("Failed to create service: %v", err)
 	}
@@ -1388,7 +1389,7 @@ func Test_HandleRowGroups_Success(t *testing.T) {
 
 // Test all schema handlers together
 func Test_AllSchemaHandlers_Integration(t *testing.T) {
-	service, err := NewParquetService(getTestParquetFile(), pio.ReadOption{})
+	service, err := NewParquetService(context.Background(), getTestParquetFile(), pio.ReadOption{})
 	if err != nil {
 		t.Skipf("Failed to create service: %v", err)
 	}
@@ -1461,7 +1462,7 @@ func createTestServiceWithRealFile(t *testing.T, filename string) *ParquetServic
 		return nil
 	}
 
-	svc, err := NewParquetService(path, pio.ReadOption{})
+	svc, err := NewParquetService(context.Background(), path, pio.ReadOption{})
 	require.NoError(t, err)
 
 	return svc

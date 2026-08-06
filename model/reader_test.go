@@ -1,6 +1,7 @@
 package model
 
 import (
+	"context"
 	"path/filepath"
 	"testing"
 
@@ -13,9 +14,9 @@ import (
 func Test_NewParquetReader(t *testing.T) {
 	t.Run("Opens and reads parquet file", func(t *testing.T) {
 		// Open a test parquet file using parquet-tools helper
-		pr, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
+		pr, err := pio.NewParquetFileReader(context.Background(), getTestParquetFilePath(), pio.ReadOption{})
 		require.NoError(t, err)
-		defer func() { _ = pr.ReadStop() }()
+		defer func() { _ = pr.ReadStopWithContext(context.Background()) }()
 
 		// Wrap it in our ParquetReader
 		parquetReader := NewParquetReader(pr)
@@ -31,9 +32,9 @@ func Test_NewParquetReader(t *testing.T) {
 	})
 
 	t.Run("Gets row group info", func(t *testing.T) {
-		pr, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
+		pr, err := pio.NewParquetFileReader(context.Background(), getTestParquetFilePath(), pio.ReadOption{})
 		require.NoError(t, err)
-		defer func() { _ = pr.ReadStop() }()
+		defer func() { _ = pr.ReadStopWithContext(context.Background()) }()
 
 		parquetReader := NewParquetReader(pr)
 
@@ -46,9 +47,9 @@ func Test_NewParquetReader(t *testing.T) {
 	})
 
 	t.Run("Gets column chunk info", func(t *testing.T) {
-		pr, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
+		pr, err := pio.NewParquetFileReader(context.Background(), getTestParquetFilePath(), pio.ReadOption{})
 		require.NoError(t, err)
-		defer func() { _ = pr.ReadStop() }()
+		defer func() { _ = pr.ReadStopWithContext(context.Background()) }()
 
 		parquetReader := NewParquetReader(pr)
 
@@ -61,14 +62,14 @@ func Test_NewParquetReader(t *testing.T) {
 	})
 
 	t.Run("Gets page metadata", func(t *testing.T) {
-		pr, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
+		pr, err := pio.NewParquetFileReader(context.Background(), getTestParquetFilePath(), pio.ReadOption{})
 		require.NoError(t, err)
-		defer func() { _ = pr.ReadStop() }()
+		defer func() { _ = pr.ReadStopWithContext(context.Background()) }()
 
 		parquetReader := NewParquetReader(pr)
 
 		// Test GetPageMetadataList
-		pages, err := parquetReader.GetPageMetadataList(0, 0)
+		pages, err := parquetReader.GetPageMetadataList(context.Background(), 0, 0)
 		require.NoError(t, err)
 		require.Greater(t, len(pages), 0)
 
@@ -256,9 +257,9 @@ func getTestParquetFilePath() string {
 
 // Test NewParquetReader with real parquet file
 func Test_NewParquetReader_WithRealFile(t *testing.T) {
-	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
+	parquetReader, err := pio.NewParquetFileReader(context.Background(), getTestParquetFilePath(), pio.ReadOption{})
 	require.NoError(t, err)
-	defer func() { _ = parquetReader.ReadStop() }()
+	defer func() { _ = parquetReader.ReadStopWithContext(context.Background()) }()
 
 	pr := NewParquetReader(parquetReader)
 
@@ -272,9 +273,9 @@ func Test_NewParquetReader_WithRealFile(t *testing.T) {
 
 // Test GetFileInfo with real parquet file
 func Test_GetFileInfo_WithRealFile(t *testing.T) {
-	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
+	parquetReader, err := pio.NewParquetFileReader(context.Background(), getTestParquetFilePath(), pio.ReadOption{})
 	require.NoError(t, err)
-	defer func() { _ = parquetReader.ReadStop() }()
+	defer func() { _ = parquetReader.ReadStopWithContext(context.Background()) }()
 
 	pr := NewParquetReader(parquetReader)
 	info := pr.GetFileInfo()
@@ -293,9 +294,9 @@ func Test_GetFileInfo_WithRealFile(t *testing.T) {
 
 // Test GetRowGroupInfo with valid indices
 func Test_GetRowGroupInfo_ValidIndex(t *testing.T) {
-	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
+	parquetReader, err := pio.NewParquetFileReader(context.Background(), getTestParquetFilePath(), pio.ReadOption{})
 	require.NoError(t, err)
-	defer func() { _ = parquetReader.ReadStop() }()
+	defer func() { _ = parquetReader.ReadStopWithContext(context.Background()) }()
 
 	pr := NewParquetReader(parquetReader)
 
@@ -313,9 +314,9 @@ func Test_GetRowGroupInfo_ValidIndex(t *testing.T) {
 
 // Test GetRowGroupInfo with invalid indices
 func Test_GetRowGroupInfo_InvalidIndex(t *testing.T) {
-	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
+	parquetReader, err := pio.NewParquetFileReader(context.Background(), getTestParquetFilePath(), pio.ReadOption{})
 	require.NoError(t, err)
-	defer func() { _ = parquetReader.ReadStop() }()
+	defer func() { _ = parquetReader.ReadStopWithContext(context.Background()) }()
 
 	pr := NewParquetReader(parquetReader)
 
@@ -338,9 +339,9 @@ func Test_GetRowGroupInfo_InvalidIndex(t *testing.T) {
 
 // Test GetAllRowGroupsInfo
 func Test_GetAllRowGroupsInfo(t *testing.T) {
-	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
+	parquetReader, err := pio.NewParquetFileReader(context.Background(), getTestParquetFilePath(), pio.ReadOption{})
 	require.NoError(t, err)
-	defer func() { _ = parquetReader.ReadStop() }()
+	defer func() { _ = parquetReader.ReadStopWithContext(context.Background()) }()
 
 	pr := NewParquetReader(parquetReader)
 	infos := pr.GetAllRowGroupsInfo()
@@ -357,9 +358,9 @@ func Test_GetAllRowGroupsInfo(t *testing.T) {
 
 // Test GetColumnChunkInfo with valid indices
 func Test_GetColumnChunkInfo_ValidIndices(t *testing.T) {
-	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
+	parquetReader, err := pio.NewParquetFileReader(context.Background(), getTestParquetFilePath(), pio.ReadOption{})
 	require.NoError(t, err)
-	defer func() { _ = parquetReader.ReadStop() }()
+	defer func() { _ = parquetReader.ReadStopWithContext(context.Background()) }()
 
 	pr := NewParquetReader(parquetReader)
 
@@ -377,9 +378,9 @@ func Test_GetColumnChunkInfo_ValidIndices(t *testing.T) {
 
 // Test GetColumnChunkInfo with invalid indices
 func Test_GetColumnChunkInfo_InvalidIndices(t *testing.T) {
-	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
+	parquetReader, err := pio.NewParquetFileReader(context.Background(), getTestParquetFilePath(), pio.ReadOption{})
 	require.NoError(t, err)
-	defer func() { _ = parquetReader.ReadStop() }()
+	defer func() { _ = parquetReader.ReadStopWithContext(context.Background()) }()
 
 	pr := NewParquetReader(parquetReader)
 
@@ -406,9 +407,9 @@ func Test_GetColumnChunkInfo_InvalidIndices(t *testing.T) {
 
 // Test GetAllColumnChunksInfo
 func Test_GetAllColumnChunksInfo_ValidIndex(t *testing.T) {
-	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
+	parquetReader, err := pio.NewParquetFileReader(context.Background(), getTestParquetFilePath(), pio.ReadOption{})
 	require.NoError(t, err)
-	defer func() { _ = parquetReader.ReadStop() }()
+	defer func() { _ = parquetReader.ReadStopWithContext(context.Background()) }()
 
 	pr := NewParquetReader(parquetReader)
 
@@ -425,9 +426,9 @@ func Test_GetAllColumnChunksInfo_ValidIndex(t *testing.T) {
 
 // Test GetAllColumnChunksInfo with invalid index
 func Test_GetAllColumnChunksInfo_InvalidIndex(t *testing.T) {
-	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
+	parquetReader, err := pio.NewParquetFileReader(context.Background(), getTestParquetFilePath(), pio.ReadOption{})
 	require.NoError(t, err)
-	defer func() { _ = parquetReader.ReadStop() }()
+	defer func() { _ = parquetReader.ReadStopWithContext(context.Background()) }()
 
 	pr := NewParquetReader(parquetReader)
 
@@ -450,13 +451,13 @@ func Test_GetAllColumnChunksInfo_InvalidIndex(t *testing.T) {
 
 // Test GetPageMetadataList
 func Test_GetPageMetadataList_ValidIndices(t *testing.T) {
-	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
+	parquetReader, err := pio.NewParquetFileReader(context.Background(), getTestParquetFilePath(), pio.ReadOption{})
 	require.NoError(t, err)
-	defer func() { _ = parquetReader.ReadStop() }()
+	defer func() { _ = parquetReader.ReadStopWithContext(context.Background()) }()
 
 	pr := NewParquetReader(parquetReader)
 
-	pages, err := pr.GetPageMetadataList(0, 0)
+	pages, err := pr.GetPageMetadataList(context.Background(), 0, 0)
 	require.NoError(t, err)
 	require.NotEmpty(t, pages)
 
@@ -470,9 +471,9 @@ func Test_GetPageMetadataList_ValidIndices(t *testing.T) {
 
 // Test GetPageMetadataList with invalid indices
 func Test_GetPageMetadataList_InvalidIndices(t *testing.T) {
-	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
+	parquetReader, err := pio.NewParquetFileReader(context.Background(), getTestParquetFilePath(), pio.ReadOption{})
 	require.NoError(t, err)
-	defer func() { _ = parquetReader.ReadStop() }()
+	defer func() { _ = parquetReader.ReadStopWithContext(context.Background()) }()
 
 	pr := NewParquetReader(parquetReader)
 
@@ -490,7 +491,7 @@ func Test_GetPageMetadataList_InvalidIndices(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := pr.GetPageMetadataList(tt.rgIndex, tt.colIndex)
+			_, err := pr.GetPageMetadataList(context.Background(), tt.rgIndex, tt.colIndex)
 			require.Error(t, err)
 			require.ErrorIs(t, err, tt.wantErr)
 		})
@@ -499,13 +500,13 @@ func Test_GetPageMetadataList_InvalidIndices(t *testing.T) {
 
 // Test GetPageMetadata
 func Test_GetPageMetadata_ValidIndices(t *testing.T) {
-	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
+	parquetReader, err := pio.NewParquetFileReader(context.Background(), getTestParquetFilePath(), pio.ReadOption{})
 	require.NoError(t, err)
-	defer func() { _ = parquetReader.ReadStop() }()
+	defer func() { _ = parquetReader.ReadStopWithContext(context.Background()) }()
 
 	pr := NewParquetReader(parquetReader)
 
-	page, err := pr.GetPageMetadata(0, 0, 0)
+	page, err := pr.GetPageMetadata(context.Background(), 0, 0, 0)
 	require.NoError(t, err)
 
 	require.Equal(t, 0, page.Index)
@@ -514,9 +515,9 @@ func Test_GetPageMetadata_ValidIndices(t *testing.T) {
 
 // Test GetPageMetadata with invalid indices
 func Test_GetPageMetadata_InvalidIndices(t *testing.T) {
-	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
+	parquetReader, err := pio.NewParquetFileReader(context.Background(), getTestParquetFilePath(), pio.ReadOption{})
 	require.NoError(t, err)
-	defer func() { _ = parquetReader.ReadStop() }()
+	defer func() { _ = parquetReader.ReadStopWithContext(context.Background()) }()
 
 	pr := NewParquetReader(parquetReader)
 
@@ -534,7 +535,7 @@ func Test_GetPageMetadata_InvalidIndices(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := pr.GetPageMetadata(tt.rgIndex, tt.colIndex, tt.pageIndex)
+			_, err := pr.GetPageMetadata(context.Background(), tt.rgIndex, tt.colIndex, tt.pageIndex)
 			require.Error(t, err)
 		})
 	}
@@ -542,27 +543,27 @@ func Test_GetPageMetadata_InvalidIndices(t *testing.T) {
 
 // Test GetPageContent
 func Test_GetPageContent_ValidIndices(t *testing.T) {
-	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
+	parquetReader, err := pio.NewParquetFileReader(context.Background(), getTestParquetFilePath(), pio.ReadOption{})
 	require.NoError(t, err)
-	defer func() { _ = parquetReader.ReadStop() }()
+	defer func() { _ = parquetReader.ReadStopWithContext(context.Background()) }()
 
 	pr := NewParquetReader(parquetReader)
 
 	// First, check if page 0 is a data page
-	pages, err := pr.GetPageMetadataList(0, 0)
+	pages, err := pr.GetPageMetadataList(context.Background(), 0, 0)
 	require.NoError(t, err)
 	require.NotEqual(t, 0, len(pages))
 
-	values, err := pr.GetPageContent(0, 0, 1)
+	values, err := pr.GetPageContent(context.Background(), 0, 0, 1)
 	require.NoError(t, err)
 	require.NotEqual(t, 0, len(values))
 }
 
 // Test GetPageContent with dictionary page
 func Test_GetPageContent_DictionaryPage(t *testing.T) {
-	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
+	parquetReader, err := pio.NewParquetFileReader(context.Background(), getTestParquetFilePath(), pio.ReadOption{})
 	require.NoError(t, err)
-	defer func() { _ = parquetReader.ReadStop() }()
+	defer func() { _ = parquetReader.ReadStopWithContext(context.Background()) }()
 
 	pr := NewParquetReader(parquetReader)
 
@@ -571,28 +572,28 @@ func Test_GetPageContent_DictionaryPage(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 57, len(allColumns))
 
-	pages, err := pr.GetPageMetadataList(0, 0)
+	pages, err := pr.GetPageMetadataList(context.Background(), 0, 0)
 	require.NoError(t, err)
 	require.Equal(t, 3, len(pages))
 
-	values, err := pr.GetPageContent(0, 0, 0)
+	values, err := pr.GetPageContent(context.Background(), 0, 0, 0)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(values))
 
-	pages, err = pr.GetPageMetadataList(0, 16)
+	pages, err = pr.GetPageMetadataList(context.Background(), 0, 16)
 	require.NoError(t, err)
 	require.Equal(t, 4, len(pages))
 
-	values, err = pr.GetPageContent(0, 1, 0)
+	values, err = pr.GetPageContent(context.Background(), 0, 1, 0)
 	require.NoError(t, err)
 	require.Equal(t, 5, len(values))
 }
 
 // Test GetPageContent with invalid indices
 func Test_GetPageContent_InvalidIndices(t *testing.T) {
-	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
+	parquetReader, err := pio.NewParquetFileReader(context.Background(), getTestParquetFilePath(), pio.ReadOption{})
 	require.NoError(t, err)
-	defer func() { _ = parquetReader.ReadStop() }()
+	defer func() { _ = parquetReader.ReadStopWithContext(context.Background()) }()
 
 	pr := NewParquetReader(parquetReader)
 
@@ -610,7 +611,7 @@ func Test_GetPageContent_InvalidIndices(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := pr.GetPageContent(tt.rgIndex, tt.colIndex, tt.pageIndex)
+			_, err := pr.GetPageContent(context.Background(), tt.rgIndex, tt.colIndex, tt.pageIndex)
 			require.Error(t, err)
 		})
 	}
@@ -618,27 +619,27 @@ func Test_GetPageContent_InvalidIndices(t *testing.T) {
 
 // Test GetPageContentFormatted
 func Test_GetPageContentFormatted_ValidIndices(t *testing.T) {
-	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
+	parquetReader, err := pio.NewParquetFileReader(context.Background(), getTestParquetFilePath(), pio.ReadOption{})
 	require.NoError(t, err)
-	defer func() { _ = parquetReader.ReadStop() }()
+	defer func() { _ = parquetReader.ReadStopWithContext(context.Background()) }()
 
 	pr := NewParquetReader(parquetReader)
 
 	// Find the first data page
-	pages, err := pr.GetPageMetadataList(0, 0)
+	pages, err := pr.GetPageMetadataList(context.Background(), 0, 0)
 	require.NoError(t, err)
 	require.Equal(t, 3, len(pages))
 
-	values, err := pr.GetPageContentFormatted(0, 0, 1)
+	values, err := pr.GetPageContentFormatted(context.Background(), 0, 0, 1)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(values))
 }
 
 // Test GetPageContentFormatted with invalid indices
 func Test_GetPageContentFormatted_InvalidIndices(t *testing.T) {
-	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
+	parquetReader, err := pio.NewParquetFileReader(context.Background(), getTestParquetFilePath(), pio.ReadOption{})
 	require.NoError(t, err)
-	defer func() { _ = parquetReader.ReadStop() }()
+	defer func() { _ = parquetReader.ReadStopWithContext(context.Background()) }()
 
 	pr := NewParquetReader(parquetReader)
 
@@ -655,7 +656,7 @@ func Test_GetPageContentFormatted_InvalidIndices(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := pr.GetPageContentFormatted(tt.rgIndex, tt.colIndex, tt.pageIndex)
+			_, err := pr.GetPageContentFormatted(context.Background(), tt.rgIndex, tt.colIndex, tt.pageIndex)
 			require.Error(t, err)
 		})
 	}
@@ -663,9 +664,9 @@ func Test_GetPageContentFormatted_InvalidIndices(t *testing.T) {
 
 // Test readDictionaryPageContent (indirectly through GetPageContent)
 func Test_ReadDictionaryPageContent_Coverage(t *testing.T) {
-	parquetReader, err := pio.NewParquetFileReader(getTestParquetFilePath(), pio.ReadOption{})
+	parquetReader, err := pio.NewParquetFileReader(context.Background(), getTestParquetFilePath(), pio.ReadOption{})
 	require.NoError(t, err)
-	defer func() { _ = parquetReader.ReadStop() }()
+	defer func() { _ = parquetReader.ReadStopWithContext(context.Background()) }()
 
 	pr := NewParquetReader(parquetReader)
 
@@ -674,7 +675,7 @@ func Test_ReadDictionaryPageContent_Coverage(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 57, len(allColumns))
 
-	values, err := pr.GetPageContent(0, 0, 1)
+	values, err := pr.GetPageContent(context.Background(), 0, 0, 1)
 	require.NoError(t, err)
 	require.Equal(t, 2, len(values))
 }

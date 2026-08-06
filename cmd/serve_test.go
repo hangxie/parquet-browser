@@ -10,6 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func strPtr(s string) *string { return &s }
+
 func Test_ServeCmd_Run_InvalidFile(t *testing.T) {
 	cmd := ServeCmd{
 		URI:  "nonexistent.parquet",
@@ -27,13 +29,13 @@ func Test_ServeCmd_FieldAccess(t *testing.T) {
 	cmd.Addr = ":9090"
 	cmd.ReadOption = pio.ReadOption{}
 	cmd.Anonymous = true
-	cmd.ObjectVersion = "v1.0"
+	cmd.ObjectVersion = strPtr("v1.0")
 	cmd.HTTPIgnoreTLSError = true
 
 	require.Equal(t, "file.parquet", cmd.URI)
 	require.Equal(t, ":9090", cmd.Addr)
 	require.True(t, cmd.Anonymous)
-	require.Equal(t, "v1.0", cmd.ObjectVersion)
+	require.Equal(t, "v1.0", *cmd.ObjectVersion)
 	require.True(t, cmd.HTTPIgnoreTLSError)
 }
 

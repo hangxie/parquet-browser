@@ -1,6 +1,7 @@
 package model
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -392,7 +393,7 @@ func convertPageHeaderInfoToMetadata(headerInfo reader.PageHeaderInfo, columnMet
 }
 
 // GetPageMetadataList returns metadata for all pages in a column chunk
-func (pr *ParquetReader) GetPageMetadataList(rgIndex, colIndex int) ([]PageMetadata, error) {
+func (pr *ParquetReader) GetPageMetadataList(ctx context.Context, rgIndex, colIndex int) ([]PageMetadata, error) {
 	if pr == nil || pr.metadata == nil {
 		return nil, ErrInvalidRowGroupIndex
 	}
@@ -415,7 +416,7 @@ func (pr *ParquetReader) GetPageMetadataList(rgIndex, colIndex int) ([]PageMetad
 	// Get schema element for formatting
 	schemaElem := findSchemaElement(pr.metadata.Schema, meta.PathInSchema)
 
-	pageHeaders, err := pr.Reader.GetAllPageHeaders(rgIndex, colIndex)
+	pageHeaders, err := pr.Reader.GetAllPageHeadersWithContext(ctx, rgIndex, colIndex)
 	if err != nil {
 		return nil, err
 	}
@@ -430,8 +431,8 @@ func (pr *ParquetReader) GetPageMetadataList(rgIndex, colIndex int) ([]PageMetad
 }
 
 // GetPageMetadata returns metadata for a specific page
-func (pr *ParquetReader) GetPageMetadata(rgIndex, colIndex, pageIndex int) (PageMetadata, error) {
-	pages, err := pr.GetPageMetadataList(rgIndex, colIndex)
+func (pr *ParquetReader) GetPageMetadata(ctx context.Context, rgIndex, colIndex, pageIndex int) (PageMetadata, error) {
+	pages, err := pr.GetPageMetadataList(ctx, rgIndex, colIndex)
 	if err != nil {
 		return PageMetadata{}, err
 	}
@@ -446,7 +447,7 @@ func (pr *ParquetReader) GetPageMetadata(rgIndex, colIndex, pageIndex int) (Page
 }
 
 // GetPageContent reads and decodes the values from a specific page
-func (pr *ParquetReader) GetPageContent(rgIndex, colIndex, pageIndex int) ([]interface{}, error) {
+func (pr *ParquetReader) GetPageContent(ctx context.Context, rgIndex, colIndex, pageIndex int) ([]interface{}, error) {
 	if pr == nil || pr.metadata == nil {
 		return nil, ErrInvalidRowGroupIndex
 	}
@@ -467,7 +468,7 @@ func (pr *ParquetReader) GetPageContent(rgIndex, colIndex, pageIndex int) ([]int
 	meta := rg.Columns[colIndex].MetaData
 
 	// Get all page metadata to understand page boundaries
-	pages, err := pr.GetPageMetadataList(rgIndex, colIndex)
+	pages, err := pr.GetPageMetadataList(ctx, rgIndex, colIndex)
 	if err != nil {
 		return nil, err
 	}
@@ -486,7 +487,7 @@ func (pr *ParquetReader) GetPageContent(rgIndex, colIndex, pageIndex int) ([]int
 		// Continue with normal data page reading
 	case "DICTIONARY_PAGE":
 		// For dictionary pages, we need to read and decode the dictionary
-		return pr.readDictionaryPageContent(rgIndex, colIndex, pageIndex, pages)
+		return pr.readDictionaryPageContent(ctx, rgIndex, colIndex, pageIndex, pages)
 	default:
 		// For other page types (INDEX_PAGE, etc.), return empty
 		// These pages don't contain user data
@@ -500,22 +501,22 @@ func (pr *ParquetReader) GetPageContent(rgIndex, colIndex, pageIndex int) ([]int
 	}
 
 	// Create a fresh column reader
-	freshReader, err := reader.NewParquetColumnReader(pr.Reader.PFile, reader.WithNP(4))
+	freshReader, err := reader.NewParquetColumnReaderWithContext(ctx, pr.Reader.PFile, reader.WithNP(4))
 	if err != nil {
 		return nil, err
 	}
-	defer func() { _ = freshReader.ReadStop() }()
+	defer func() { _ = freshReader.ReadStopWithContext(ctx) }()
 
 	// Skip to the beginning of the current row group
 	if rowsBeforeThisRG > 0 {
-		err = freshReader.SkipRows(rowsBeforeThisRG)
+		err = freshReader.SkipRowsWithContext(ctx, rowsBeforeThisRG)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	// Read ALL values from this column chunk
-	allValues, _, _, err := freshReader.ReadColumnByIndex(int64(colIndex), meta.NumValues)
+	allValues, _, _, err := freshReader.ReadColumnByIndexWithContext(ctx, int64(colIndex), meta.NumValues)
 	if err != nil {
 		return nil, err
 	}
@@ -538,12 +539,12 @@ func (pr *ParquetReader) GetPageContent(rgIndex, colIndex, pageIndex int) ([]int
 }
 
 // readDictionaryPageContent reads and decodes dictionary page values
-func (pr *ParquetReader) readDictionaryPageContent(rgIndex, colIndex, pageIndex int, pages []PageMetadata) ([]interface{}, error) {
+func (pr *ParquetReader) readDictionaryPageContent(ctx context.Context, rgIndex, colIndex, pageIndex int, pages []PageMetadata) ([]interface{}, error) {
 	rg := pr.metadata.RowGroups[rgIndex]
 	meta := rg.Columns[colIndex].MetaData
 	pageInfo := pages[pageIndex]
 
-	values, err := pr.Reader.ReadDictionaryPageValues(pageInfo.Offset, meta.Codec, meta.Type)
+	values, err := pr.Reader.ReadDictionaryPageValuesWithContext(ctx, pageInfo.Offset, meta.Codec, meta.Type)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read dictionary page: %w", err)
 	}
@@ -553,9 +554,9 @@ func (pr *ParquetReader) readDictionaryPageContent(rgIndex, colIndex, pageIndex 
 
 // GetPageContentFormatted returns pre-formatted string values for display
 // This is the preferred method for frontends to use
-func (pr *ParquetReader) GetPageContentFormatted(rgIndex, colIndex, pageIndex int) ([]string, error) {
+func (pr *ParquetReader) GetPageContentFormatted(ctx context.Context, rgIndex, colIndex, pageIndex int) ([]string, error) {
 	// Get raw values
-	rawValues, err := pr.GetPageContent(rgIndex, colIndex, pageIndex)
+	rawValues, err := pr.GetPageContent(ctx, rgIndex, colIndex, pageIndex)
 	if err != nil {
 		return nil, err
 	}

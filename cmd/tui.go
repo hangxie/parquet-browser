@@ -17,8 +17,7 @@ import (
 
 // TUICmd is a kong command for browse
 type TUICmd struct {
-	URI     string `arg:"" predictor:"file" help:"URI of Parquet file."`
-	KeyFile string `name:"key-file" group:"Encryption" help:"path to a JSON file with {footer_key, aad_prefix, column_keys}. CLI flags override file values." default:""`
+	URI string `arg:"" predictor:"file" help:"URI of Parquet file."`
 	pio.ReadOption
 }
 
@@ -38,7 +37,7 @@ var (
 // It runs in a goroutine and sends the result (server URL and instance, or error) to resultChan
 func startHTTPServer(ctx context.Context, uri string, readOpt pio.ReadOption, resultChan chan<- serverResult) {
 	// Create the service
-	svc, err := service.NewParquetService(uri, readOpt)
+	svc, err := service.NewParquetService(ctx, uri, readOpt)
 	if err != nil {
 		select {
 		case <-ctx.Done():
@@ -101,9 +100,6 @@ func startHTTPServer(ctx context.Context, uri string, readOpt pio.ReadOption, re
 
 // Run does actual browse job
 func (b TUICmd) Run() error {
-	if err := loadKeyFile(b.KeyFile, &b.ReadOption); err != nil {
-		return err
-	}
 	app := newTUIAppForRun()
 
 	// Create a loading modal with cancellation instructions

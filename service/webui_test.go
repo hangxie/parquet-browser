@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -665,7 +666,7 @@ func createTestServiceWithFile(t *testing.T, filename string) *ParquetService {
 		return nil
 	}
 
-	svc, err := NewParquetService(path, pio.ReadOption{})
+	svc, err := NewParquetService(context.Background(), path, pio.ReadOption{})
 	require.NoError(t, err)
 
 	return svc
