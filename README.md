@@ -137,6 +137,8 @@ Run as a standalone HTTP API server:
 
 The server provides RESTful endpoints for programmatic access. See [API Documentation](#http-api) below.
 
+Both `serve` and `web-ui` shut down gracefully on `SIGINT` (Ctrl-C) or `SIGTERM`: in-flight requests are given up to 10 seconds to drain before remaining connections are force-closed. A second Ctrl-C terminates immediately.
+
 ### Web UI Mode
 
 Run the web-based interface:
@@ -602,6 +604,8 @@ curl http://localhost:8080/rowgroups/0/columnchunks/0/pages/0/content
 - `GET /rowgroups/{rgIndex}/columnchunks/{colIndex}/pages` - All pages
 - `GET /rowgroups/{rgIndex}/columnchunks/{colIndex}/pages/{pageIndex}` - Page info
 - `GET /rowgroups/{rgIndex}/columnchunks/{colIndex}/pages/{pageIndex}/content` - Page content
+
+Endpoints return `200` on success and `400`/`404` for invalid or out-of-range indices. The schema and page endpoints read the underlying source, so they may also return `499` (client closed request) if the client disconnects or the request is interrupted by shutdown, or `503` if the request context deadline is exceeded. A connected client that waits for a response never observes these.
 
 ### OpenAPI/Swagger Documentation
 
