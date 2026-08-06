@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -22,8 +23,8 @@ type ParquetService struct {
 }
 
 // NewParquetService creates a new service instance
-func NewParquetService(uri string, readOpts pio.ReadOption) (*ParquetService, error) {
-	parquetReader, err := pio.NewParquetFileReader(uri, readOpts)
+func NewParquetService(ctx context.Context, uri string, readOpts pio.ReadOption) (*ParquetService, error) {
+	parquetReader, err := pio.NewParquetFileReader(ctx, uri, readOpts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open parquet file: %w", err)
 	}
@@ -82,7 +83,7 @@ func (s *ParquetService) SetupRoutes(r *mux.Router) {
 
 // handleSchemaGo returns schema in Go struct format
 func (s *ParquetService) handleSchemaGo(w http.ResponseWriter, r *http.Request) {
-	schemaRoot, err := pschema.NewSchemaTree(s.parquetReader, pschema.SchemaOption{FailOnInt96: false})
+	schemaRoot, err := pschema.NewSchemaTree(r.Context(), s.parquetReader, pschema.SchemaOption{FailOnInt96: false})
 	if err != nil {
 		WriteError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to generate schema: %v", err))
 		return
@@ -108,7 +109,7 @@ func (s *ParquetService) handleSchemaGo(w http.ResponseWriter, r *http.Request) 
 
 // handleSchemaJSON returns schema in JSON format
 func (s *ParquetService) handleSchemaJSON(w http.ResponseWriter, r *http.Request) {
-	schemaRoot, err := pschema.NewSchemaTree(s.parquetReader, pschema.SchemaOption{FailOnInt96: false})
+	schemaRoot, err := pschema.NewSchemaTree(r.Context(), s.parquetReader, pschema.SchemaOption{FailOnInt96: false})
 	if err != nil {
 		WriteError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to generate schema: %v", err))
 		return
@@ -123,7 +124,7 @@ func (s *ParquetService) handleSchemaJSON(w http.ResponseWriter, r *http.Request
 
 // handleSchemaRaw returns the raw schema tree structure as JSON
 func (s *ParquetService) handleSchemaRaw(w http.ResponseWriter, r *http.Request) {
-	schemaRoot, err := pschema.NewSchemaTree(s.parquetReader, pschema.SchemaOption{FailOnInt96: false})
+	schemaRoot, err := pschema.NewSchemaTree(r.Context(), s.parquetReader, pschema.SchemaOption{FailOnInt96: false})
 	if err != nil {
 		WriteError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to generate schema: %v", err))
 		return
@@ -143,7 +144,7 @@ func (s *ParquetService) handleSchemaRaw(w http.ResponseWriter, r *http.Request)
 
 // handleSchemaCSV returns schema in CSV format
 func (s *ParquetService) handleSchemaCSV(w http.ResponseWriter, r *http.Request) {
-	schemaRoot, err := pschema.NewSchemaTree(s.parquetReader, pschema.SchemaOption{FailOnInt96: false})
+	schemaRoot, err := pschema.NewSchemaTree(r.Context(), s.parquetReader, pschema.SchemaOption{FailOnInt96: false})
 	if err != nil {
 		WriteError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to generate schema: %v", err))
 		return
@@ -247,7 +248,7 @@ func (s *ParquetService) handlePages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pages, err := s.reader.GetPageMetadataList(rgIndex, colIndex)
+	pages, err := s.reader.GetPageMetadataList(r.Context(), rgIndex, colIndex)
 	if err != nil {
 		WriteError(w, http.StatusNotFound, err.Error())
 		return
@@ -277,7 +278,7 @@ func (s *ParquetService) handlePageInfo(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	pageInfo, err := s.reader.GetPageMetadata(rgIndex, colIndex, pageIndex)
+	pageInfo, err := s.reader.GetPageMetadata(r.Context(), rgIndex, colIndex, pageIndex)
 	if err != nil {
 		WriteError(w, http.StatusNotFound, err.Error())
 		return
@@ -308,7 +309,7 @@ func (s *ParquetService) handlePageContent(w http.ResponseWriter, r *http.Reques
 	}
 
 	// Get pre-formatted values ready for display
-	values, err := s.reader.GetPageContentFormatted(rgIndex, colIndex, pageIndex)
+	values, err := s.reader.GetPageContentFormatted(r.Context(), rgIndex, colIndex, pageIndex)
 	if err != nil {
 		WriteError(w, http.StatusNotFound, err.Error())
 		return

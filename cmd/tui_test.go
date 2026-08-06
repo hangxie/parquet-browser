@@ -114,8 +114,8 @@ func Test_TUICmd_FieldAccess(t *testing.T) {
 	cmd.Anonymous = true
 	require.True(t, cmd.Anonymous)
 
-	cmd.ObjectVersion = "v1.0"
-	require.Equal(t, "v1.0", cmd.ObjectVersion)
+	cmd.ObjectVersion = strPtr("v1.0")
+	require.Equal(t, "v1.0", *cmd.ObjectVersion)
 
 	cmd.HTTPIgnoreTLSError = true
 	require.True(t, cmd.HTTPIgnoreTLSError)

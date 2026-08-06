@@ -161,7 +161,7 @@ func (s *ParquetService) handleSchemaView(w http.ResponseWriter, r *http.Request
 
 // handleSchemaGoView returns schema in Go format for HTMX
 func (s *ParquetService) handleSchemaGoView(w http.ResponseWriter, r *http.Request) {
-	schemaRoot, err := pschema.NewSchemaTree(s.parquetReader, pschema.SchemaOption{FailOnInt96: false})
+	schemaRoot, err := pschema.NewSchemaTree(r.Context(), s.parquetReader, pschema.SchemaOption{FailOnInt96: false})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to generate schema: %v", err), http.StatusInternalServerError)
 		return
@@ -184,7 +184,7 @@ func (s *ParquetService) handleSchemaGoView(w http.ResponseWriter, r *http.Reque
 
 // handleSchemaJSONView returns schema in JSON format for HTMX
 func (s *ParquetService) handleSchemaJSONView(w http.ResponseWriter, r *http.Request) {
-	schemaRoot, err := pschema.NewSchemaTree(s.parquetReader, pschema.SchemaOption{FailOnInt96: false})
+	schemaRoot, err := pschema.NewSchemaTree(r.Context(), s.parquetReader, pschema.SchemaOption{FailOnInt96: false})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to generate schema: %v", err), http.StatusInternalServerError)
 		return
@@ -198,7 +198,7 @@ func (s *ParquetService) handleSchemaJSONView(w http.ResponseWriter, r *http.Req
 
 // handleSchemaCSVView returns schema in CSV format for HTMX
 func (s *ParquetService) handleSchemaCSVView(w http.ResponseWriter, r *http.Request) {
-	schemaRoot, err := pschema.NewSchemaTree(s.parquetReader, pschema.SchemaOption{FailOnInt96: false})
+	schemaRoot, err := pschema.NewSchemaTree(r.Context(), s.parquetReader, pschema.SchemaOption{FailOnInt96: false})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to generate schema: %v", err), http.StatusInternalServerError)
 		return
@@ -216,7 +216,7 @@ func (s *ParquetService) handleSchemaCSVView(w http.ResponseWriter, r *http.Requ
 
 // handleSchemaRawView returns raw schema for HTMX (compact JSON)
 func (s *ParquetService) handleSchemaRawView(w http.ResponseWriter, r *http.Request) {
-	schemaRoot, err := pschema.NewSchemaTree(s.parquetReader, pschema.SchemaOption{FailOnInt96: false})
+	schemaRoot, err := pschema.NewSchemaTree(r.Context(), s.parquetReader, pschema.SchemaOption{FailOnInt96: false})
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to generate schema: %v", err), http.StatusInternalServerError)
 		return
@@ -417,7 +417,7 @@ func (s *ParquetService) handlePagesView(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	pages, err := s.reader.GetPageMetadataList(rgIndex, colIndex)
+	pages, err := s.reader.GetPageMetadataList(r.Context(), rgIndex, colIndex)
 	if err != nil {
 		renderPagesError(w, r, err)
 		return
@@ -572,7 +572,7 @@ func (s *ParquetService) handlePageContentView(w http.ResponseWriter, r *http.Re
 	}
 
 	// Get page metadata
-	pages, err := s.reader.GetPageMetadataList(rgIndex, colIndex)
+	pages, err := s.reader.GetPageMetadataList(r.Context(), rgIndex, colIndex)
 	if err != nil {
 		renderPagesError(w, r, err)
 		return
@@ -585,7 +585,7 @@ func (s *ParquetService) handlePageContentView(w http.ResponseWriter, r *http.Re
 
 	pageMetadata := pages[pageIndex]
 
-	values, err := s.reader.GetPageContentFormatted(rgIndex, colIndex, pageIndex)
+	values, err := s.reader.GetPageContentFormatted(r.Context(), rgIndex, colIndex, pageIndex)
 	if err != nil {
 		renderPagesError(w, r, err)
 		return
