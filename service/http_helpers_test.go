@@ -1,13 +1,36 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
+
+func Test_contextErrorStatus(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      error
+		fallback int
+		want     int
+	}{
+		{"canceled", context.Canceled, http.StatusNotFound, StatusClientClosedRequest},
+		{"deadline", context.DeadlineExceeded, http.StatusNotFound, http.StatusServiceUnavailable},
+		{"wrapped canceled", fmt.Errorf("read failed: %w", context.Canceled), http.StatusNotFound, StatusClientClosedRequest},
+		{"other error uses fallback", errors.New("boom"), http.StatusNotFound, http.StatusNotFound},
+		{"other error uses 500 fallback", errors.New("boom"), http.StatusInternalServerError, http.StatusInternalServerError},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, contextErrorStatus(tt.err, tt.fallback))
+		})
+	}
+}
 
 func Test_WriteJSON(t *testing.T) {
 	tests := []struct {
