@@ -65,7 +65,8 @@ func FormatStatValue(value []byte, columnMeta *parquet.ColumnMetaData, schemaEle
 		se = &parquet.SchemaElement{Type: &columnMeta.Type}
 	}
 
-	jsonValue := types.ConvertToJSONType(rawValue, se, geospatialOpt)
+	// An unrenderable value still comes back with a fallback rendering, which is what we show.
+	jsonValue, _ := types.ConvertValue(rawValue, se, geospatialOpt)
 
 	// Format for display
 	// For complex types (maps, slices), use JSON encoding for proper formatting
@@ -172,8 +173,9 @@ func FormatValue(val interface{}, parquetType parquet.Type, schemaElem *parquet.
 		se = &parquet.SchemaElement{Type: &parquetType}
 	}
 
-	// Use parquet-go's type conversion function
-	formattedVal := types.ConvertToJSONType(val, se, geospatialOpt)
+	// Use parquet-go's type conversion function; an unrenderable value still comes back
+	// with a fallback rendering, which is what we show.
+	formattedVal, _ := types.ConvertValue(val, se, geospatialOpt)
 
 	// Convert to string for display
 	// For complex types (maps, slices), use JSON encoding for proper formatting

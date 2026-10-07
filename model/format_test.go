@@ -1,9 +1,12 @@
 package model
 
 import (
+	"encoding/binary"
 	"fmt"
+	"math"
 	"testing"
 
+	"github.com/hangxie/parquet-go/v3/common"
 	"github.com/hangxie/parquet-go/v3/parquet"
 	"github.com/stretchr/testify/require"
 )
@@ -284,6 +287,159 @@ func Test_FormatValue(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := FormatValue(tt.val, tt.parquetType, tt.schemaElem)
+			require.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+// bsonInt32Doc encodes a BSON document whose fields are all int32, keeping the given key order.
+func bsonInt32Doc(fields ...any) []byte {
+	var body []byte
+	for i := 0; i < len(fields); i += 2 {
+		body = append(body, 0x10)
+		body = append(body, fields[i].(string)...)
+		body = append(body, 0x00)
+		body = binary.LittleEndian.AppendUint32(body, uint32(fields[i+1].(int32)))
+	}
+	doc := binary.LittleEndian.AppendUint32(nil, uint32(4+len(body)+1))
+	doc = append(doc, body...)
+	return append(doc, 0x00)
+}
+
+// int96Bytes encodes an INT96 timestamp as nanoseconds of day followed by the Julian day.
+func int96Bytes(nanos uint64, julianDay uint32) []byte {
+	b := binary.LittleEndian.AppendUint64(nil, nanos)
+	return binary.LittleEndian.AppendUint32(b, julianDay)
+}
+
+func bsonSchemaElement() *parquet.SchemaElement {
+	return &parquet.SchemaElement{
+		Type:          parquet.TypePtr(parquet.Type_BYTE_ARRAY),
+		ConvertedType: parquet.ConvertedTypePtr(parquet.ConvertedType_BSON),
+		LogicalType:   &parquet.LogicalType{BSON: &parquet.BsonType{}},
+	}
+}
+
+func decimalSchemaElement() *parquet.SchemaElement {
+	return &parquet.SchemaElement{
+		Type:          parquet.TypePtr(parquet.Type_INT32),
+		ConvertedType: parquet.ConvertedTypePtr(parquet.ConvertedType_DECIMAL),
+		Scale:         common.ToPtr(int32(2)),
+		Precision:     common.ToPtr(int32(9)),
+		LogicalType: &parquet.LogicalType{
+			DECIMAL: &parquet.DecimalType{Scale: 2, Precision: 9},
+		},
+	}
+}
+
+func Test_FormatValue_Rendering(t *testing.T) {
+	tests := []struct {
+		name        string
+		val         any
+		parquetType parquet.Type
+		schemaElem  *parquet.SchemaElement
+		expected    string
+	}{
+		{
+			name:        "BSON as extended JSON",
+			val:         string(bsonInt32Doc("id", int32(0))),
+			parquetType: parquet.Type_BYTE_ARRAY,
+			schemaElem:  bsonSchemaElement(),
+			expected:    `{"id":{"$numberInt":"0"}}`,
+		},
+		{
+			name:        "BSON keeps document key order",
+			val:         string(bsonInt32Doc("z", int32(1), "a", int32(2))),
+			parquetType: parquet.Type_BYTE_ARRAY,
+			schemaElem:  bsonSchemaElement(),
+			expected:    `{"z":{"$numberInt":"1"},"a":{"$numberInt":"2"}}`,
+		},
+		{
+			name:        "Decimal zero keeps scale",
+			val:         int32(0),
+			parquetType: parquet.Type_INT32,
+			schemaElem:  decimalSchemaElement(),
+			expected:    "0.00",
+		},
+		{
+			name:        "Decimal keeps trailing zero",
+			val:         int32(1050),
+			parquetType: parquet.Type_INT32,
+			schemaElem:  decimalSchemaElement(),
+			expected:    "10.50",
+		},
+		{
+			name:        "Double positive infinity",
+			val:         math.Inf(1),
+			parquetType: parquet.Type_DOUBLE,
+			expected:    "Infinity",
+		},
+		{
+			name:        "Float negative infinity",
+			val:         float32(math.Inf(-1)),
+			parquetType: parquet.Type_FLOAT,
+			expected:    "-Infinity",
+		},
+		{
+			name:        "INT96 with pre-epoch Julian day",
+			val:         string(int96Bytes(4294967296, 2)),
+			parquetType: parquet.Type_INT96,
+			expected:    "-4713-11-26T00:00:04.294967296Z",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.expected, FormatValue(tt.val, tt.parquetType, tt.schemaElem))
+		})
+	}
+}
+
+func Test_FormatStatValue_Rendering(t *testing.T) {
+	tests := []struct {
+		name        string
+		value       []byte
+		parquetType parquet.Type
+		schemaElem  *parquet.SchemaElement
+		expected    string
+	}{
+		{
+			name:        "BSON keeps document key order",
+			value:       bsonInt32Doc("z", int32(1), "a", int32(2)),
+			parquetType: parquet.Type_BYTE_ARRAY,
+			schemaElem:  bsonSchemaElement(),
+			expected:    `{"z":{"$numberInt":"1"},"a":{"$numberInt":"2"}}`,
+		},
+		{
+			name:        "Decimal zero keeps scale",
+			value:       binary.LittleEndian.AppendUint32(nil, 0),
+			parquetType: parquet.Type_INT32,
+			schemaElem:  decimalSchemaElement(),
+			expected:    "0.00",
+		},
+		{
+			name:        "Double positive infinity",
+			value:       binary.LittleEndian.AppendUint64(nil, math.Float64bits(math.Inf(1))),
+			parquetType: parquet.Type_DOUBLE,
+			expected:    "Infinity",
+		},
+		{
+			name:        "Float negative infinity",
+			value:       binary.LittleEndian.AppendUint32(nil, math.Float32bits(float32(math.Inf(-1)))),
+			parquetType: parquet.Type_FLOAT,
+			expected:    "-Infinity",
+		},
+		{
+			name:        "INT96 with pre-epoch Julian day",
+			value:       int96Bytes(4294967296, 2),
+			parquetType: parquet.Type_INT96,
+			expected:    "-4713-11-26T00:00:04.294967296Z",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := FormatStatValue(tt.value, &parquet.ColumnMetaData{Type: tt.parquetType}, tt.schemaElem)
 			require.Equal(t, tt.expected, result)
 		})
 	}
