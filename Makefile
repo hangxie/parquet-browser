@@ -5,6 +5,9 @@ SHELL:=/bin/bash
 
 BUILD_TIME	= $(shell date +%FT%T%z)
 BUILD_DIR	= $(CURDIR)/build
+PAGES_DIR	= $(BUILD_DIR)/pages
+COLLECT_ARGS	?=
+COVERAGE_CSV	?= $(BUILD_DIR)/coverage.csv
 PKG_PREFIX	= github.com/hangxie/parquet-browser
 REL_TARGET	= \
 				darwin-amd64 darwin-arm64 \
@@ -16,6 +19,7 @@ VERSION		= $(shell git describe --tags --always)
 # go option
 CGO_ENABLED := 0
 GO			?= go
+PYTHON		?= python3
 GOBIN		= $(shell $(GO) env GOPATH)/bin
 GOFLAGS		:= -trimpath
 GOSOURCES	:= $(shell find . -type f -name '*.go')
@@ -110,6 +114,21 @@ test: deps tools pre-test  ## Run unit tests
 		$(GO) tool cover -html=coverage.out -o coverage.html ; \
 		$(GO) tool cover -func=coverage.out -o coverage.txt ; \
 		cat coverage.txt
+
+.PHONY: pages
+pages: pages-coverage  ## Generate all GitHub Pages content to build/pages/
+
+.PHONY: pages-coverage
+pages-coverage: deps pre-test  ## Collect coverage history and build charts (COLLECT_ARGS="--start 2024-01-01 --end 2024-06-01")
+	@echo "==> Generating coverage history page"
+	@mkdir -p $(PAGES_DIR)
+	@$(PYTHON) scripts/coverage-history.py $(COLLECT_ARGS) $(PAGES_DIR)/coverage-history.html $(COVERAGE_CSV)
+	@echo "==> Generating Go coverage report"
+	@mkdir -p $(BUILD_DIR)/test
+	@set -euo pipefail ; \
+		CGO_ENABLED=1 $(GO) test -parallel 4 -count 1 -trimpath \
+			-coverprofile=$(BUILD_DIR)/test/coverage.out ./... ; \
+		$(GO) tool cover -html=$(BUILD_DIR)/test/coverage.out -o $(PAGES_DIR)/coverage.html
 
 .PHONY: release-build
 release-build: deps ## Build release binaries
