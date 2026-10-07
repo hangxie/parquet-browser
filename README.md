@@ -1,5 +1,7 @@
 # parquet-browser
 
+[![](https://hangxie.github.io/parquet-browser/coverage.svg)](https://hangxie.github.io/parquet-browser/coverage-history.html)
+
 A triple-mode tool for browsing and inspecting Apache Parquet files:
 - **TUI Mode**: Interactive Terminal User Interface for file browsing
 - **Server Mode**: HTTP API server for programmatic access
@@ -673,6 +675,35 @@ The tool inherits support for cloud storage backends:
 - **Google Cloud Storage** (via cloud.google.com/go/storage)
 - **Azure Blob Storage** (via azure-sdk-for-go)
 - **HDFS** and **HTTP/HTTPS**
+
+## Local Development
+
+### Generating GitHub Pages
+
+`make pages` generates the project's GitHub Pages content locally to `build/pages/`; it currently runs the single `make pages-coverage` target.
+
+`make pages-coverage` collects coverage data and generates the chart. It checks out each day's latest commit, runs `go test`, and appends results to `build/coverage.csv` (sorted chronologically). Days with no commits carry forward the previous day's coverage, and days before the first commit with non-zero coverage are skipped. By default it covers the seven completed UTC days ending yesterday; a recorded entry for the current UTC day is measured again on the next run, since later commits that day would otherwise be missed. It also writes the per-package HTML coverage report to `build/pages/coverage.html` and the README coverage badge to `build/pages/coverage.svg`.
+
+```bash
+make pages-coverage                                                     # last 7 completed UTC days (default)
+make pages-coverage COLLECT_ARGS="--start 2025-10-11"                   # full history from a date
+make pages-coverage COLLECT_ARGS="--start 2026-01-01 --end 2026-06-01"  # explicit range
+```
+
+The HTML chart needs no third-party modules. The companion PNG additionally requires Python's `matplotlib`, which is **not** installed automatically; without it that one file is skipped with a warning and the rest of the run still succeeds. Install it with whichever tool fits your environment:
+
+```bash
+# apt (Debian/Ubuntu)
+sudo apt install python3-matplotlib
+
+# Homebrew (macOS)
+brew install python3 && pip3 install matplotlib
+
+# virtualenv, any platform
+python3 -m venv .venv && .venv/bin/pip install matplotlib && export PYTHON=$PWD/.venv/bin/python
+```
+
+The `github-pages` workflow runs the same target weekly and publishes the result to <https://hangxie.github.io/parquet-browser/>. It seeds `build/coverage.csv` from the previously published copy so history accumulates across runs rather than living in the repository, falling back to [`coverage.csv` in the wiki](https://raw.githubusercontent.com/wiki/hangxie/parquet-browser/coverage.csv) when nothing has been published yet. That wiki copy holds the history collected before the first deploy; once Pages has a copy it always wins, leaving the wiki file as a static backup.
 
 ## License
 
