@@ -1,9 +1,7 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
-	"strings"
 
 	"github.com/gdamore/tcell/v2"
 	"github.com/hangxie/parquet-go/v3/parquet"
@@ -11,34 +9,6 @@ import (
 
 	"github.com/hangxie/parquet-browser/model"
 )
-
-// PageContent holds decoded page content
-type PageContent struct {
-	Values        []string
-	Error         string
-	TotalValues   int
-	DisplayedVals int
-}
-
-// pageContentBuilder handles building page content view with lazy loading
-type pageContentBuilder struct {
-	app            *TUIApp
-	rgIndex        int
-	colIndex       int
-	pageIndex      int
-	pageInfo       model.PageMetadata
-	allPages       []model.PageMetadata
-	meta           *parquet.ColumnMetaData
-	table          *tview.Table
-	allValues      []string // Pre-formatted values from API/model layer
-	loadedValues   int
-	isLoading      bool
-	batchSize      int
-	statusTextView *tview.TextView
-	headerView     *tview.TextView
-	ctx            context.Context
-	cancel         context.CancelFunc
-}
 
 // pageTableBuilder handles building page tables with lazy loading
 type pageTableBuilder struct {
@@ -194,126 +164,4 @@ func (b *pageTableBuilder) setupHeader() {
 		}
 		b.table.SetCell(0, colIdx, cell)
 	}
-}
-
-func (b *pageContentBuilder) build() (*tview.Table, error) {
-	// Read all values first
-	values, err := b.app.readPageContent(b.rgIndex, b.colIndex, b.pageIndex)
-	if err != nil {
-		return nil, err
-	}
-
-	b.allValues = values
-
-	// Setup header
-	b.setupHeader()
-
-	// Load ALL values at once - they're already in memory
-	totalValues := len(b.allValues)
-	for i := 0; i < totalValues; i++ {
-		tableRowIdx := i + 1 // +1 because row 0 is the header
-
-		// Index column
-		cell := tview.NewTableCell(fmt.Sprintf("%d", i+1)).
-			SetTextColor(tcell.ColorDarkCyan).
-			SetAlign(tview.AlignRight)
-		b.table.SetCell(tableRowIdx, 0, cell)
-
-		// Value column - values are already formatted strings from the API/model layer
-		cell = tview.NewTableCell(b.allValues[i]).
-			SetTextColor(tcell.ColorWhite).
-			SetAlign(tview.AlignLeft).
-			SetExpansion(1)
-		b.table.SetCell(tableRowIdx, 1, cell)
-	}
-
-	b.loadedValues = totalValues
-
-	// Update header info
-	b.updateHeaderInfo()
-
-	// Setup key handlers
-	b.table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		switch event.Key() {
-		case tcell.KeyEscape:
-			b.cancel()
-			b.app.pages.RemovePage("page-content")
-			return nil
-		case tcell.KeyRune:
-			if event.Rune() == 's' {
-				b.app.showSchema()
-				return nil
-			}
-		}
-		return event
-	})
-
-	return b.table, nil
-}
-
-func (b *pageContentBuilder) setupHeader() {
-	// Add header row with two columns: Index and Value
-	headers := []string{"#", "Value"}
-	for colIdx, header := range headers {
-		cell := tview.NewTableCell(header).
-			SetTextColor(tcell.ColorYellow).
-			SetAlign(tview.AlignCenter).
-			SetSelectable(false)
-		if colIdx == 1 { // Value column should expand
-			cell.SetExpansion(1)
-		}
-		b.table.SetCell(0, colIdx, cell)
-	}
-}
-
-// updateHeaderInfo updates the header view with page information
-func (b *pageContentBuilder) updateHeaderInfo() {
-	var info strings.Builder
-
-	// Line 1: Page type, offset, size
-	_, _ = fmt.Fprintf(&info, "[yellow]Page Type:[-] %s  ", b.pageInfo.PageType)
-	_, _ = fmt.Fprintf(&info, "[yellow]Offset:[-] 0x%X  ", b.pageInfo.Offset)
-	_, _ = fmt.Fprintf(&info, "[yellow]Size:[-] %s → %s (%.2fx)",
-		b.pageInfo.CompressedSizeFormatted,
-		b.pageInfo.UncompressedSizeFormatted,
-		float64(b.pageInfo.UncompressedSize)/float64(b.pageInfo.CompressedSize))
-
-	// Line 2: Values, nulls, encoding
-	_, _ = info.WriteString("\n")
-	_, _ = fmt.Fprintf(&info, "[yellow]Values:[-] %d", b.pageInfo.NumValues)
-
-	// Add null count if available
-	if b.pageInfo.NullCount != nil {
-		_, _ = fmt.Fprintf(&info, "  [yellow]Nulls:[-] %d", *b.pageInfo.NullCount)
-	}
-
-	if b.pageInfo.Encoding != "" {
-		_, _ = fmt.Fprintf(&info, "  [yellow]Encoding:[-] %s", b.pageInfo.Encoding)
-	}
-
-	// Line 3: Min/Max (if available)
-	if b.pageInfo.MinValue != "" || b.pageInfo.MaxValue != "" {
-		info.WriteString("\n")
-		if b.pageInfo.MinValue != "" {
-			_, _ = fmt.Fprintf(&info, "[yellow]Min:[-] %s", b.pageInfo.MinValue)
-		}
-		if b.pageInfo.MaxValue != "" {
-			if b.pageInfo.MinValue != "" {
-				info.WriteString("  ")
-			}
-			_, _ = fmt.Fprintf(&info, "[yellow]Max:[-] %s", b.pageInfo.MaxValue)
-		}
-	}
-
-	b.headerView.SetText(info.String())
-}
-
-// getPageContentHeaderHeight calculates the height needed for page content header
-func getPageContentHeaderHeight(headerView *tview.TextView) int {
-	if headerView == nil {
-		return 3
-	}
-	text := headerView.GetText(false)
-	lines := strings.Count(text, "\n") + 1
-	return lines + 2 // +2 for borders
 }

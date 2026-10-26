@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -308,4 +309,211 @@ func findSubstring(s, substr string) bool {
 		}
 	}
 	return false
+}
+
+// Test WriteJSON with encoding error (channel cannot be JSON encoded)
+func Test_WriteJSON_EncodingError(t *testing.T) {
+	w := httptest.NewRecorder()
+
+	// Channels cannot be JSON encoded
+	invalidData := make(chan int)
+
+	// This should try to encode and fail, triggering error path
+	WriteJSON(w, http.StatusOK, invalidData)
+
+	// Function handles error internally, we just verify no panic
+	// The error handling writes an HTTP error response
+}
+
+// Test WriteJSON normal flow with proper indentation
+func Test_WriteJSON_WithIndentation(t *testing.T) {
+	w := httptest.NewRecorder()
+
+	data := map[string]interface{}{
+		"key1": "value1",
+		"key2": 42,
+		"nested": map[string]string{
+			"inner": "value",
+		},
+	}
+
+	WriteJSON(w, http.StatusOK, data)
+
+	require.Equal(t, http.StatusOK, w.Code)
+
+	body := w.Body.String()
+	// Check for indentation (newlines indicate pretty printing)
+	require.Contains(t, body, "\n")
+
+	// Verify valid JSON
+	var result map[string]interface{}
+	err := json.Unmarshal(w.Body.Bytes(), &result)
+	require.NoError(t, err)
+}
+
+// Test FormatGoCode with various valid inputs
+func Test_FormatGoCode_ValidInputs(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{
+			name:  "Simple package",
+			input: "package main\n\nfunc main() {}\n",
+		},
+		{
+			name:  "Needs formatting",
+			input: "package main\nfunc main(){}\n",
+		},
+		{
+			name:  "With imports",
+			input: "package main\n\nimport \"fmt\"\n\nfunc main() { fmt.Println(\"hi\") }\n",
+		},
+		{
+			name:  "Struct",
+			input: "package main\n\ntype MyStruct struct {\n\tField string\n}\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := FormatGoCode(tt.input)
+			require.NoError(t, err)
+			require.NotEmpty(t, result)
+
+			// Verify it's still valid Go code
+			require.Contains(t, result, "package main")
+		})
+	}
+}
+
+// Test FormatGoCode error case
+func Test_FormatGoCode_InvalidSyntax(t *testing.T) {
+	invalidCode := "package main\nthis is not valid go syntax!!!"
+
+	_, err := FormatGoCode(invalidCode)
+	require.Error(t, err)
+}
+
+// Test FormatGoCode with empty input
+func Test_FormatGoCode_EmptyInput(t *testing.T) {
+	result, err := FormatGoCode("")
+	require.NoError(t, err)
+	require.Empty(t, result)
+}
+
+// Test CORS middleware adds headers
+func Test_CORSMiddleware_Headers(t *testing.T) {
+	called := false
+	handler := CORSMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	req := httptest.NewRequest("GET", "/test", nil)
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	require.True(t, called)
+
+	// Check CORS headers
+	require.Equal(t, "*", w.Header().Get("Access-Control-Allow-Origin"))
+	require.NotEmpty(t, w.Header().Get("Access-Control-Allow-Methods"))
+	require.NotEmpty(t, w.Header().Get("Access-Control-Allow-Headers"))
+}
+
+// Test CORS middleware OPTIONS handling
+func Test_CORSMiddleware_OPTIONS(t *testing.T) {
+	handler := CORSMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Error("Handler should not be called for OPTIONS request")
+	}))
+
+	req := httptest.NewRequest("OPTIONS", "/test", nil)
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+
+	// CORS headers should still be set
+	require.NotEmpty(t, w.Header().Get("Access-Control-Allow-Origin"))
+}
+
+// Test LoggingMiddleware logs requests
+func Test_LoggingMiddleware_Logging(t *testing.T) {
+	called := false
+	handler := LoggingMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	tests := []struct {
+		name string
+		path string
+	}{
+		{"Simple path", "/test"},
+		{"With query params", "/test?foo=bar"},
+		{"Multiple query params", "/test?foo=bar&baz=qux"},
+		{"Empty query value", "/test?foo="},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			called = false
+			req := httptest.NewRequest("GET", tt.path, nil)
+			w := httptest.NewRecorder()
+
+			handler.ServeHTTP(w, req)
+
+			require.True(t, called)
+			require.Equal(t, http.StatusOK, w.Code)
+		})
+	}
+}
+
+// Test WriteJSON and WriteError together
+func Test_Write_Functions_Together(t *testing.T) {
+	// Test WriteJSON
+	w1 := httptest.NewRecorder()
+	WriteJSON(w1, http.StatusOK, map[string]string{"key": "value"})
+	require.Equal(t, http.StatusOK, w1.Code)
+
+	// Test WriteError
+	w2 := httptest.NewRecorder()
+	WriteError(w2, http.StatusBadRequest, "test error")
+	require.Equal(t, http.StatusBadRequest, w2.Code)
+
+	var errResp map[string]string
+	err := json.Unmarshal(w2.Body.Bytes(), &errResp)
+	require.NoError(t, err)
+
+	require.Equal(t, "test error", errResp["error"])
+}
+
+// Test JSON encoding/decoding roundtrip
+func Test_JSON_Roundtrip(t *testing.T) {
+	original := map[string]interface{}{
+		"string":  "value",
+		"number":  42,
+		"boolean": true,
+		"array":   []int{1, 2, 3},
+		"nested": map[string]string{
+			"key": "value",
+		},
+	}
+
+	w := httptest.NewRecorder()
+	WriteJSON(w, http.StatusOK, original)
+
+	var decoded map[string]interface{}
+	err := json.NewDecoder(bytes.NewReader(w.Body.Bytes())).Decode(&decoded)
+	require.NoError(t, err)
+
+	require.Equal(t, "value", decoded["string"])
+
+	// Note: JSON numbers are decoded as float64
+	require.Equal(t, float64(42), decoded["number"].(float64))
+
+	require.Equal(t, true, decoded["boolean"])
 }
