@@ -68,13 +68,18 @@ func Test_HandleRowGroupsView_InvalidIndices(t *testing.T) {
 }
 
 func Test_HandleMainView_URLPushUrl(t *testing.T) {
-	// This test would require real parquet data, skip for now
-	t.Skip("Requires real parquet file")
+	w := serveFixtureRequest(t, newFixtureService(t, "all-types.parquet"), "/ui/main")
+	require.Equal(t, http.StatusOK, w.Code)
+	require.Contains(t, w.Body.String(), `hx-push-url="true"`)
 }
 
 func Test_HandleColumnsView_Breadcrumbs(t *testing.T) {
-	// Requires real parquet data
-	t.Skip("Requires real parquet file")
+	w := serveFixtureRequest(t, newFixtureService(t, "all-types.parquet"), "/ui/rowgroups/0/columns")
+	require.Equal(t, http.StatusOK, w.Code)
+	body := w.Body.String()
+	require.Contains(t, body, `class="breadcrumb"`)
+	require.Contains(t, body, `href="/ui/main"`)
+	require.Contains(t, body, `href="/ui/rowgroups"`)
 }
 
 func Test_HandleIndexPage_HTMXIncluded(t *testing.T) {
@@ -178,13 +183,7 @@ func Test_HandleIndexPage_Structure(t *testing.T) {
 }
 
 func Test_HandleMainView_WithRealFile(t *testing.T) {
-	svc := createTestServiceWithFile(t, "all-types.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "all-types.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupWebUIRoutes(router)
@@ -206,13 +205,7 @@ func Test_HandleMainView_WithRealFile(t *testing.T) {
 }
 
 func Test_HandleRowGroupsView_WithRealFile(t *testing.T) {
-	svc := createTestServiceWithFile(t, "all-types.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "all-types.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupWebUIRoutes(router)
@@ -234,13 +227,7 @@ func Test_HandleRowGroupsView_WithRealFile(t *testing.T) {
 }
 
 func Test_HandleRowGroupsView_EmptyFile(t *testing.T) {
-	svc := createTestServiceWithFile(t, "empty.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "empty.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupWebUIRoutes(router)
@@ -259,13 +246,7 @@ func Test_HandleRowGroupsView_EmptyFile(t *testing.T) {
 }
 
 func Test_HandleColumnsView_WithRealFile(t *testing.T) {
-	svc := createTestServiceWithFile(t, "all-types.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "all-types.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupWebUIRoutes(router)
@@ -291,13 +272,7 @@ func Test_HandleColumnsView_WithRealFile(t *testing.T) {
 
 // Test handleColumnsView with invalid row group index
 func Test_HandleColumnsView_InvalidRowGroupIndex(t *testing.T) {
-	svc := createTestServiceWithFile(t, "all-types.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "all-types.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupWebUIRoutes(router)
@@ -314,13 +289,7 @@ func Test_HandleColumnsView_InvalidRowGroupIndex(t *testing.T) {
 func Test_HandleRowGroupsView_WithZeroCompression(t *testing.T) {
 	// This tests the division by zero case in handleRowGroupsView
 	// when totalCompressed is 0
-	svc := createTestServiceWithFile(t, "empty.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "empty.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupWebUIRoutes(router)
@@ -338,13 +307,7 @@ func Test_HandleRowGroupsView_WithZeroCompression(t *testing.T) {
 
 // Test handleColumnsView with division by zero
 func Test_HandleColumnsView_CompressionRatio(t *testing.T) {
-	svc := createTestServiceWithFile(t, "all-types.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "all-types.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupWebUIRoutes(router)
@@ -362,13 +325,7 @@ func Test_HandleColumnsView_CompressionRatio(t *testing.T) {
 
 // Test columns view with null count
 func Test_HandleColumnsView_NullCount(t *testing.T) {
-	svc := createTestServiceWithFile(t, "all-types.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "all-types.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupWebUIRoutes(router)
@@ -386,13 +343,7 @@ func Test_HandleColumnsView_NullCount(t *testing.T) {
 
 // Test ConvertedType display in columns view
 func Test_HandleColumnsView_ConvertedType(t *testing.T) {
-	svc := createTestServiceWithFile(t, "all-types.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "all-types.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupWebUIRoutes(router)
@@ -410,13 +361,7 @@ func Test_HandleColumnsView_ConvertedType(t *testing.T) {
 
 // Test handleMainView with empty file
 func Test_HandleMainView_EmptyFile(t *testing.T) {
-	svc := createTestServiceWithFile(t, "empty.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "empty.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupWebUIRoutes(router)
@@ -433,13 +378,7 @@ func Test_HandleMainView_EmptyFile(t *testing.T) {
 
 // Test handleRowGroupsView compression ratio with zero values
 func Test_HandleRowGroupsView_DivisionByZero(t *testing.T) {
-	svc := createTestServiceWithFile(t, "empty.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "empty.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupWebUIRoutes(router)
@@ -457,13 +396,7 @@ func Test_HandleRowGroupsView_DivisionByZero(t *testing.T) {
 
 // Test handleColumnsView with column that has null values
 func Test_HandleColumnsView_WithNulls(t *testing.T) {
-	svc := createTestServiceWithFile(t, "all-types.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "all-types.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupWebUIRoutes(router)
@@ -481,13 +414,7 @@ func Test_HandleColumnsView_WithNulls(t *testing.T) {
 
 // Test handleRowGroupsView division paths
 func Test_HandleRowGroupsView_AllPaths(t *testing.T) {
-	svc := createTestServiceWithFile(t, "all-types.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "all-types.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupWebUIRoutes(router)
@@ -506,13 +433,7 @@ func Test_HandleRowGroupsView_AllPaths(t *testing.T) {
 
 // Test handleColumnsView all paths with real data
 func Test_HandleColumnsView_AllCodePaths(t *testing.T) {
-	svc := createTestServiceWithFile(t, "all-types.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "all-types.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupWebUIRoutes(router)
@@ -526,4 +447,44 @@ func Test_HandleColumnsView_AllCodePaths(t *testing.T) {
 	body := w.Body.String()
 	require.Contains(t, body, "Column Chunks")
 	require.Contains(t, body, "Total Size")
+}
+
+func Test_ZeroColumnFile_WebUI(t *testing.T) {
+	svc := newFixtureService(t, "zero-column.parquet")
+
+	for _, url := range []string{"/ui/main", "/ui/rowgroups", "/ui/rowgroups/0/columns"} {
+		t.Run(url, func(t *testing.T) {
+			w := serveFixtureRequest(t, svc, url)
+			require.Equal(t, http.StatusOK, w.Code)
+			require.Equal(t, "text/html; charset=utf-8", w.Header().Get("Content-Type"))
+		})
+	}
+
+	t.Run("/ui/schema/go", func(t *testing.T) {
+		w := serveFixtureRequest(t, svc, "/ui/schema/go")
+		require.Equal(t, http.StatusOK, w.Code)
+		require.Contains(t, w.Body.String(), "Parquet_go_root struct")
+	})
+
+	t.Run("pages of missing column", func(t *testing.T) {
+		w := serveFixtureRequest(t, svc, "/ui/rowgroups/0/columns/0/pages")
+		require.Equal(t, http.StatusNotFound, w.Code)
+	})
+}
+
+func Test_ListMapLayoutFile_WebUI(t *testing.T) {
+	svc := newFixtureService(t, "list-map-layout.parquet")
+
+	t.Run("columns", func(t *testing.T) {
+		w := serveFixtureRequest(t, svc, "/ui/rowgroups/0/columns")
+		require.Equal(t, http.StatusOK, w.Code)
+		require.Contains(t, w.Body.String(), "Athena.List.Element")
+		require.NotContains(t, w.Body.String(), "Bag.Array_element")
+	})
+
+	t.Run("schema go", func(t *testing.T) {
+		w := serveFixtureRequest(t, svc, "/ui/schema/go")
+		require.Equal(t, http.StatusOK, w.Code)
+		require.Contains(t, w.Body.String(), "Legacy")
+	})
 }

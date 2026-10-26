@@ -12,23 +12,23 @@ import (
 )
 
 func Test_HandlePagesView_Breadcrumbs(t *testing.T) {
-	// Requires real parquet data
-	t.Skip("Requires real parquet file")
+	w := serveFixtureRequest(t, newFixtureService(t, "all-types.parquet"), "/ui/rowgroups/0/columns/0/pages")
+	require.Equal(t, http.StatusOK, w.Code)
+	body := w.Body.String()
+	require.Contains(t, body, `class="breadcrumb"`)
+	require.Contains(t, body, `href="/ui/rowgroups/0/columns"`)
 }
 
 func Test_HandlePageContentView_Breadcrumbs(t *testing.T) {
-	// Requires real parquet data
-	t.Skip("Requires real parquet file")
+	w := serveFixtureRequest(t, newFixtureService(t, "all-types.parquet"), "/ui/rowgroups/0/columns/0/pages/0/content")
+	require.Equal(t, http.StatusOK, w.Code)
+	body := w.Body.String()
+	require.Contains(t, body, `class="breadcrumb"`)
+	require.Contains(t, body, `href="/ui/rowgroups/0/columns/0/pages"`)
 }
 
 func Test_HandlePagesView_WithRealFile(t *testing.T) {
-	svc := createTestServiceWithFile(t, "all-types.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "all-types.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupWebUIRoutes(router)
@@ -56,13 +56,7 @@ func Test_HandlePagesView_WithRealFile(t *testing.T) {
 
 // Test handlePageContentView with real file
 func Test_HandlePageContentView_WithRealFile(t *testing.T) {
-	svc := createTestServiceWithFile(t, "all-types.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "all-types.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupWebUIRoutes(router)
@@ -84,13 +78,7 @@ func Test_HandlePageContentView_WithRealFile(t *testing.T) {
 
 // Test handlePageContentView with invalid indices
 func Test_HandlePageContentView_InvalidIndices(t *testing.T) {
-	svc := createTestServiceWithFile(t, "all-types.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "all-types.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupWebUIRoutes(router)
@@ -168,13 +156,7 @@ func Test_HandlePageContentView_InvalidIndices(t *testing.T) {
 
 // Test handlePagesView with invalid indices
 func Test_HandlePagesView_InvalidIndices(t *testing.T) {
-	svc := createTestServiceWithFile(t, "all-types.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "all-types.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupWebUIRoutes(router)
@@ -236,13 +218,7 @@ func Test_HandlePagesView_InvalidIndices(t *testing.T) {
 
 // Test handlePagesView error path - when column info is not available
 func Test_HandlePagesView_WithoutColumnInfo(t *testing.T) {
-	svc := createTestServiceWithFile(t, "all-types.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "all-types.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupWebUIRoutes(router)
@@ -261,13 +237,7 @@ func Test_HandlePagesView_WithoutColumnInfo(t *testing.T) {
 
 // Test handlePagesView with division by zero
 func Test_HandlePagesView_CompressionRatio(t *testing.T) {
-	svc := createTestServiceWithFile(t, "all-types.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "all-types.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupWebUIRoutes(router)
@@ -285,13 +255,7 @@ func Test_HandlePagesView_CompressionRatio(t *testing.T) {
 
 // Test page content with multiple columns
 func Test_HandlePageContentView_MultipleColumns(t *testing.T) {
-	svc := createTestServiceWithFile(t, "all-types.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "all-types.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupWebUIRoutes(router)
@@ -319,13 +283,7 @@ func Test_HandlePageContentView_MultipleColumns(t *testing.T) {
 
 // Test ConvertedType display in pages view
 func Test_HandlePagesView_ConvertedType(t *testing.T) {
-	svc := createTestServiceWithFile(t, "all-types.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "all-types.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupWebUIRoutes(router)
@@ -344,13 +302,7 @@ func Test_HandlePagesView_ConvertedType(t *testing.T) {
 
 // Test multiple page indices
 func Test_HandlePageContentView_DifferentPageIndices(t *testing.T) {
-	svc := createTestServiceWithFile(t, "all-types.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "all-types.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupWebUIRoutes(router)
@@ -370,13 +322,7 @@ func Test_HandlePageContentView_DifferentPageIndices(t *testing.T) {
 
 // Test pages view with column that has converter type
 func Test_HandlePagesView_WithConverterType(t *testing.T) {
-	svc := createTestServiceWithFile(t, "all-types.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "all-types.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupWebUIRoutes(router)
@@ -398,13 +344,7 @@ func Test_HandlePagesView_WithConverterType(t *testing.T) {
 
 // Test handlePagesView all code paths
 func Test_HandlePagesView_AllCodePaths(t *testing.T) {
-	svc := createTestServiceWithFile(t, "all-types.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "all-types.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupWebUIRoutes(router)
@@ -422,13 +362,7 @@ func Test_HandlePagesView_AllCodePaths(t *testing.T) {
 
 // Test handlePageContentView all code paths
 func Test_HandlePageContentView_AllCodePaths(t *testing.T) {
-	svc := createTestServiceWithFile(t, "all-types.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "all-types.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupWebUIRoutes(router)
@@ -450,11 +384,7 @@ func Test_HandlePageContentView_AllCodePaths(t *testing.T) {
 // etc.) it responds with 200 + a modal partial that HTMX overlays on top of
 // the existing view, so the user can dismiss it without losing context.
 func Test_HandlePagesView_ReaderError_RendersErrorPartial(t *testing.T) {
-	svc := createTestServiceWithRealFile(t, "all-types.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() { _ = svc.Close() }()
+	svc := newFixtureService(t, "all-types.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupWebUIRoutes(router)
@@ -500,11 +430,7 @@ func Test_HandlePagesView_EncryptionError_FriendlyMessage(t *testing.T) {
 // same recovery behavior on the page-content endpoint, which has its own set
 // of error branches.
 func Test_HandlePageContentView_ReaderError_RendersErrorPartial(t *testing.T) {
-	svc := createTestServiceWithRealFile(t, "all-types.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() { _ = svc.Close() }()
+	svc := newFixtureService(t, "all-types.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupWebUIRoutes(router)

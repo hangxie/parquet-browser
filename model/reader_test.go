@@ -2,6 +2,7 @@ package model
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -12,7 +13,7 @@ import (
 func Test_NewParquetReader(t *testing.T) {
 	t.Run("Opens and reads parquet file", func(t *testing.T) {
 		// Open a test parquet file using parquet-tools helper
-		pr, err := pio.NewParquetFileReader(context.Background(), getTestParquetFilePath(), pio.ReadOption{})
+		pr, err := pio.NewParquetFileReader(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
 		require.NoError(t, err)
 		defer func() { _ = pr.ReadStopWithContext(context.Background()) }()
 
@@ -30,7 +31,7 @@ func Test_NewParquetReader(t *testing.T) {
 	})
 
 	t.Run("Gets row group info", func(t *testing.T) {
-		pr, err := pio.NewParquetFileReader(context.Background(), getTestParquetFilePath(), pio.ReadOption{})
+		pr, err := pio.NewParquetFileReader(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
 		require.NoError(t, err)
 		defer func() { _ = pr.ReadStopWithContext(context.Background()) }()
 
@@ -45,7 +46,7 @@ func Test_NewParquetReader(t *testing.T) {
 	})
 
 	t.Run("Gets column chunk info", func(t *testing.T) {
-		pr, err := pio.NewParquetFileReader(context.Background(), getTestParquetFilePath(), pio.ReadOption{})
+		pr, err := pio.NewParquetFileReader(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
 		require.NoError(t, err)
 		defer func() { _ = pr.ReadStopWithContext(context.Background()) }()
 
@@ -60,7 +61,7 @@ func Test_NewParquetReader(t *testing.T) {
 	})
 
 	t.Run("Gets page metadata", func(t *testing.T) {
-		pr, err := pio.NewParquetFileReader(context.Background(), getTestParquetFilePath(), pio.ReadOption{})
+		pr, err := pio.NewParquetFileReader(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
 		require.NoError(t, err)
 		defer func() { _ = pr.ReadStopWithContext(context.Background()) }()
 
@@ -78,13 +79,18 @@ func Test_NewParquetReader(t *testing.T) {
 	})
 }
 
-func getTestParquetFilePath() string {
-	return filepath.Join("..", "build", "testdata", "all-types.parquet")
+// fixturePath returns a fixture downloaded by `make test`, failing the test when it is missing.
+func fixturePath(t *testing.T, name string) string {
+	t.Helper()
+	path := filepath.Join("..", "build", "testdata", name)
+	_, err := os.Stat(path)
+	require.NoError(t, err, "missing fixture; run `make test` to download it")
+	return path
 }
 
 // Test NewParquetReader with real parquet file
 func Test_NewParquetReader_WithRealFile(t *testing.T) {
-	parquetReader, err := pio.NewParquetFileReader(context.Background(), getTestParquetFilePath(), pio.ReadOption{})
+	parquetReader, err := pio.NewParquetFileReader(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
 	require.NoError(t, err)
 	defer func() { _ = parquetReader.ReadStopWithContext(context.Background()) }()
 
@@ -100,7 +106,7 @@ func Test_NewParquetReader_WithRealFile(t *testing.T) {
 
 // Test GetFileInfo with real parquet file
 func Test_GetFileInfo_WithRealFile(t *testing.T) {
-	parquetReader, err := pio.NewParquetFileReader(context.Background(), getTestParquetFilePath(), pio.ReadOption{})
+	parquetReader, err := pio.NewParquetFileReader(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
 	require.NoError(t, err)
 	defer func() { _ = parquetReader.ReadStopWithContext(context.Background()) }()
 
@@ -121,7 +127,7 @@ func Test_GetFileInfo_WithRealFile(t *testing.T) {
 
 // Test GetRowGroupInfo with valid indices
 func Test_GetRowGroupInfo_ValidIndex(t *testing.T) {
-	parquetReader, err := pio.NewParquetFileReader(context.Background(), getTestParquetFilePath(), pio.ReadOption{})
+	parquetReader, err := pio.NewParquetFileReader(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
 	require.NoError(t, err)
 	defer func() { _ = parquetReader.ReadStopWithContext(context.Background()) }()
 
@@ -141,7 +147,7 @@ func Test_GetRowGroupInfo_ValidIndex(t *testing.T) {
 
 // Test GetRowGroupInfo with invalid indices
 func Test_GetRowGroupInfo_InvalidIndex(t *testing.T) {
-	parquetReader, err := pio.NewParquetFileReader(context.Background(), getTestParquetFilePath(), pio.ReadOption{})
+	parquetReader, err := pio.NewParquetFileReader(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
 	require.NoError(t, err)
 	defer func() { _ = parquetReader.ReadStopWithContext(context.Background()) }()
 
@@ -166,7 +172,7 @@ func Test_GetRowGroupInfo_InvalidIndex(t *testing.T) {
 
 // Test GetAllRowGroupsInfo
 func Test_GetAllRowGroupsInfo(t *testing.T) {
-	parquetReader, err := pio.NewParquetFileReader(context.Background(), getTestParquetFilePath(), pio.ReadOption{})
+	parquetReader, err := pio.NewParquetFileReader(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
 	require.NoError(t, err)
 	defer func() { _ = parquetReader.ReadStopWithContext(context.Background()) }()
 
@@ -184,3 +190,68 @@ func Test_GetAllRowGroupsInfo(t *testing.T) {
 }
 
 // Test GetPageMetadataList
+
+// openFixture opens a fixture and closes it when the test ends.
+func openFixture(t *testing.T, name string) *ParquetReader {
+	t.Helper()
+	parquetReader, err := pio.NewParquetFileReader(context.Background(), fixturePath(t, name), pio.ReadOption{})
+	require.NoError(t, err)
+
+	pr := NewParquetReader(parquetReader)
+	t.Cleanup(func() { _ = pr.Close() })
+	return pr
+}
+
+// Files with a corrupt footer used to open and expose garbage metadata; they are
+// now rejected while the footer is read.
+func Test_NewParquetFileReader_CorruptFooter(t *testing.T) {
+	tests := []struct {
+		file    string
+		wantErr string
+	}{
+		{file: "bad-footer-magic.parquet", wantErr: `invalid footer magic "XXXX"`},
+		{file: "negative-num-rows.parquet", wantErr: "num_rows -1 is negative"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.file, func(t *testing.T) {
+			parquetReader, err := pio.NewParquetFileReader(context.Background(), fixturePath(t, tt.file), pio.ReadOption{})
+			require.Error(t, err)
+			require.Nil(t, parquetReader)
+			require.Contains(t, err.Error(), tt.wantErr)
+		})
+	}
+}
+
+// A schema without leaf columns still has rows; it must open and report an
+// empty column list rather than failing.
+func Test_ZeroColumnFile(t *testing.T) {
+	pr := openFixture(t, "zero-column.parquet")
+
+	info := pr.GetFileInfo()
+	require.Equal(t, 1, info.NumRowGroups)
+	require.Equal(t, int64(3), info.NumRows)
+	require.Zero(t, info.NumLeafColumns)
+	require.Zero(t, info.TotalCompressedSize)
+	require.Zero(t, info.TotalUncompressedSize)
+	require.Zero(t, info.CompressionRatio)
+
+	rowGroups := pr.GetAllRowGroupsInfo()
+	require.Len(t, rowGroups, 1)
+	require.Equal(t, int64(3), rowGroups[0].NumRows)
+	require.Zero(t, rowGroups[0].NumColumns)
+	require.Zero(t, rowGroups[0].CompressionRatio)
+
+	columns, err := pr.GetAllColumnChunksInfo(0)
+	require.NoError(t, err)
+	require.Empty(t, columns)
+
+	_, err = pr.GetColumnChunkInfo(0, 0)
+	require.ErrorIs(t, err, ErrInvalidColumnIndex)
+
+	_, err = pr.GetPageMetadataList(context.Background(), 0, 0)
+	require.ErrorIs(t, err, ErrInvalidColumnIndex)
+
+	_, err = pr.GetPageContentFormatted(context.Background(), 0, 0, 0)
+	require.ErrorIs(t, err, ErrInvalidColumnIndex)
+}
