@@ -8,25 +8,21 @@ import (
 
 // TUIApp represents the TUI application for browsing Parquet files
 type TUIApp struct {
-	tviewApp       *tview.Application
-	pages          *tview.Pages
-	mainLayout     *tview.Flex
-	headerView     *tview.TextView
-	rowGroupList   *tview.Table
-	statusLine     *tview.TextView
-	currentFile    string
-	httpClient     *parquetClient // HTTP client for data access
-	lastRGIndex    int            // Track which row group we're positioned at (unused, kept for compatibility)
-	lastRGPosition int64          // Track position within file (unused, kept for compatibility)
+	tviewApp     *tview.Application
+	pages        *tview.Pages
+	mainLayout   *tview.Flex
+	headerView   *tview.TextView
+	rowGroupList *tview.Table
+	statusLine   *tview.TextView
+	currentFile  string
+	httpClient   *parquetClient // HTTP client for data access
 }
 
 // NewTUIApp creates a new TUIApp instance
 func NewTUIApp() *TUIApp {
 	return &TUIApp{
-		tviewApp:       tview.NewApplication(),
-		pages:          tview.NewPages(),
-		lastRGIndex:    -1, // Start with -1 to indicate no row group has been accessed yet
-		lastRGPosition: 0,
+		tviewApp: tview.NewApplication(),
+		pages:    tview.NewPages(),
 	}
 }
 

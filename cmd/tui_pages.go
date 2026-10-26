@@ -18,9 +18,6 @@ type pageTableBuilder struct {
 	meta           *parquet.ColumnMetaData
 	table          *tview.Table
 	pages          []model.PageMetadata
-	loadedPages    int
-	isLoading      bool
-	batchSize      int
 	statusTextView *tview.TextView
 	loadError      error
 }
@@ -56,7 +53,6 @@ func (b *pageTableBuilder) build() *tview.Table {
 		return b.table
 	}
 
-	totalPages := len(b.pages)
 	for pageIdx, page := range b.pages {
 		tableRowIdx := pageIdx + 1 // +1 because row 0 is the header
 
@@ -118,8 +114,6 @@ func (b *pageTableBuilder) build() *tview.Table {
 			SetAlign(tview.AlignLeft)
 		b.table.SetCell(tableRowIdx, 8, cell)
 	}
-
-	b.loadedPages = totalPages
 
 	b.table.SetTitle(" Pages (↑↓ to navigate, Enter=view values) ")
 
