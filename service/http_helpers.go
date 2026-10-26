@@ -10,14 +10,10 @@ import (
 	"strings"
 )
 
-// StatusClientClosedRequest is the non-standard status (popularized by nginx)
-// used when the client's request context is cancelled before a response is
-// produced. It avoids misreporting a cancelled request as 404 Not Found.
+// StatusClientClosedRequest is nginx's 499, for a request cancelled before a response was produced.
 const StatusClientClosedRequest = 499
 
-// contextErrorStatus maps a cancelled or timed-out request context to an
-// appropriate HTTP status, returning fallback otherwise, so handlers do not
-// report an interrupted request as a missing resource.
+// contextErrorStatus maps a cancelled or timed-out ctx error to its HTTP status, otherwise fallback.
 func contextErrorStatus(err error, fallback int) int {
 	switch {
 	case errors.Is(err, context.Canceled):
@@ -37,7 +33,6 @@ func WriteJSON(w http.ResponseWriter, status int, data interface{}) {
 	encoder := json.NewEncoder(w)
 	encoder.SetIndent("", "  ")
 	if err := encoder.Encode(data); err != nil {
-		// If encoding fails, try to write error
 		http.Error(w, fmt.Sprintf("Failed to encode response: %v", err), http.StatusInternalServerError)
 	}
 }
@@ -70,7 +65,6 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("%s %s\n", r.Method, r.URL.Path)
 
-		// Extract query params for logging
 		if len(r.URL.RawQuery) > 0 {
 			params := make([]string, 0)
 			for key, values := range r.URL.Query() {

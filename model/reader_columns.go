@@ -21,7 +21,7 @@ type ColumnChunkInfo struct {
 	CompressionRatio float64
 	MinValue         string // Formatted for display
 	MaxValue         string // Formatted for display
-	// Formatted fields for display (kept for backward compatibility)
+	// Pre-formatted copies kept for existing API clients.
 	CompressedSizeFormatted   string `json:"compressedSizeFormatted,omitempty"`
 	UncompressedSizeFormatted string `json:"uncompressedSizeFormatted,omitempty"`
 	MinValueFormatted         string `json:"minValueFormatted,omitempty"`
@@ -61,12 +61,10 @@ func (pr *ParquetReader) GetColumnChunkInfo(rgIndex, colIndex int) (ColumnChunkI
 		UncompressedSize: meta.TotalUncompressedSize,
 	}
 
-	// Calculate compression ratio
 	if info.CompressedSize > 0 {
 		info.CompressionRatio = float64(info.UncompressedSize) / float64(info.CompressedSize)
 	}
 
-	// Get schema element for logical/converted types
 	schemaElem := findSchemaElement(pr.metadata.Schema, meta.PathInSchema)
 	if schemaElem != nil {
 		info.LogicalType = formatLogicalType(schemaElem.LogicalType)
@@ -76,14 +74,12 @@ func (pr *ParquetReader) GetColumnChunkInfo(rgIndex, colIndex int) (ColumnChunkI
 		}
 	}
 
-	// Get statistics if available
 	if meta.Statistics != nil {
 		stats := meta.Statistics
 
-		// Null count
 		info.NullCount = stats.NullCount
 
-		// Min/Max values - prefer MinValue/MaxValue over deprecated Min/Max
+		// Prefer MinValue/MaxValue over the deprecated Min/Max.
 		minValueBytes := stats.MinValue
 		if len(minValueBytes) == 0 {
 			minValueBytes = stats.Min
@@ -93,15 +89,13 @@ func (pr *ParquetReader) GetColumnChunkInfo(rgIndex, colIndex int) (ColumnChunkI
 			maxValueBytes = stats.Max
 		}
 
-		// Format min/max values for display
 		info.MinValue = FormatStatValue(minValueBytes, meta, schemaElem)
 		info.MaxValue = FormatStatValue(maxValueBytes, meta, schemaElem)
-		// Keep the formatted fields for backward compatibility
+		// Pre-formatted copies kept for existing API clients.
 		info.MinValueFormatted = info.MinValue
 		info.MaxValueFormatted = info.MaxValue
 	}
 
-	// Format sizes for display
 	info.CompressedSizeFormatted = FormatBytes(info.CompressedSize)
 	info.UncompressedSizeFormatted = FormatBytes(info.UncompressedSize)
 
@@ -131,7 +125,7 @@ func (pr *ParquetReader) GetAllColumnChunksInfo(rgIndex int) ([]ColumnChunkInfo,
 	return infos, nil
 }
 
-// formatColumnName creates a display name from path in schema
+// formatColumnName joins a schema path into a dotted display name
 func formatColumnName(pathInSchema []string) string {
 	return strings.Join(pathInSchema, ".")
 }

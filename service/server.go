@@ -9,13 +9,10 @@ import (
 	"time"
 )
 
-// shutdownGracePeriod bounds how long a graceful shutdown waits for in-flight
-// requests to drain after a termination signal.
+// shutdownGracePeriod bounds how long shutdown waits for in-flight requests to drain.
 const shutdownGracePeriod = 10 * time.Second
 
-// serveWithShutdown runs an HTTP server bound to addr until it fails or ctx is
-// cancelled. When ctx is cancelled (e.g. the process received SIGINT/SIGTERM),
-// it shuts down gracefully via ShutdownServer. A clean shutdown returns nil.
+// serveWithShutdown serves on addr until it fails or ctx is cancelled, then shuts down gracefully.
 func serveWithShutdown(ctx context.Context, addr string, handler http.Handler) error {
 	server := &http.Server{Addr: addr, Handler: handler}
 
@@ -36,9 +33,7 @@ func serveWithShutdown(ctx context.Context, addr string, handler http.Handler) e
 	}
 }
 
-// ShutdownServer stops server within grace, then force-closes connections that
-// outlast it (Shutdown alone leaves them running), and waits on serveErr for
-// ListenAndServe's result. A grace timeout is not an error. Call at most once.
+// ShutdownServer drains server within grace, then force-closes it; call it at most once.
 func ShutdownServer(server *http.Server, serveErr <-chan error, grace time.Duration) error {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), grace)
 	defer cancel()
@@ -54,5 +49,6 @@ func ShutdownServer(server *http.Server, serveErr <-chan error, grace time.Durat
 		// channel would block forever) but still perform the shutdown above.
 		return nil
 	}
+	// A grace timeout is not an error; report only ListenAndServe's result.
 	return <-serveErr
 }

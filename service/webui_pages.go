@@ -64,7 +64,6 @@ func (s *ParquetService) handlePagesView(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
-	// Format pages for display
 	type FormattedPage struct {
 		Index            int
 		PageType         string
@@ -77,7 +76,6 @@ func (s *ParquetService) handlePagesView(w http.ResponseWriter, r *http.Request)
 		MaxValue         string
 	}
 
-	// Calculate totals
 	var totalValues int32
 	var totalCompressed, totalUncompressed int64
 	formatted := make([]FormattedPage, len(pages))
@@ -179,7 +177,6 @@ func (s *ParquetService) handlePageContentView(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	// Get page metadata
 	pages, err := s.reader.GetPageMetadataList(r.Context(), rgIndex, colIndex)
 	if err != nil {
 		renderPagesError(w, r, err)

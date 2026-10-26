@@ -18,8 +18,6 @@ type webErrorData struct {
 	Detail  string
 }
 
-// Helper functions for formatting display values
-
 func formatRatio(ratio float64) string {
 	if ratio == 0 {
 		return "N/A"
@@ -33,18 +31,15 @@ func renderPartial(w http.ResponseWriter, r *http.Request, templateName string, 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
 	if isHTMX {
-		// For HTMX requests, render just the partial
 		return templates.ExecuteTemplate(w, templateName, data)
 	}
 
-	// For direct browser requests, render the partial into the content area
-	// First render the partial content
+	// Direct browser requests get the partial wrapped in the full page.
 	var buf strings.Builder
 	if err := templates.ExecuteTemplate(&buf, templateName, data); err != nil {
 		return err
 	}
 
-	// Wrap the partial content in the wrapper template
 	wrapperData := struct {
 		Content template.HTML
 		Version string
@@ -56,9 +51,7 @@ func renderPartial(w http.ResponseWriter, r *http.Request, templateName string, 
 	return templates.ExecuteTemplate(w, "wrapper.html", wrapperData)
 }
 
-// renderPagesError renders the error partial as a modal over the current view.
-// HTMX requests are retargeted to <body>/beforeend with status 200 so the swap
-// happens and the view is preserved; direct requests use contextErrorStatus.
+// renderPagesError shows a reader error as a modal over the current view.
 func renderPagesError(w http.ResponseWriter, r *http.Request, err error) {
 	title, message := describeReaderError(err)
 	data := webErrorData{
@@ -66,6 +59,7 @@ func renderPagesError(w http.ResponseWriter, r *http.Request, err error) {
 		Message: message,
 		Detail:  err.Error(),
 	}
+	// HTMX only swaps on 2xx, so retarget to <body> and keep the status 200.
 	if r.Header.Get("HX-Request") == "true" {
 		w.Header().Set("HX-Retarget", "body")
 		w.Header().Set("HX-Reswap", "beforeend")
@@ -79,13 +73,12 @@ func renderPagesError(w http.ResponseWriter, r *http.Request, err error) {
 	}
 }
 
-// describeReaderError converts a parquet reader error into a user-facing title
-// and message, recognizing the common "decryption key required" case so the
-// user knows which flag to pass.
+// describeReaderError turns a reader error into a user-facing title and message.
 func describeReaderError(err error) (title, message string) {
 	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		return "Request interrupted", "The request was cancelled before it completed."
 	}
+	// Name the flag to pass when a column needs a key.
 	if errors.Is(err, preader.ErrColumnKeyRequired) {
 		columnPath := columnPathFromKeyRequiredError(err)
 		if columnPath != "" {

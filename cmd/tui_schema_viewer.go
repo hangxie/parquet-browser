@@ -68,7 +68,6 @@ func (sv *schemaViewer) handleInput(event *tcell.EventKey) *tcell.EventKey {
 }
 
 func (sv *schemaViewer) switchToFormat(format string) {
-	// Find the index of the requested format
 	for i, f := range sv.schemaFormats {
 		if f == format {
 			sv.currentFormat = i
@@ -101,7 +100,6 @@ func (sv *schemaViewer) copyToClipboard() {
 func (sv *schemaViewer) updateDisplay() {
 	sv.updateTitle()
 
-	// Fetch schema from HTTP API
 	var schemaText string
 	var err error
 

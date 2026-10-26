@@ -10,10 +10,7 @@ var (
 	version string
 	// build time in ISO-8601 format
 	build string
-	// where the executable came from, can be:
-	// - "source" or "" for build from source
-	// - "github" for from github release
-	// - "Homebrew" for from homebrew bottles
+	// where the executable came from: "source" (or ""), "github", or "Homebrew"
 	source string
 )
 

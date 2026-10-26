@@ -72,8 +72,7 @@ func (c *parquetClient) getPageInfo(rgIndex, colIndex, pageIndex int) (model.Pag
 	return info, err
 }
 
-// getPageContent retrieves the pre-formatted values/content of a specific page
-// Values are returned as strings, already formatted for display
+// getPageContent retrieves a page's values, already formatted for display
 func (c *parquetClient) getPageContent(rgIndex, colIndex, pageIndex int) ([]string, error) {
 	var response struct {
 		Values []string `json:"values"`
@@ -103,7 +102,7 @@ func (c *parquetClient) getSchemaCSV() (string, error) {
 	return c.getText("/schema/csv")
 }
 
-// Helper method to make GET requests and decode JSON
+// get fetches path and decodes the JSON response into result
 func (c *parquetClient) get(path string, result interface{}) error {
 	url := c.baseURL + path
 
@@ -114,7 +113,6 @@ func (c *parquetClient) get(path string, result interface{}) error {
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		// Try to read error message from response
 		body, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(body))
 	}
@@ -127,7 +125,7 @@ func (c *parquetClient) get(path string, result interface{}) error {
 	return nil
 }
 
-// Helper method to make GET requests and return text
+// getText fetches path and returns the response body
 func (c *parquetClient) getText(path string) (string, error) {
 	url := c.baseURL + path
 
@@ -138,7 +136,6 @@ func (c *parquetClient) getText(path string) (string, error) {
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		// Try to read error message from response
 		body, _ := io.ReadAll(resp.Body)
 		return "", fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(body))
 	}

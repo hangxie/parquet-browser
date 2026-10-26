@@ -6,28 +6,22 @@ import (
 	"time"
 )
 
-// errReaderNotInitialized is returned when a lock operation is attempted on a
-// zero-value ParquetReader (sem is nil). Readers must be built with
-// NewParquetReader.
+// errReaderNotInitialized reports a zero-value ParquetReader not built with NewParquetReader.
 var errReaderNotInitialized = errors.New("parquet reader not initialized")
 
-// This file holds the reader-lock discipline for ParquetReader: a 1-slot
-// semaphore (pr.sem) serializes every operation touching the non-goroutine-safe
-// parquet-go reader. External callers go through WithLock.
-
-// acquire takes the reader lock, returning ctx.Err() if ctx is done first. ctx is
-// checked before the select (which would otherwise pick at random between a free
-// semaphore and a done context) and again after acquiring, to close that race.
+// acquire takes the reader lock, returning ctx.Err() if ctx is done first.
 func (pr *ParquetReader) acquire(ctx context.Context) error {
 	if pr.sem == nil {
 		// Zero-value reader: a send on a nil channel would block forever.
 		return errReaderNotInitialized
 	}
+	// Checked before the select, which picks at random between a free slot and a done ctx.
 	if err := ctx.Err(); err != nil {
 		return err
 	}
 	select {
 	case pr.sem <- struct{}{}:
+		// Re-checked after acquiring to close that race.
 		if err := ctx.Err(); err != nil {
 			pr.release()
 			return err
@@ -38,15 +32,12 @@ func (pr *ParquetReader) acquire(ctx context.Context) error {
 	}
 }
 
-// release returns the reader lock. It must only be called after a successful
-// acquire.
+// release returns the reader lock taken by a successful acquire.
 func (pr *ParquetReader) release() {
 	<-pr.sem
 }
 
-// WithLock runs fn while holding the reader lock, so callers touching the
-// underlying parquet-go reader directly (e.g. schema generation) are serialized
-// against the page-read methods. Acquisition honors ctx.
+// WithLock runs fn holding the reader lock, serializing direct parquet-go use with page reads.
 func (pr *ParquetReader) WithLock(ctx context.Context, fn func() error) error {
 	if err := pr.acquire(ctx); err != nil {
 		return err
@@ -55,13 +46,10 @@ func (pr *ParquetReader) WithLock(ctx context.Context, fn func() error) error {
 	return fn()
 }
 
-// closeGrace bounds how long Close waits to serialize with an in-flight read
-// before releasing handles best-effort.
+// closeGrace bounds how long Close waits for an in-flight read before closing anyway.
 const closeGrace = 5 * time.Second
 
-// Close is an idempotent teardown that closes both the per-column buffer handles
-// (ReadStop) and the source handle ReadStop leaves behind (Reader.PFile). It
-// serializes with in-flight reads, waiting at most closeGrace before proceeding.
+// Close idempotently closes the column buffers and the source file, waiting at most closeGrace.
 func (pr *ParquetReader) Close() error {
 	if pr == nil || pr.Reader == nil {
 		return nil
@@ -69,10 +57,12 @@ func (pr *ParquetReader) Close() error {
 	pr.closeOnce.Do(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), closeGrace)
 		defer cancel()
+		// Close anyway if an in-flight read outlasts closeGrace.
 		if pr.acquire(ctx) == nil {
 			defer pr.release()
 		}
 		err := pr.Reader.ReadStopWithContext(context.Background())
+		// ReadStop leaves the source handle open.
 		if pr.Reader.PFile != nil {
 			err = errors.Join(err, pr.Reader.PFile.Close())
 		}

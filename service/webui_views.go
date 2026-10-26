@@ -28,10 +28,8 @@ func (s *ParquetService) handleIndexPage(w http.ResponseWriter, r *http.Request)
 func (s *ParquetService) handleMainView(w http.ResponseWriter, r *http.Request) {
 	info := s.reader.GetFileInfo()
 
-	// Get row groups
 	rowGroups := s.reader.GetAllRowGroupsInfo()
 
-	// Format the row groups for display
 	type FormattedRowGroup struct {
 		Index            int
 		NumRows          int64
@@ -53,7 +51,6 @@ func (s *ParquetService) handleMainView(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	// Create a wrapper struct with additional fields for display
 	data := struct {
 		FileName              string
 		Version               int32
@@ -91,7 +88,6 @@ func (s *ParquetService) handleRowGroupsView(w http.ResponseWriter, r *http.Requ
 	rowGroups := s.reader.GetAllRowGroupsInfo()
 	fileInfo := s.reader.GetFileInfo()
 
-	// Format the row groups for display
 	type FormattedRowGroup struct {
 		Index            int
 		NumRows          int64
@@ -102,7 +98,6 @@ func (s *ParquetService) handleRowGroupsView(w http.ResponseWriter, r *http.Requ
 		FileOffset       string
 	}
 
-	// Calculate totals
 	var totalRows int64
 	var totalCompressed, totalUncompressed int64
 	formatted := make([]FormattedRowGroup, len(rowGroups))
@@ -161,14 +156,12 @@ func (s *ParquetService) handleColumnsView(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// Get row group info for summary
 	rowGroupInfo, err := s.reader.GetRowGroupInfo(rgIndex)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
 	}
 
-	// Format columns for display
 	type FormattedColumn struct {
 		Index            int
 		ColumnPath       string
@@ -184,7 +177,6 @@ func (s *ParquetService) handleColumnsView(w http.ResponseWriter, r *http.Reques
 		MaxValue         string
 	}
 
-	// Calculate totals
 	var totalValues int64
 	var totalNulls int64
 	var totalCompressed, totalUncompressed int64

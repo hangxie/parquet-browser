@@ -31,35 +31,29 @@ func FormatBytes(bytes int64) string {
 	return fmt.Sprintf("%.1f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
 }
 
-// FormatStatValue formats statistics values (min/max) based on column type information
-// This uses parquet-go's types.ParquetTypeToJSONTypeWithLogical function
+// FormatStatValue formats a min/max statistic for display based on the column's types
 func FormatStatValue(value []byte, columnMeta *parquet.ColumnMetaData, schemaElem *parquet.SchemaElement) string {
 	if len(value) == 0 {
 		return "-"
 	}
 
-	// Check if this is a type where min/max don't apply (geospatial or interval types)
-	// These types don't have meaningful min/max values in their statistics
+	// Min/max are meaningless for geospatial and interval types.
 	if schemaElem != nil {
-		// Check for geospatial types (GEOMETRY or GEOGRAPHY)
 		if schemaElem.LogicalType != nil {
 			if schemaElem.LogicalType.IsSetGEOMETRY() || schemaElem.LogicalType.IsSetGEOGRAPHY() {
 				return "-"
 			}
 		}
-		// Check for interval type (deprecated converted type)
 		if schemaElem.ConvertedType != nil && *schemaElem.ConvertedType == parquet.ConvertedType_INTERVAL {
 			return "-"
 		}
 	}
 
-	// Retrieve the raw value from bytes
 	rawValue := retrieveStatValue(value, columnMeta.Type)
 	if rawValue == nil {
 		return "-"
 	}
 
-	// Build a SchemaElement for type conversion
 	se := schemaElem
 	if se == nil {
 		se = &parquet.SchemaElement{Type: &columnMeta.Type}
@@ -68,8 +62,7 @@ func FormatStatValue(value []byte, columnMeta *parquet.ColumnMetaData, schemaEle
 	// An unrenderable value still comes back with a fallback rendering, which is what we show.
 	jsonValue, _ := types.ConvertValue(rawValue, se, geospatialOpt)
 
-	// Format for display
-	// For complex types (maps, slices), use JSON encoding for proper formatting
+	// JSON-encode maps and slices so they render readably.
 	switch jsonValue.(type) {
 	case map[string]any, []any, []map[string]any:
 		if jsonBytes, err := json.Marshal(jsonValue); err == nil {
@@ -81,7 +74,6 @@ func FormatStatValue(value []byte, columnMeta *parquet.ColumnMetaData, schemaEle
 		}
 	}
 
-	// For simple types, use standard formatting
 	str := fmt.Sprintf("%v", jsonValue)
 	if len(str) > 50 {
 		return str[:50] + "..."
@@ -89,8 +81,7 @@ func FormatStatValue(value []byte, columnMeta *parquet.ColumnMetaData, schemaEle
 	return str
 }
 
-// retrieveStatValue converts raw statistic bytes to Go type based on Parquet physical type
-// This is similar to parquet-tools' retrieveValue function
+// retrieveStatValue decodes raw statistic bytes into a Go value for the physical type
 func retrieveStatValue(value []byte, parquetType parquet.Type) any {
 	if value == nil {
 		return nil
@@ -136,12 +127,10 @@ func retrieveStatValue(value []byte, parquetType parquet.Type) any {
 
 // IsValidUTF8 checks if a string contains valid and mostly printable UTF-8
 func IsValidUTF8(s string) bool {
-	// Check if valid UTF-8
 	if !utf8.ValidString(s) {
 		return false
 	}
 
-	// Count printable characters
 	printable := 0
 	total := 0
 	for _, r := range s {
@@ -151,34 +140,29 @@ func IsValidUTF8(s string) bool {
 		}
 	}
 
-	// Require at least 80% printable characters
 	return total > 0 && (printable*100/total >= 80)
 }
 
-// FormatValue formats a value for display, applying logical type conversions
-// This is the main entry point for formatting page content values
+// FormatValue formats a page value for display, applying logical type conversions
 func FormatValue(val interface{}, parquetType parquet.Type, schemaElem *parquet.SchemaElement) string {
 	if val == nil {
 		return "NULL"
 	}
 
-	// Check for empty string - should display as empty, not NULL
+	// An empty string is a value, not NULL.
 	if str, ok := val.(string); ok && str == "" {
 		return ""
 	}
 
-	// Build a SchemaElement for type conversion
 	se := schemaElem
 	if se == nil {
 		se = &parquet.SchemaElement{Type: &parquetType}
 	}
 
-	// Use parquet-go's type conversion function; an unrenderable value still comes back
-	// with a fallback rendering, which is what we show.
+	// An unrenderable value still comes back with a fallback rendering, which is what we show.
 	formattedVal, _ := types.ConvertValue(val, se, geospatialOpt)
 
-	// Convert to string for display
-	// For complex types (maps, slices), use JSON encoding for proper formatting
+	// JSON-encode maps and slices so they render readably.
 	switch formattedVal.(type) {
 	case map[string]any, []any, []map[string]any:
 		if jsonBytes, err := json.Marshal(formattedVal); err == nil {
@@ -190,7 +174,6 @@ func FormatValue(val interface{}, parquetType parquet.Type, schemaElem *parquet.
 		}
 	}
 
-	// For simple types, use standard formatting
 	str := fmt.Sprintf("%v", formattedVal)
 	if len(str) > 200 {
 		return str[:200] + "..."

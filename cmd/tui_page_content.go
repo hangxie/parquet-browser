@@ -20,7 +20,7 @@ type PageContent struct {
 	DisplayedVals int
 }
 
-// pageContentBuilder handles building page content view with lazy loading
+// pageContentBuilder builds the value table for a single page
 type pageContentBuilder struct {
 	app            *TUIApp
 	rgIndex        int
@@ -42,7 +42,6 @@ type pageContentBuilder struct {
 
 func (app *TUIApp) showPageContent(rgIndex, colIndex, pageIndex int, allPages []model.PageMetadata, meta *parquet.ColumnMetaData) {
 	pageInfo := allPages[pageIndex]
-	// Show loading message
 	loadingModal := tview.NewModal().
 		SetText(fmt.Sprintf("Loading page content...\n\nPage Type: %s\nValues: %d\n\nPlease wait...",
 			pageInfo.PageType,
@@ -51,21 +50,17 @@ func (app *TUIApp) showPageContent(rgIndex, colIndex, pageIndex int, allPages []
 
 	app.pages.AddPage("page-content-loading", loadingModal, true, true)
 
-	// Create context for cancellation
 	ctx, cancel := context.WithCancel(context.Background())
 
-	// Load content in background
 	go func() {
 		defer cancel()
 
-		// Create header info view
 		headerView := tview.NewTextView().
 			SetDynamicColors(true).
 			SetWrap(true).
 			SetWordWrap(true)
 		headerView.SetBorder(true).SetTitle(" Page Info ")
 
-		// Create table for values
 		contentTable := tview.NewTable().
 			SetBorders(false).
 			SetSeparator(tview.Borders.Vertical).
@@ -76,12 +71,10 @@ func (app *TUIApp) showPageContent(rgIndex, colIndex, pageIndex int, allPages []
 			SetTitle(" Page Content (↑↓ to navigate) ").
 			SetTitleAlign(tview.AlignLeft)
 
-		// Create status text view for status line
 		statusText := tview.NewTextView().
 			SetDynamicColors(true).
 			SetTextAlign(tview.AlignLeft)
 
-		// Build table with lazy loading
 		builder := &pageContentBuilder{
 			app:            app,
 			rgIndex:        rgIndex,
@@ -102,7 +95,6 @@ func (app *TUIApp) showPageContent(rgIndex, colIndex, pageIndex int, allPages []
 
 		table, err := builder.build()
 
-		// Set status line text (keys only)
 		status := " [yellow]Keys:[-] ESC=back, s=schema, ↑↓=scroll"
 		if v := GetVersion(); v != "" {
 			status += fmt.Sprintf("  [gray]%s[-]", v)
@@ -113,7 +105,6 @@ func (app *TUIApp) showPageContent(rgIndex, colIndex, pageIndex int, allPages []
 			app.pages.RemovePage("page-content-loading")
 
 			if err != nil {
-				// Show error in text view
 				errorView := tview.NewTextView().
 					SetDynamicColors(true).
 					SetText(fmt.Sprintf("[red]Error reading page content:[-]\n%v", err))
@@ -135,7 +126,7 @@ func (app *TUIApp) showPageContent(rgIndex, colIndex, pageIndex int, allPages []
 				return
 			}
 
-			// Create flex layout - same structure as main view: header, table, status
+			// Same layout as the main view: header, table, status line.
 			headerHeight := getPageContentHeaderHeight(headerView)
 			flex := tview.NewFlex().SetDirection(tview.FlexRow).
 				AddItem(headerView, headerHeight, 0, false).
@@ -151,7 +142,6 @@ func (app *TUIApp) showPageContent(rgIndex, colIndex, pageIndex int, allPages []
 }
 
 func (b *pageContentBuilder) build() (*tview.Table, error) {
-	// Read all values first
 	values, err := b.app.readPageContent(b.rgIndex, b.colIndex, b.pageIndex)
 	if err != nil {
 		return nil, err
@@ -159,21 +149,18 @@ func (b *pageContentBuilder) build() (*tview.Table, error) {
 
 	b.allValues = values
 
-	// Setup header
 	b.setupHeader()
 
-	// Load ALL values at once - they're already in memory
+	// Values are already in memory, so fill the whole table at once.
 	totalValues := len(b.allValues)
 	for i := 0; i < totalValues; i++ {
 		tableRowIdx := i + 1 // +1 because row 0 is the header
 
-		// Index column
 		cell := tview.NewTableCell(fmt.Sprintf("%d", i+1)).
 			SetTextColor(tcell.ColorDarkCyan).
 			SetAlign(tview.AlignRight)
 		b.table.SetCell(tableRowIdx, 0, cell)
 
-		// Value column - values are already formatted strings from the API/model layer
 		cell = tview.NewTableCell(b.allValues[i]).
 			SetTextColor(tcell.ColorWhite).
 			SetAlign(tview.AlignLeft).
@@ -183,10 +170,8 @@ func (b *pageContentBuilder) build() (*tview.Table, error) {
 
 	b.loadedValues = totalValues
 
-	// Update header info
 	b.updateHeaderInfo()
 
-	// Setup key handlers
 	b.table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyEscape:
@@ -206,7 +191,6 @@ func (b *pageContentBuilder) build() (*tview.Table, error) {
 }
 
 func (b *pageContentBuilder) setupHeader() {
-	// Add header row with two columns: Index and Value
 	headers := []string{"#", "Value"}
 	for colIdx, header := range headers {
 		cell := tview.NewTableCell(header).
@@ -224,7 +208,6 @@ func (b *pageContentBuilder) setupHeader() {
 func (b *pageContentBuilder) updateHeaderInfo() {
 	var info strings.Builder
 
-	// Line 1: Page type, offset, size
 	_, _ = fmt.Fprintf(&info, "[yellow]Page Type:[-] %s  ", b.pageInfo.PageType)
 	_, _ = fmt.Fprintf(&info, "[yellow]Offset:[-] 0x%X  ", b.pageInfo.Offset)
 	_, _ = fmt.Fprintf(&info, "[yellow]Size:[-] %s → %s (%.2fx)",
@@ -232,11 +215,9 @@ func (b *pageContentBuilder) updateHeaderInfo() {
 		b.pageInfo.UncompressedSizeFormatted,
 		float64(b.pageInfo.UncompressedSize)/float64(b.pageInfo.CompressedSize))
 
-	// Line 2: Values, nulls, encoding
 	_, _ = info.WriteString("\n")
 	_, _ = fmt.Fprintf(&info, "[yellow]Values:[-] %d", b.pageInfo.NumValues)
 
-	// Add null count if available
 	if b.pageInfo.NullCount != nil {
 		_, _ = fmt.Fprintf(&info, "  [yellow]Nulls:[-] %d", *b.pageInfo.NullCount)
 	}
@@ -245,7 +226,6 @@ func (b *pageContentBuilder) updateHeaderInfo() {
 		_, _ = fmt.Fprintf(&info, "  [yellow]Encoding:[-] %s", b.pageInfo.Encoding)
 	}
 
-	// Line 3: Min/Max (if available)
 	if b.pageInfo.MinValue != "" || b.pageInfo.MaxValue != "" {
 		info.WriteString("\n")
 		if b.pageInfo.MinValue != "" {

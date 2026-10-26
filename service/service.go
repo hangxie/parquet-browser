@@ -33,8 +33,7 @@ func NewParquetService(ctx context.Context, uri string, readOpts pio.ReadOption)
 	}, nil
 }
 
-// Close releases the underlying parquet file handles. It is called at teardown
-// once the server has stopped and no requests are in flight.
+// Close releases the parquet file handles once no requests are in flight.
 func (s *ParquetService) Close() error {
 	if s.reader != nil {
 		return s.reader.Close()
@@ -42,9 +41,7 @@ func (s *ParquetService) Close() error {
 	return nil
 }
 
-// schemaTree builds the parquet schema tree while holding the reader lock,
-// honoring ctx both while waiting and during generation. Routing every schema
-// handler through it guarantees none can forget the lock.
+// schemaTree builds the schema tree under the reader lock; every schema handler goes through it.
 func (s *ParquetService) schemaTree(ctx context.Context) (*pschema.SchemaNode, error) {
 	var root *pschema.SchemaNode
 	err := s.reader.WithLock(ctx, func() error {
@@ -55,8 +52,7 @@ func (s *ParquetService) schemaTree(ctx context.Context) (*pschema.SchemaNode, e
 	return root, err
 }
 
-// CreateRouter creates a new router with all routes configured
-// If quiet is true, disables logging middleware (useful for embedded servers)
+// CreateRouter builds the API router; quiet drops request logging for embedded servers.
 func CreateRouter(s *ParquetService, quiet bool) *mux.Router {
 	r := mux.NewRouter()
 	s.SetupRoutes(r)
@@ -69,33 +65,27 @@ func CreateRouter(s *ParquetService, quiet bool) *mux.Router {
 
 // SetupRoutes configures all HTTP routes
 func (s *ParquetService) SetupRoutes(r *mux.Router) {
-	// Schema endpoints
 	r.HandleFunc("/schema/go", s.handleSchemaGo).Methods("GET")
 	r.HandleFunc("/schema/json", s.handleSchemaJSON).Methods("GET")
 	r.HandleFunc("/schema/raw", s.handleSchemaRaw).Methods("GET")
 	r.HandleFunc("/schema/csv", s.handleSchemaCSV).Methods("GET")
 
-	// File info endpoint
 	r.HandleFunc("/info", s.handleFileInfo).Methods("GET")
 
-	// Row groups endpoints
 	r.HandleFunc("/rowgroups", s.handleRowGroups).Methods("GET")
 	r.HandleFunc("/rowgroups/{rgIndex}", s.handleRowGroupInfo).Methods("GET")
 
-	// Column chunks endpoints
 	r.HandleFunc("/rowgroups/{rgIndex}/columnchunks", s.handleColumnChunks).Methods("GET")
 	r.HandleFunc("/rowgroups/{rgIndex}/columnchunks/{colIndex}", s.handleColumnChunkInfo).Methods("GET")
 
-	// Page endpoints
 	r.HandleFunc("/rowgroups/{rgIndex}/columnchunks/{colIndex}/pages", s.handlePages).Methods("GET")
 	r.HandleFunc("/rowgroups/{rgIndex}/columnchunks/{colIndex}/pages/{pageIndex}", s.handlePageInfo).Methods("GET")
 	r.HandleFunc("/rowgroups/{rgIndex}/columnchunks/{colIndex}/pages/{pageIndex}/content", s.handlePageContent).Methods("GET")
 }
 
-// StartServer starts the HTTP server with verbose output. It serves until the
-// server fails or ctx is cancelled, at which point it shuts down gracefully.
+// StartServer serves the API with request logging until it fails or ctx is cancelled.
 func StartServer(ctx context.Context, service *ParquetService, addr string) error {
-	r := CreateRouter(service, false) // verbose mode (not quiet)
+	r := CreateRouter(service, false) // log requests
 
 	fmt.Printf("Starting Parquet Browser API server on %s\n", addr)
 	fmt.Printf("Available endpoints:\n")

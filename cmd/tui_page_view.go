@@ -12,7 +12,7 @@ import (
 	"github.com/hangxie/parquet-browser/model"
 )
 
-// buildColumnChunkInfoViewFromHTTP creates the info view for a column chunk using HTTP API data
+// buildColumnChunkInfoViewFromHTTP renders the column chunk summary shown above the page list
 func (app *TUIApp) buildColumnChunkInfoViewFromHTTP(colInfo model.ColumnChunkInfo, numPages int) *tview.TextView {
 	infoView := tview.NewTextView().
 		SetDynamicColors(true).
@@ -21,7 +21,6 @@ func (app *TUIApp) buildColumnChunkInfoViewFromHTTP(colInfo model.ColumnChunkInf
 
 	var info strings.Builder
 
-	// Line 1: Column path, type, logical type, converted type
 	_, _ = fmt.Fprintf(&info, "[yellow]Column:[-] %s  ", colInfo.Name)
 	_, _ = fmt.Fprintf(&info, "[yellow]Type:[-] %s  ", colInfo.PhysicalType)
 
@@ -32,7 +31,6 @@ func (app *TUIApp) buildColumnChunkInfoViewFromHTTP(colInfo model.ColumnChunkInf
 		_, _ = fmt.Fprintf(&info, "[yellow]Converted:[-] %s", colInfo.ConvertedType)
 	}
 
-	// Line 2: Values, codec, sizes
 	_, _ = fmt.Fprintf(&info, "\n[yellow]Values:[-] %d  ", colInfo.NumValues)
 	_, _ = fmt.Fprintf(&info, "[yellow]Codec:[-] %s  ", colInfo.Codec)
 
@@ -43,7 +41,6 @@ func (app *TUIApp) buildColumnChunkInfoViewFromHTTP(colInfo model.ColumnChunkInf
 			colInfo.CompressionRatio)
 	}
 
-	// Line 3: Null count (if available) and number of pages
 	if colInfo.NullCount != nil {
 		_, _ = fmt.Fprintf(&info, "\n[yellow]Nulls:[-] %d  ", *colInfo.NullCount)
 	} else {
@@ -54,7 +51,6 @@ func (app *TUIApp) buildColumnChunkInfoViewFromHTTP(colInfo model.ColumnChunkInf
 		_, _ = fmt.Fprintf(&info, "[yellow]Pages:[-] %d", numPages)
 	}
 
-	// Line 4: Min/Max values (if available)
 	if colInfo.MinValue != "" || colInfo.MaxValue != "" {
 		info.WriteString("\n")
 		if colInfo.MinValue != "" {
@@ -85,16 +81,12 @@ func getColumnChunkInfoHeight(infoView *tview.TextView) int {
 }
 
 func (app *TUIApp) showPageView(rgIndex, colIndex int) {
-	// Page viewing via HTTP API
-	// Show loading modal with cancellation instructions
 	loadingModal := tview.NewModal().
 		SetText("Loading Column Chunk Pages...\n\nPlease wait...\n\nPress ESC to cancel").
 		SetTextColor(tcell.ColorYellow)
 
-	// Context for cancellation
 	ctx, cancel := context.WithCancel(context.Background())
 
-	// Add input capture to handle cancellation
 	loadingModal.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyEscape {
 			cancel()
@@ -106,11 +98,9 @@ func (app *TUIApp) showPageView(rgIndex, colIndex int) {
 
 	app.pages.AddPage("page-loading", loadingModal, true, true)
 
-	// Build the page view in background
 	go func() {
 		defer cancel() // Ensure context is cancelled when done
 
-		// Fetch column chunk info from HTTP API
 		colInfo, err := app.httpClient.getColumnChunkInfo(rgIndex, colIndex)
 		if err != nil {
 			app.tviewApp.QueueUpdateDraw(func() {
@@ -127,7 +117,6 @@ func (app *TUIApp) showPageView(rgIndex, colIndex int) {
 			return
 		}
 
-		// Fetch page metadata from HTTP API
 		pages, err := app.httpClient.getAllPagesInfo(rgIndex, colIndex)
 		if err != nil {
 			app.tviewApp.QueueUpdateDraw(func() {
@@ -168,11 +157,9 @@ func (app *TUIApp) showPageView(rgIndex, colIndex int) {
 			}
 		}
 
-		// Create column chunk info view with HTTP data
 		infoView := app.buildColumnChunkInfoViewFromHTTP(colInfo, len(pageInfos))
 
-		// Create a minimal ColumnMetaData from HTTP data for compatibility
-		// This allows existing code to work without major refactoring
+		// The page table builder takes parquet ColumnMetaData, so rebuild one from the API data.
 		physicalType := parsePhysicalType(colInfo.PhysicalType)
 		codec := parseCompressionCodec(colInfo.Codec)
 		meta := &parquet.ColumnMetaData{
@@ -184,7 +171,6 @@ func (app *TUIApp) showPageView(rgIndex, colIndex int) {
 			PathInSchema:          colInfo.PathInSchema,
 		}
 
-		// Create pages table with lazy loading
 		pageTable := tview.NewTable().
 			SetBorders(false).
 			SetSeparator(tview.Borders.Vertical).
@@ -194,12 +180,10 @@ func (app *TUIApp) showPageView(rgIndex, colIndex int) {
 		pageTable.SetBorder(true).
 			SetTitleAlign(tview.AlignLeft)
 
-		// Create status text view for status line
 		statusText := tview.NewTextView().
 			SetDynamicColors(true).
 			SetTextAlign(tview.AlignLeft)
 
-		// Build table with lazy loading (use fetched pages)
 		builder := &pageTableBuilder{
 			app:            app,
 			rgIndex:        rgIndex,
@@ -215,33 +199,29 @@ func (app *TUIApp) showPageView(rgIndex, colIndex int) {
 
 		builder.build()
 
-		// Set status line text (keys only)
 		status := " [yellow]Keys:[-] ESC=back, s=schema, ↑↓=scroll, Enter=see item details"
 		if v := GetVersion(); v != "" {
 			status += fmt.Sprintf("  [gray]%s[-]", v)
 		}
 		statusText.SetText(status)
 
-		// Check if cancelled before updating UI
 		select {
 		case <-ctx.Done():
 			return
 		default:
 		}
 
-		// Update UI on main thread
 		app.tviewApp.QueueUpdateDraw(func() {
-			// Check one more time if cancelled
+			// ESC may have cancelled while the update was queued.
 			select {
 			case <-ctx.Done():
 				return
 			default:
 			}
 
-			// Remove loading modal
 			app.pages.RemovePage("page-loading")
 
-			// Create flex layout - same structure as main view: header, table, status
+			// Same layout as the main view: header, table, status line.
 			infoHeight := getColumnChunkInfoHeight(infoView)
 			flex := tview.NewFlex().SetDirection(tview.FlexRow).
 				AddItem(infoView, infoHeight, 0, false).

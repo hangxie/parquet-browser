@@ -20,10 +20,9 @@ func (s *ParquetService) handleSchemaGo(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Format the Go code for better readability
 	formatted, err := FormatGoCode(schemaText)
 	if err != nil {
-		// If formatting fails, return the unformatted version
+		// Fall back to the unformatted source.
 		formatted = schemaText
 	}
 
@@ -55,7 +54,6 @@ func (s *ParquetService) handleSchemaRaw(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Marshal the raw SchemaNode structure to JSON (compact format)
 	rawJSON, err := json.Marshal(*schemaRoot)
 	if err != nil {
 		WriteError(w, http.StatusInternalServerError, fmt.Sprintf("Failed to marshal raw schema: %v", err))

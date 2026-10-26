@@ -14,30 +14,24 @@ import (
 func (app *TUIApp) showMainView() {
 	app.mainLayout = tview.NewFlex().SetDirection(tview.FlexRow)
 
-	// Create header view
 	app.createHeaderView()
 
-	// Create row group list
 	app.createRowGroupList()
 
-	// Create status line
 	app.createStatusLine()
 
-	// Assemble the layout with dynamic header height
 	headerHeight := app.getHeaderHeight()
 	app.mainLayout.
 		AddItem(app.headerView, headerHeight, 0, false).
 		AddItem(app.rowGroupList, 0, 1, true).
 		AddItem(app.statusLine, 1, 0, false)
 
-	// Add key bindings
 	app.mainLayout.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		switch event.Key() {
 		case tcell.KeyEscape:
 			app.tviewApp.Stop()
 			return nil
 		case tcell.KeyEnter:
-			// Show column chunks view for currently selected row group
 			row, _ := app.rowGroupList.GetSelection()
 			if row > 0 { // Skip header row
 				rgIndex := row - 1
@@ -65,13 +59,10 @@ func (app *TUIApp) createHeaderView() {
 		SetTitle(" File Info ").
 		SetTitleAlign(tview.AlignLeft)
 
-	// Populate header with file summary information
 	var header strings.Builder
 
-	// Line 1: File name
 	_, _ = fmt.Fprintf(&header, "[yellow]File:[-] %s", filepath.Base(app.currentFile))
 
-	// Line 2: Basic file info from HTTP API
 	header.WriteString("\n")
 
 	fileInfo, err := app.httpClient.getFileInfo()
@@ -85,7 +76,6 @@ func (app *TUIApp) createHeaderView() {
 	_, _ = fmt.Fprintf(&header, "[yellow]Rows:[-] %d  ", fileInfo.NumRows)
 	_, _ = fmt.Fprintf(&header, "[yellow]Columns:[-] %d", fileInfo.NumLeafColumns)
 
-	// Line 3: Total size (compressed → uncompressed) and creator info
 	if fileInfo.TotalCompressedSize > 0 && fileInfo.TotalUncompressedSize > 0 {
 		_, _ = fmt.Fprintf(&header, "\n[yellow]Total Size:[-] %s → %s (%.2fx)",
 			model.FormatBytes(fileInfo.TotalCompressedSize),
@@ -125,10 +115,8 @@ func (app *TUIApp) createRowGroupList() {
 		SetTitle(" Row Groups (↑↓ to navigate) ").
 		SetTitleAlign(tview.AlignLeft)
 
-	// Get row groups from HTTP client
 	rowGroups, err := app.httpClient.getAllRowGroupsInfo()
 	if err != nil {
-		// Show error in table
 		cell := tview.NewTableCell(fmt.Sprintf("[red]Error loading row groups: %v[-]", err)).
 			SetTextColor(tcell.ColorRed).
 			SetAlign(tview.AlignLeft).
@@ -137,7 +125,7 @@ func (app *TUIApp) createRowGroupList() {
 		return
 	}
 
-	// Set header row (removed "Columns" as it's in the file header - all row groups have same columns)
+	// No Columns column: every row group has the same columns, shown in the file header.
 	headers := []string{"#", "Rows", "Size"}
 	for colIdx, header := range headers {
 		cell := tview.NewTableCell(header).
@@ -148,21 +136,17 @@ func (app *TUIApp) createRowGroupList() {
 		app.rowGroupList.SetCell(0, colIdx, cell)
 	}
 
-	// Populate rows
 	for rowIdx, rg := range rowGroups {
-		// Row group index
 		cell := tview.NewTableCell(fmt.Sprintf("%d", rg.Index)).
 			SetTextColor(tcell.ColorWhite).
 			SetAlign(tview.AlignRight)
 		app.rowGroupList.SetCell(rowIdx+1, 0, cell)
 
-		// Rows
 		cell = tview.NewTableCell(fmt.Sprintf("%d", rg.NumRows)).
 			SetTextColor(tcell.ColorWhite).
 			SetAlign(tview.AlignRight)
 		app.rowGroupList.SetCell(rowIdx+1, 1, cell)
 
-		// Size - show compressed → uncompressed (ratio)
 		sizeStr := fmt.Sprintf("%s → %s",
 			model.FormatBytes(rg.CompressedSize),
 			model.FormatBytes(rg.UncompressedSize))
@@ -171,8 +155,6 @@ func (app *TUIApp) createRowGroupList() {
 			SetAlign(tview.AlignRight)
 		app.rowGroupList.SetCell(rowIdx+1, 2, cell)
 	}
-
-	// Selection handler removed - use keyboard shortcuts instead (d=data, c=columns)
 }
 
 func (app *TUIApp) createStatusLine() {
