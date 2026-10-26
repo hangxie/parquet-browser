@@ -119,10 +119,8 @@ func Test_pageContentBuilder_setupHeader(t *testing.T) {
 
 	builder.setupHeader()
 
-	// Verify header row was set
 	assert.Equal(t, 1, table.GetRowCount()) // Only header row
 
-	// Verify header cells
 	cell := table.GetCell(0, 0)
 	require.NotNil(t, cell)
 	assert.Equal(t, "#", cell.Text)
@@ -160,7 +158,6 @@ func Test_pageContentBuilder_updateHeaderInfo(t *testing.T) {
 
 	text := headerView.GetText(false)
 
-	// Verify header contains page info
 	assert.Contains(t, text, "DATA_PAGE")
 	assert.Contains(t, text, "0x400") // Offset 1024 in hex
 	assert.Contains(t, text, "512 B")
@@ -319,7 +316,6 @@ func Test_pageContentBuilder_build(t *testing.T) {
 				require.NotNil(t, table)
 				assert.Equal(t, tt.expectedRows, table.GetRowCount())
 
-				// Verify header info was updated
 				headerText := builder.headerView.GetText(false)
 				assert.NotEmpty(t, headerText)
 			}

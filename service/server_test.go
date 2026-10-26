@@ -12,9 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Test_serveWithShutdown_GracefulOnContextCancel verifies that cancelling the
-// application context stops the server and returns nil (a clean shutdown),
-// modeling the SIGINT/SIGTERM path wired up in ServeCmd/WebUICmd.
+// Cancelling the context, as SIGINT/SIGTERM does, stops the server with a clean nil.
 func Test_serveWithShutdown_GracefulOnContextCancel(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
@@ -25,7 +23,6 @@ func Test_serveWithShutdown_GracefulOnContextCancel(t *testing.T) {
 	errCh := make(chan error, 1)
 	go func() { errCh <- serveWithShutdown(ctx, addr, http.NewServeMux()) }()
 
-	// Wait until the server accepts connections.
 	require.Eventually(t, func() bool {
 		c, derr := net.DialTimeout("tcp", addr, 100*time.Millisecond)
 		if derr != nil {
@@ -45,16 +42,12 @@ func Test_serveWithShutdown_GracefulOnContextCancel(t *testing.T) {
 	}
 }
 
-// Test_serveWithShutdown_ReturnsListenError verifies that a listen failure is
-// surfaced rather than swallowed.
 func Test_serveWithShutdown_ReturnsListenError(t *testing.T) {
 	err := serveWithShutdown(context.Background(), "127.0.0.1:-1", http.NewServeMux())
 	require.Error(t, err)
 }
 
-// Test_ShutdownServer_ReturnsServingError verifies that a real ListenAndServe
-// error observed on serveErr is returned rather than discarded (the graceful
-// shutdown itself succeeds here, so the serving error is the meaningful one).
+// Graceful shutdown succeeds here, so the serving error is the one to return.
 func Test_ShutdownServer_ReturnsServingError(t *testing.T) {
 	server := &http.Server{}
 	serveErr := make(chan error, 1)
@@ -64,9 +57,7 @@ func Test_ShutdownServer_ReturnsServingError(t *testing.T) {
 	require.EqualError(t, err, "boom")
 }
 
-// Test_ShutdownServer_NilServeErr_StillShutsDown verifies that a nil serveErr
-// skips only the goroutine wait, not the shutdown itself: the server must stop
-// accepting connections.
+// A nil serveErr skips only the goroutine wait; the server must still stop accepting.
 func Test_ShutdownServer_NilServeErr_StillShutsDown(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
@@ -96,9 +87,7 @@ func Test_ShutdownServer_NilServeErr_StillShutsDown(t *testing.T) {
 	}, 2*time.Second, 20*time.Millisecond, "server still accepting connections after shutdown")
 }
 
-// Test_shutdown_ForceClosesOnGraceTimeout pins a handler past the grace period
-// and asserts ShutdownServer force-closes the connection (returning nil): the
-// client read observes a real close rather than the timeout of an open socket.
+// A handler pinned past the grace period has its connection force-closed.
 func Test_shutdown_ForceClosesOnGraceTimeout(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
@@ -134,7 +123,6 @@ func Test_shutdown_ForceClosesOnGraceTimeout(t *testing.T) {
 		return true
 	}, 2*time.Second, 20*time.Millisecond, "server never started listening")
 
-	// Open a raw connection and issue a request that pins a handler in flight.
 	conn, err := net.Dial("tcp", addr)
 	require.NoError(t, err)
 	defer func() { _ = conn.Close() }()
@@ -147,9 +135,8 @@ func Test_shutdown_ForceClosesOnGraceTimeout(t *testing.T) {
 	err = ShutdownServer(server, errCh, 100*time.Millisecond)
 	require.NoError(t, err)
 
-	// The connection must have been force-closed: a read now returns a real
-	// close, not an i/o timeout. If shutdown had only called Server.Shutdown,
-	// the connection would still be open and this read would time out instead.
+	// Server.Shutdown alone would leave the connection open and this read would time out;
+	// a force-close returns a real close instead.
 	_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
 	_, rerr := conn.Read(make([]byte, 1))
 	require.Error(t, rerr)

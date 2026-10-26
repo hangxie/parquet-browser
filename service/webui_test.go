@@ -20,7 +20,6 @@ func Test_SetupWebUIRoutes(t *testing.T) {
 
 	service.SetupWebUIRoutes(router)
 
-	// Test that routes are registered (check index page only, which doesn't need data)
 	routes := []struct {
 		path   string
 		method string
@@ -57,21 +56,17 @@ func Test_CreateWebUIRouter(t *testing.T) {
 
 	require.NotNil(t, router)
 
-	// Test that the router has middleware
 	req := httptest.NewRequest("GET", "/", nil)
 	w := httptest.NewRecorder()
 
 	router.ServeHTTP(w, req)
 
-	// Should have CORS headers from middleware
 	require.NotEmpty(t, w.Header().Get("Access-Control-Allow-Origin"))
 }
 
 func Test_TemplatesEmbedded(t *testing.T) {
-	// Test that templates are properly embedded and parsed
 	require.NotNil(t, templates)
 
-	// Test that all expected templates exist
 	expectedTemplates := []string{
 		"index.html",
 		"main",
@@ -96,7 +91,6 @@ func Test_RouteMethodRestrictions(t *testing.T) {
 	router := mux.NewRouter()
 	service.SetupWebUIRoutes(router)
 
-	// Test that routes only accept GET method
 	routes := []string{
 		"/",
 		"/ui/main",
@@ -112,7 +106,6 @@ func Test_RouteMethodRestrictions(t *testing.T) {
 
 			router.ServeHTTP(w, req)
 
-			// Should return 405 Method Not Allowed
 			require.Equal(t, http.StatusMethodNotAllowed, w.Code)
 		})
 	}
@@ -131,7 +124,6 @@ func Test_NotFoundHandler(t *testing.T) {
 	router := mux.NewRouter()
 	service.SetupWebUIRoutes(router)
 
-	// Test 404 for non-existent routes
 	tests := []string{
 		"/nonexistent",
 		"/static/file.js",
@@ -152,7 +144,6 @@ func Test_NotFoundHandler(t *testing.T) {
 }
 
 func Test_OpenBrowser_AllPlatforms(t *testing.T) {
-	// Test that openBrowser doesn't panic on different inputs
 	tests := []string{
 		"http://localhost:8080",
 		"http://127.0.0.1:3000",
@@ -168,10 +159,8 @@ func Test_OpenBrowser_AllPlatforms(t *testing.T) {
 }
 
 func Test_TemplatesFunctions(t *testing.T) {
-	// Verify templates are loaded and not nil
 	require.NotNil(t, templates)
 
-	// Verify specific templates exist
 	tmpl := templates.Lookup("index.html")
 	require.NotNil(t, tmpl)
 
@@ -194,7 +183,6 @@ func Test_RouteRegistration(t *testing.T) {
 		return nil
 	})
 
-	// Should have 11 routes + NotFoundHandler
 	require.Greater(t, routeCount, 10)
 }
 
@@ -212,7 +200,6 @@ func Test_NotFoundHandler_ContentType(t *testing.T) {
 	// NotFoundHandler should not set content type (just returns 404)
 }
 
-// Test openBrowser on current platform
 func Test_OpenBrowser_CurrentPlatform(t *testing.T) {
 	err := openBrowser("http://localhost:8080")
 	// Error might occur in CI environment, but we test the function runs
@@ -220,14 +207,12 @@ func Test_OpenBrowser_CurrentPlatform(t *testing.T) {
 	_ = err
 }
 
-// Test all webUI handlers to maximize coverage
 func Test_WebUI_MaximizeCoverage(t *testing.T) {
 	svc := newFixtureService(t, "all-types.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupWebUIRoutes(router)
 
-	// Test all UI endpoints
 	endpoints := []string{
 		"/ui/main",
 		"/ui/schema",
@@ -253,26 +238,21 @@ func Test_WebUI_MaximizeCoverage(t *testing.T) {
 	}
 }
 
-// Test StartWebUIServer - successful server startup
 func Test_StartWebUIServer_Success(t *testing.T) {
 	svc := newFixtureService(t, "all-types.parquet")
 
-	// Find a free port
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 	addr := listener.Addr().String()
 	_ = listener.Close()
 
-	// Start server in background
 	serverErr := make(chan error, 1)
 	go func() {
 		serverErr <- StartWebUIServer(context.Background(), svc, addr)
 	}()
 
-	// Wait for server to start
 	time.Sleep(200 * time.Millisecond)
 
-	// Try to connect to verify server is running
 	resp, err := http.Get(fmt.Sprintf("http://%s/", addr))
 	if err == nil {
 		defer func() {
@@ -280,7 +260,6 @@ func Test_StartWebUIServer_Success(t *testing.T) {
 		}()
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 
-		// Verify response contains expected HTML
 		body, _ := io.ReadAll(resp.Body)
 		require.Contains(t, string(body), "<!DOCTYPE html>")
 		require.Contains(t, string(body), "Parquet Browser")
@@ -289,7 +268,6 @@ func Test_StartWebUIServer_Success(t *testing.T) {
 	}
 }
 
-// Test StartWebUIServer - server address format
 func Test_StartWebUIServer_AddressFormat(t *testing.T) {
 	svc := newFixtureService(t, "all-types.parquet")
 
@@ -304,22 +282,18 @@ func Test_StartWebUIServer_AddressFormat(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Find a free port first
 			listener, err := net.Listen("tcp", tt.addr)
 			require.NoError(t, err)
 			actualAddr := listener.Addr().String()
 			_ = listener.Close()
 
-			// Start server in background
 			serverErr := make(chan error, 1)
 			go func() {
 				serverErr <- StartWebUIServer(context.Background(), svc, actualAddr)
 			}()
 
-			// Wait for server to start
 			time.Sleep(100 * time.Millisecond)
 
-			// Try to connect
 			resp, err := http.Get(fmt.Sprintf("http://%s/", actualAddr))
 			if err == nil {
 				defer func() {
@@ -327,31 +301,24 @@ func Test_StartWebUIServer_AddressFormat(t *testing.T) {
 				}()
 				require.Equal(t, http.StatusOK, resp.StatusCode)
 			}
-
-			// Server is running, test passed
 		})
 	}
 }
 
-// Test StartWebUIServer - router setup
 func Test_StartWebUIServer_RouterSetup(t *testing.T) {
 	svc := newFixtureService(t, "all-types.parquet")
 
-	// Find a free port
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 	addr := listener.Addr().String()
 	_ = listener.Close()
 
-	// Start server
 	go func() {
 		_ = StartWebUIServer(context.Background(), svc, addr)
 	}()
 
-	// Wait for server to start
 	time.Sleep(200 * time.Millisecond)
 
-	// Test that various routes are working
 	routes := []struct {
 		path           string
 		expectedStatus int
@@ -376,52 +343,42 @@ func Test_StartWebUIServer_RouterSetup(t *testing.T) {
 	}
 }
 
-// Test StartWebUIServer - CORS headers
 func Test_StartWebUIServer_CORSHeaders(t *testing.T) {
 	svc := newFixtureService(t, "all-types.parquet")
 
-	// Find a free port
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 	addr := listener.Addr().String()
 	_ = listener.Close()
 
-	// Start server
 	go func() {
 		_ = StartWebUIServer(context.Background(), svc, addr)
 	}()
 
-	// Wait for server to start
 	time.Sleep(200 * time.Millisecond)
 
-	// Make request and check CORS headers
 	resp, err := http.Get(fmt.Sprintf("http://%s/", addr))
 	if err == nil {
 		defer func() {
 			_ = resp.Body.Close()
 		}()
 
-		// Should have CORS headers from middleware
 		require.NotEmpty(t, resp.Header.Get("Access-Control-Allow-Origin"))
 	}
 }
 
-// Test StartWebUIServer - error on invalid address
 func Test_StartWebUIServer_InvalidAddress(t *testing.T) {
 	svc := newFixtureService(t, "all-types.parquet")
 
-	// Use an invalid address format
 	invalidAddr := "invalid:address:format"
 
 	err := StartWebUIServer(context.Background(), svc, invalidAddr)
 	require.Error(t, err)
 }
 
-// Test StartWebUIServer - port already in use
 func Test_StartWebUIServer_PortInUse(t *testing.T) {
 	svc := newFixtureService(t, "all-types.parquet")
 
-	// Start a listener to occupy the port
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 	addr := listener.Addr().String()
@@ -429,7 +386,6 @@ func Test_StartWebUIServer_PortInUse(t *testing.T) {
 		_ = listener.Close()
 	}()
 
-	// Try to start server on the same port
 	err = StartWebUIServer(context.Background(), svc, addr)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "address already in use")

@@ -12,7 +12,6 @@ import (
 
 func Test_NewParquetReader(t *testing.T) {
 	t.Run("Opens and reads parquet file", func(t *testing.T) {
-		// Open a test parquet file using parquet-tools helper
 		pr, err := pio.NewParquetFileReader(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
 		require.NoError(t, err)
 		defer func() { _ = pr.ReadStopWithContext(context.Background()) }()
@@ -23,7 +22,6 @@ func Test_NewParquetReader(t *testing.T) {
 		require.NotNil(t, parquetReader.Reader)
 		require.NotNil(t, parquetReader.metadata)
 
-		// Test GetFileInfo
 		fileInfo := parquetReader.GetFileInfo()
 		require.Greater(t, fileInfo.NumRows, int64(0))
 		require.Greater(t, fileInfo.NumLeafColumns, 0)
@@ -37,7 +35,6 @@ func Test_NewParquetReader(t *testing.T) {
 
 		parquetReader := NewParquetReader(pr)
 
-		// Test GetRowGroupInfo
 		rgInfo, err := parquetReader.GetRowGroupInfo(0)
 		require.NoError(t, err)
 		require.Equal(t, 0, rgInfo.Index)
@@ -52,7 +49,6 @@ func Test_NewParquetReader(t *testing.T) {
 
 		parquetReader := NewParquetReader(pr)
 
-		// Test GetColumnChunkInfo
 		colInfo, err := parquetReader.GetColumnChunkInfo(0, 0)
 		require.NoError(t, err)
 		require.Equal(t, 0, colInfo.Index)
@@ -67,12 +63,10 @@ func Test_NewParquetReader(t *testing.T) {
 
 		parquetReader := NewParquetReader(pr)
 
-		// Test GetPageMetadataList
 		pages, err := parquetReader.GetPageMetadataList(context.Background(), 0, 0)
 		require.NoError(t, err)
 		require.Greater(t, len(pages), 0)
 
-		// Verify page metadata structure
 		firstPage := pages[0]
 		require.GreaterOrEqual(t, firstPage.Index, 0)
 		require.NotEmpty(t, firstPage.PageType)
@@ -88,7 +82,6 @@ func fixturePath(t *testing.T, name string) string {
 	return path
 }
 
-// Test NewParquetReader with real parquet file
 func Test_NewParquetReader_WithRealFile(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
 	require.NoError(t, err)
@@ -100,11 +93,9 @@ func Test_NewParquetReader_WithRealFile(t *testing.T) {
 	require.NotNil(t, pr.Reader)
 	require.NotNil(t, pr.metadata)
 
-	// Verify metadata is properly set
 	require.Equal(t, parquetReader.Footer, pr.metadata)
 }
 
-// Test GetFileInfo with real parquet file
 func Test_GetFileInfo_WithRealFile(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
 	require.NoError(t, err)
@@ -113,7 +104,6 @@ func Test_GetFileInfo_WithRealFile(t *testing.T) {
 	pr := NewParquetReader(parquetReader)
 	info := pr.GetFileInfo()
 
-	// Verify basic fields are populated
 	require.Greater(t, info.NumRowGroups, 0)
 	require.Greater(t, info.NumRows, int64(0))
 	require.Greater(t, info.NumLeafColumns, 0)
@@ -125,7 +115,6 @@ func Test_GetFileInfo_WithRealFile(t *testing.T) {
 	require.Empty(t, info.Encryption)
 }
 
-// Test GetRowGroupInfo with valid indices
 func Test_GetRowGroupInfo_ValidIndex(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
 	require.NoError(t, err)
@@ -133,7 +122,6 @@ func Test_GetRowGroupInfo_ValidIndex(t *testing.T) {
 
 	pr := NewParquetReader(parquetReader)
 
-	// Test first row group
 	info, err := pr.GetRowGroupInfo(0)
 	require.NoError(t, err)
 
@@ -145,7 +133,6 @@ func Test_GetRowGroupInfo_ValidIndex(t *testing.T) {
 	require.Greater(t, info.CompressionRatio, 0.0)
 }
 
-// Test GetRowGroupInfo with invalid indices
 func Test_GetRowGroupInfo_InvalidIndex(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
 	require.NoError(t, err)
@@ -170,7 +157,6 @@ func Test_GetRowGroupInfo_InvalidIndex(t *testing.T) {
 	}
 }
 
-// Test GetAllRowGroupsInfo
 func Test_GetAllRowGroupsInfo(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
 	require.NoError(t, err)
@@ -181,15 +167,12 @@ func Test_GetAllRowGroupsInfo(t *testing.T) {
 
 	require.NotEmpty(t, infos)
 
-	// Verify each row group info is populated
 	for i, info := range infos {
 		require.Equal(t, i, info.Index)
 		require.Greater(t, info.NumRows, int64(0))
 		require.Greater(t, info.NumColumns, 0)
 	}
 }
-
-// Test GetPageMetadataList
 
 // openFixture opens a fixture and closes it when the test ends.
 func openFixture(t *testing.T, name string) *ParquetReader {
@@ -202,8 +185,7 @@ func openFixture(t *testing.T, name string) *ParquetReader {
 	return pr
 }
 
-// Files with a corrupt footer used to open and expose garbage metadata; they are
-// now rejected while the footer is read.
+// Files with a corrupt footer are rejected when the footer is read.
 func Test_NewParquetFileReader_CorruptFooter(t *testing.T) {
 	tests := []struct {
 		file    string
@@ -223,8 +205,7 @@ func Test_NewParquetFileReader_CorruptFooter(t *testing.T) {
 	}
 }
 
-// A schema without leaf columns still has rows; it must open and report an
-// empty column list rather than failing.
+// A schema without leaf columns still has rows; it opens with an empty column list.
 func Test_ZeroColumnFile(t *testing.T) {
 	pr := openFixture(t, "zero-column.parquet")
 

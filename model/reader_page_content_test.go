@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Test GetPageContent
 func Test_GetPageContent_ValidIndices(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
 	require.NoError(t, err)
@@ -26,7 +25,6 @@ func Test_GetPageContent_ValidIndices(t *testing.T) {
 	require.NotEqual(t, 0, len(values))
 }
 
-// Test GetPageContent with dictionary page
 func Test_GetPageContent_DictionaryPage(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
 	require.NoError(t, err)
@@ -34,7 +32,6 @@ func Test_GetPageContent_DictionaryPage(t *testing.T) {
 
 	pr := NewParquetReader(parquetReader)
 
-	// Find a column with a dictionary page
 	allColumns, err := pr.GetAllColumnChunksInfo(0)
 	require.NoError(t, err)
 	require.Equal(t, 57, len(allColumns))
@@ -56,7 +53,6 @@ func Test_GetPageContent_DictionaryPage(t *testing.T) {
 	require.Equal(t, 5, len(values))
 }
 
-// Test GetPageContent with invalid indices
 func Test_GetPageContent_InvalidIndices(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
 	require.NoError(t, err)
@@ -84,7 +80,6 @@ func Test_GetPageContent_InvalidIndices(t *testing.T) {
 	}
 }
 
-// Test GetPageContentFormatted
 func Test_GetPageContentFormatted_ValidIndices(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
 	require.NoError(t, err)
@@ -92,7 +87,6 @@ func Test_GetPageContentFormatted_ValidIndices(t *testing.T) {
 
 	pr := NewParquetReader(parquetReader)
 
-	// Find the first data page
 	pages, err := pr.GetPageMetadataList(context.Background(), 0, 0)
 	require.NoError(t, err)
 	require.Equal(t, 3, len(pages))
@@ -102,7 +96,6 @@ func Test_GetPageContentFormatted_ValidIndices(t *testing.T) {
 	require.Equal(t, 2, len(values))
 }
 
-// Test GetPageContentFormatted with invalid indices
 func Test_GetPageContentFormatted_InvalidIndices(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
 	require.NoError(t, err)
@@ -129,7 +122,6 @@ func Test_GetPageContentFormatted_InvalidIndices(t *testing.T) {
 	}
 }
 
-// Test readDictionaryPageContent (indirectly through GetPageContent)
 func Test_ReadDictionaryPageContent_Coverage(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
 	require.NoError(t, err)

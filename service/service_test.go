@@ -18,12 +18,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Helper function to create a test service
+// createTestService returns a service without a file, for tests of routing and the HTTP layer.
 func createTestService() *ParquetService {
-	// Note: This would normally require a real parquet file
-	// For unit tests, we're testing the HTTP layer without file I/O
 	return &ParquetService{
-		reader:        nil, // Would be populated with mock data in real tests
+		reader:        nil,
 		parquetReader: nil,
 		uri:           "test://file.parquet",
 	}
@@ -53,15 +51,12 @@ func Test_CreateRouter(t *testing.T) {
 }
 
 func Test_NewParquetService_InvalidFile(t *testing.T) {
-	// Test with non-existent file
 	_, err := NewParquetService(context.Background(), "nonexistent.parquet", pio.ReadOption{})
 	require.Error(t, err)
 
-	// Check error message
 	require.Contains(t, err.Error(), "failed to open parquet file")
 }
 
-// Test route matching without executing handlers
 func Test_RouteMatching(t *testing.T) {
 	service := createTestService()
 	router := mux.NewRouter()
@@ -96,7 +91,6 @@ func Test_RouteMatching(t *testing.T) {
 	}
 }
 
-// Test NewParquetService with various invalid URIs
 func Test_NewParquetService_InvalidURIs(t *testing.T) {
 	tests := []struct {
 		name string
@@ -119,33 +113,27 @@ func Test_NewParquetService_InvalidURIs(t *testing.T) {
 	}
 }
 
-// Test Close with nil reader
 func Test_Close_NilReader(t *testing.T) {
 	svc := &ParquetService{reader: nil}
 	err := svc.Close()
 	require.NoError(t, err)
 }
 
-// Test CreateRouter quiet and verbose modes
 func Test_CreateRouter_Modes(t *testing.T) {
 	svc := &ParquetService{}
 
-	// Test quiet mode
 	router := CreateRouter(svc, true)
 	require.NotNil(t, router)
 
-	// Test verbose mode
 	router = CreateRouter(svc, false)
 	require.NotNil(t, router)
 }
 
-// Test SetupRoutes registers all routes
 func Test_SetupRoutes_AllRoutes(t *testing.T) {
 	svc := &ParquetService{}
 	router := mux.NewRouter()
 	svc.SetupRoutes(router)
 
-	// Test that routes are registered
 	routes := []struct {
 		method string
 		path   string
@@ -174,9 +162,7 @@ func Test_SetupRoutes_AllRoutes(t *testing.T) {
 	}
 }
 
-// Test Close when reader is nil (else branch)
 func Test_Close_NilReaderBranch(t *testing.T) {
-	// Create service with explicitly nil reader
 	service := &ParquetService{
 		reader:        nil,
 		parquetReader: nil,
@@ -187,9 +173,7 @@ func Test_Close_NilReaderBranch(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// Test NewParquetService success path with a real parquet file
 func Test_NewParquetService_Success_Path(t *testing.T) {
-	// Try to create a minimal test parquet file
 	parquetFile := fixturePath(t, "csv-good.parquet")
 
 	service, err := NewParquetService(context.Background(), parquetFile, pio.ReadOption{})
@@ -202,19 +186,16 @@ func Test_NewParquetService_Success_Path(t *testing.T) {
 	require.Equal(t, parquetFile, service.uri)
 }
 
-// Test Close with non-nil reader (success path)
 func Test_Close_Success_Path(t *testing.T) {
 	parquetFile := fixturePath(t, "csv-good.parquet")
 
 	service, err := NewParquetService(context.Background(), parquetFile, pio.ReadOption{})
 	require.NoError(t, err)
 
-	// Close with non-nil reader
 	err = service.Close()
 	require.NoError(t, err)
 }
 
-// Test StartServer
 func Test_StartServer_Success(t *testing.T) {
 	parquetFile := fixturePath(t, "csv-good.parquet")
 
@@ -222,13 +203,11 @@ func Test_StartServer_Success(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = service.Close() }()
 
-	// Find a free port
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 	addr := listener.Addr().String()
 	_ = listener.Close()
 
-	// Start server in background
 	ctx, cancel := context.WithCancel(context.Background())
 	serverErr := make(chan error, 1)
 	go func() {
@@ -248,8 +227,7 @@ func Test_StartServer_Success(t *testing.T) {
 	require.NoError(t, <-serverErr)
 }
 
-// serveLayoutFixture routes one GET request through both the API and Web UI
-// routes of a service backed by fixture.
+// serveFixtureRequest routes one GET through both the API and Web UI routes.
 func serveFixtureRequest(t *testing.T, svc *ParquetService, url string) *httptest.ResponseRecorder {
 	t.Helper()
 
@@ -302,9 +280,7 @@ func newFixtureService(t *testing.T, name string) *ParquetService {
 	return svc
 }
 
-// Test_ConcurrentReaderAccess overlaps requests against the single shared
-// reader, which would race without serialization. Half the workers cancel
-// mid-flight to exercise cross-request cancellation. Run under -race.
+// Overlapping requests race on the shared reader without serialization; run under -race.
 func Test_ConcurrentReaderAccess(t *testing.T) {
 	svc, err := NewParquetService(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
 	require.NoError(t, err)
@@ -313,9 +289,8 @@ func Test_ConcurrentReaderAccess(t *testing.T) {
 	router := mux.NewRouter()
 	svc.SetupRoutes(router)
 
-	// Endpoints spanning schema, page-metadata, and page-content reads — the paths
-	// touching the shared reader's IO. Keep those returning 200 for this fixture
-	// and record single-threaded bodies as a baseline for corruption under load.
+	// Reader-backed endpoints that return 200 for this fixture; their single-threaded
+	// bodies are the baseline for detecting corruption under load.
 	candidates := []string{
 		"/schema/json",
 		"/rowgroups/0/columnchunks/0/pages",
@@ -342,6 +317,7 @@ func Test_ConcurrentReaderAccess(t *testing.T) {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
+			// Half the workers cancel mid-flight to exercise cross-request cancellation.
 			cancelling := i%2 == 0
 			for j := 0; j < iterations; j++ {
 				ep := endpoints[(i+j)%len(endpoints)]
@@ -356,9 +332,7 @@ func Test_ConcurrentReaderAccess(t *testing.T) {
 				w := httptest.NewRecorder()
 				router.ServeHTTP(w, req)
 
-				// Requests that never cancel must always observe correct,
-				// uncorrupted data regardless of what concurrent requests do to
-				// the shared reader.
+				// Requests that never cancel must see uncorrupted data whatever the others do.
 				if !cancelling {
 					assert.Equal(t, http.StatusOK, w.Code, ep)
 					assert.Equal(t, baseline[ep], w.Body.String(), ep)
@@ -370,9 +344,7 @@ func Test_ConcurrentReaderAccess(t *testing.T) {
 	wg.Wait()
 }
 
-// Test_CancelledRequest_NotReportedAsNotFound verifies that with an already
-// cancelled request context, reader-backed handlers report a client-cancelled
-// status rather than a 404 or a generic 500 for schema.
+// A cancelled request context yields a client-closed status, not 404 or a generic 500.
 func Test_CancelledRequest_NotReportedAsNotFound(t *testing.T) {
 	svc, err := NewParquetService(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
 	require.NoError(t, err)

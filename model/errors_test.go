@@ -118,7 +118,6 @@ func Test_AllErrorsAreDifferent(t *testing.T) {
 		ErrInvalidPageType,
 	}
 
-	// Verify all errors are unique
 	for i, err1 := range allErrors {
 		for j, err2 := range allErrors {
 			if i != j {
@@ -129,7 +128,6 @@ func Test_AllErrorsAreDifferent(t *testing.T) {
 }
 
 func Test_ErrorMessages(t *testing.T) {
-	// Verify error messages are descriptive and user-friendly
 	tests := []struct {
 		name          string
 		err           error

@@ -446,7 +446,6 @@ func Test_FormatStatValue_Rendering(t *testing.T) {
 }
 
 func Test_FormatValue_Truncation(t *testing.T) {
-	// Test that very long values are truncated
 	longString := make([]byte, 300)
 	for i := range longString {
 		longString[i] = 'a'
@@ -458,7 +457,6 @@ func Test_FormatValue_Truncation(t *testing.T) {
 }
 
 func Test_FormatValue_WithLogicalType(t *testing.T) {
-	// Test STRING logical type
 	stringLogicalType := &parquet.LogicalType{STRING: &parquet.StringType{}}
 	schema := &parquet.SchemaElement{
 		Name:        "test_string",
@@ -470,7 +468,6 @@ func Test_FormatValue_WithLogicalType(t *testing.T) {
 }
 
 func Test_FindSchemaElementByPath(t *testing.T) {
-	// Create a simple schema for testing
 	schema := []*parquet.SchemaElement{
 		{Name: "Parquet_go_root", NumChildren: intPtr(2)},
 		{Name: "field1", Type: parquetTypePtr(parquet.Type_INT32)},
@@ -531,13 +528,11 @@ func Test_FindSchemaElementByPath_CaseInsensitive(t *testing.T) {
 		{Name: "MyField", Type: parquetTypePtr(parquet.Type_INT32)},
 	}
 
-	// Should match case-insensitively
 	result := findSchemaElement(schema, []string{"myfield"})
 	require.NotNil(t, result)
 	require.Equal(t, "MyField", result.Name)
 }
 
-// Test retrieveStatValue error paths - when binary.Read fails
 func Test_RetrieveRawValue_ErrorPaths(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -599,7 +594,6 @@ func Test_RetrieveRawValue_ErrorPaths(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := retrieveStatValue(tt.value, tt.parquetType)
 			if tt.expectError {
-				// Should return an error string
 				resultStr, ok := result.(string)
 				require.True(t, ok)
 				require.Contains(t, resultStr, "failed to read data as")
@@ -610,7 +604,6 @@ func Test_RetrieveRawValue_ErrorPaths(t *testing.T) {
 	}
 }
 
-// Test retrieveStatValue with edge cases
 func Test_RetrieveRawValue_EdgeCases(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -670,7 +663,6 @@ func Test_RetrieveRawValue_EdgeCases(t *testing.T) {
 	}
 }
 
-// Test retrieveStatValue with maximum and minimum values
 func Test_RetrieveRawValue_MinMaxValues(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -724,7 +716,6 @@ func Test_RetrieveRawValue_MinMaxValues(t *testing.T) {
 	}
 }
 
-// Helper functions for tests
 func intPtr(i int32) *int32 {
 	return &i
 }

@@ -9,9 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Test_ReaderLock_ContextCancelsQueuedAcquire verifies that a request cancelled
-// while the lock is held by a slow operation stops waiting instead of queuing
-// behind it, where a plain mutex would block until the holder released.
+// A request cancelled while a slow read holds the lock stops waiting, unlike with a plain mutex.
 func Test_ReaderLock_ContextCancelsQueuedAcquire(t *testing.T) {
 	pf, err := pio.NewParquetFileReader(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
 	require.NoError(t, err)
@@ -47,9 +45,7 @@ func Test_ReaderLock_ContextCancelsQueuedAcquire(t *testing.T) {
 	}
 }
 
-// Test_WithLock_PreCancelledContextNeverRunsCallback verifies WithLock never
-// invokes the callback for an already-cancelled context even with a free
-// semaphore. Repeated many times, since an unguarded select picks at random.
+// Repeated because an unguarded select would pick the free semaphore at random.
 func Test_WithLock_PreCancelledContextNeverRunsCallback(t *testing.T) {
 	pf, err := pio.NewParquetFileReader(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
 	require.NoError(t, err)
@@ -70,8 +66,7 @@ func Test_WithLock_PreCancelledContextNeverRunsCallback(t *testing.T) {
 	}
 }
 
-// Test_WithLock_ContextCancelsQueuedAcquire is the same guarantee for the
-// WithLock path used by schema generation.
+// Same guarantee for the WithLock path used by schema generation.
 func Test_WithLock_ContextCancelsQueuedAcquire(t *testing.T) {
 	pf, err := pio.NewParquetFileReader(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
 	require.NoError(t, err)
@@ -106,8 +101,7 @@ func Test_WithLock_ContextCancelsQueuedAcquire(t *testing.T) {
 	}
 }
 
-// Test_ParquetReader_Close verifies Close releases the primary source handle
-// (not just the column buffers) and is idempotent.
+// Close releases the source handle, not just the column buffers, and is idempotent.
 func Test_ParquetReader_Close(t *testing.T) {
 	t.Run("closes the primary handle and is idempotent", func(t *testing.T) {
 		pf, err := pio.NewParquetFileReader(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
@@ -133,9 +127,7 @@ func Test_ParquetReader_Close(t *testing.T) {
 	})
 }
 
-// Test_ReaderLock_ZeroValueDoesNotHang verifies that a lock operation on a
-// zero-value reader (nil sem, e.g. not built via NewParquetReader) returns an
-// error instead of blocking forever on a send to a nil channel.
+// A zero-value reader (nil sem) errors instead of blocking on a nil channel.
 func Test_ReaderLock_ZeroValueDoesNotHang(t *testing.T) {
 	pr := &ParquetReader{} // sem is nil
 	done := make(chan error, 1)

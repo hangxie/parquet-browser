@@ -22,13 +22,10 @@ func Test_startHTTPServer_InvalidFile(t *testing.T) {
 	ctx := context.Background()
 	resultChan := make(chan serverResult, 1)
 
-	// Start server with invalid file
 	go startHTTPServer(ctx, "nonexistent.parquet", pio.ReadOption{}, resultChan)
 
-	// Wait for result
 	select {
 	case result := <-resultChan:
-		// Should get an error
 		require.Error(t, result.err)
 		require.Empty(t, result.serverURL)
 		require.Nil(t, result.server)
@@ -44,10 +41,8 @@ func Test_startHTTPServer_Cancellation(t *testing.T) {
 	// Cancel immediately
 	cancel()
 
-	// Start server with cancelled context
 	go startHTTPServer(ctx, "test.parquet", pio.ReadOption{}, resultChan)
 
-	// Should return quickly without sending to channel or send error
 	select {
 	case result := <-resultChan:
 		// If we get a result, it should be an error
@@ -62,27 +57,21 @@ func Test_startHTTPServer_RealFile(t *testing.T) {
 	ctx := context.Background()
 	resultChan := make(chan serverResult, 1)
 
-	// Use the test file from parquet-tools repository
 	testFileURL := "https://github.com/hangxie/parquet-tools/raw/refs/heads/main/testdata/good.parquet"
 
-	// Start server with real file
 	go startHTTPServer(ctx, testFileURL, pio.ReadOption{}, resultChan)
 
-	// Wait for result
 	select {
 	case result := <-resultChan:
-		// Should succeed
 		require.NoError(t, result.err)
 		require.NotEmpty(t, result.serverURL)
 		require.NotNil(t, result.server)
 
-		// Verify server is actually running by making a request
 		resp, err := http.Get(result.serverURL + "/info")
 		require.NoError(t, err)
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 		_ = resp.Body.Close()
 
-		// Clean up - shutdown server
 		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer shutdownCancel()
 		err = result.server.Shutdown(shutdownCtx)
@@ -94,7 +83,6 @@ func Test_startHTTPServer_RealFile(t *testing.T) {
 }
 
 func Test_serverResult_Struct(t *testing.T) {
-	// Test that serverResult struct has expected fields
 	result := serverResult{
 		serverURL: "http://localhost:8080",
 		server:    nil,
@@ -107,14 +95,11 @@ func Test_serverResult_Struct(t *testing.T) {
 }
 
 func Test_TUICmd_FieldAccess(t *testing.T) {
-	// Test that TUICmd fields can be accessed and set
 	cmd := TUICmd{}
 
-	// Set URI
 	cmd.URI = "test.parquet"
 	require.Equal(t, "test.parquet", cmd.URI)
 
-	// Set ReadOption fields
 	cmd.Anonymous = true
 	require.True(t, cmd.Anonymous)
 

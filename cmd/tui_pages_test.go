@@ -130,10 +130,8 @@ func Test_pageTableBuilder_setupHeader(t *testing.T) {
 
 	builder.setupHeader()
 
-	// Verify header row was set
 	assert.Equal(t, 1, table.GetRowCount()) // Only header row
 
-	// Verify header cells
 	cell := table.GetCell(0, 0)
 	require.NotNil(t, cell)
 	assert.Equal(t, "#", cell.Text)
@@ -218,7 +216,6 @@ func Test_pageTableBuilder_build(t *testing.T) {
 			assert.Equal(t, tt.expectedRows, table.GetRowCount())
 
 			if tt.checkError {
-				// Verify error message is displayed
 				cell := table.GetCell(1, 0)
 				require.NotNil(t, cell)
 				assert.Contains(t, cell.Text, "Error reading pages")

@@ -333,7 +333,6 @@ func Test_getText_HTTPError(t *testing.T) {
 }
 
 func Test_client_InvalidURL(t *testing.T) {
-	// Create client with invalid URL that can't be reached
 	client := newParquetClient("http://invalid-host-that-does-not-exist:99999")
 
 	_, err := client.getFileInfo()
@@ -352,7 +351,6 @@ func Test_getText_InvalidURL(t *testing.T) {
 }
 
 func Test_Multiple_Requests(t *testing.T) {
-	// Test that the client can handle multiple requests
 	callCount := 0
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -365,7 +363,6 @@ func Test_Multiple_Requests(t *testing.T) {
 
 	client := newParquetClient(server.URL)
 
-	// Make multiple requests
 	for i := 0; i < 3; i++ {
 		_, err := client.getFileInfo()
 		require.NoError(t, err)

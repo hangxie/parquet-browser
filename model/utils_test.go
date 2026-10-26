@@ -125,7 +125,6 @@ func Test_FormatLogicalType(t *testing.T) {
 	}
 }
 
-// Test findSchemaElement with various paths
 func Test_FindSchemaElement(t *testing.T) {
 	schema := []*parquet.SchemaElement{
 		{Name: "Parquet_go_root", NumChildren: intPtr(3)},
@@ -186,7 +185,6 @@ func Test_FindSchemaElement(t *testing.T) {
 	}
 }
 
-// Test formatLogicalType with time types
 func Test_FormatLogicalType_TimeTypes(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -273,7 +271,6 @@ func Test_FormatLogicalType_TimeTypes(t *testing.T) {
 	}
 }
 
-// Test formatLogicalType with additional types
 func Test_FormatLogicalType_AdditionalTypes(t *testing.T) {
 	tests := []struct {
 		name        string

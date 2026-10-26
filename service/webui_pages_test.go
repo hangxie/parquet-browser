@@ -46,15 +46,12 @@ func Test_HandlePagesView_WithRealFile(t *testing.T) {
 	require.Contains(t, body, "Pages")
 	require.Contains(t, body, "Type")
 	require.Contains(t, body, "Codec")
-	// Verify Min and Max columns are present in the table
 	require.Contains(t, body, "<th>Min</th>")
 	require.Contains(t, body, "<th>Max</th>")
-	// Verify Min and Max are also in the header info
 	require.Contains(t, body, "<strong>Min</strong>")
 	require.Contains(t, body, "<strong>Max</strong>")
 }
 
-// Test handlePageContentView with real file
 func Test_HandlePageContentView_WithRealFile(t *testing.T) {
 	svc := newFixtureService(t, "all-types.parquet")
 
@@ -76,7 +73,6 @@ func Test_HandlePageContentView_WithRealFile(t *testing.T) {
 	require.Contains(t, body, "Values")
 }
 
-// Test handlePageContentView with invalid indices
 func Test_HandlePageContentView_InvalidIndices(t *testing.T) {
 	svc := newFixtureService(t, "all-types.parquet")
 
@@ -154,7 +150,6 @@ func Test_HandlePageContentView_InvalidIndices(t *testing.T) {
 	}
 }
 
-// Test handlePagesView with invalid indices
 func Test_HandlePagesView_InvalidIndices(t *testing.T) {
 	svc := newFixtureService(t, "all-types.parquet")
 
@@ -216,7 +211,6 @@ func Test_HandlePagesView_InvalidIndices(t *testing.T) {
 	}
 }
 
-// Test handlePagesView error path - when column info is not available
 func Test_HandlePagesView_WithoutColumnInfo(t *testing.T) {
 	svc := newFixtureService(t, "all-types.parquet")
 
@@ -235,7 +229,6 @@ func Test_HandlePagesView_WithoutColumnInfo(t *testing.T) {
 	require.Contains(t, body, "Pages")
 }
 
-// Test handlePagesView with division by zero
 func Test_HandlePagesView_CompressionRatio(t *testing.T) {
 	svc := newFixtureService(t, "all-types.parquet")
 
@@ -253,14 +246,12 @@ func Test_HandlePagesView_CompressionRatio(t *testing.T) {
 	require.Contains(t, body, "Size")
 }
 
-// Test page content with multiple columns
 func Test_HandlePageContentView_MultipleColumns(t *testing.T) {
 	svc := newFixtureService(t, "all-types.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupWebUIRoutes(router)
 
-	// Test multiple columns if they exist
 	for colIndex := 0; colIndex < 3; colIndex++ {
 		t.Run(fmt.Sprintf("column_%d", colIndex), func(t *testing.T) {
 			req := httptest.NewRequest("GET",
@@ -281,7 +272,6 @@ func Test_HandlePageContentView_MultipleColumns(t *testing.T) {
 	}
 }
 
-// Test ConvertedType display in pages view
 func Test_HandlePagesView_ConvertedType(t *testing.T) {
 	svc := newFixtureService(t, "all-types.parquet")
 
@@ -300,14 +290,12 @@ func Test_HandlePagesView_ConvertedType(t *testing.T) {
 	require.Contains(t, body, "Logical")
 }
 
-// Test multiple page indices
 func Test_HandlePageContentView_DifferentPageIndices(t *testing.T) {
 	svc := newFixtureService(t, "all-types.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupWebUIRoutes(router)
 
-	// Test page 0
 	req := httptest.NewRequest("GET", "/ui/rowgroups/0/columns/0/pages/0/content", nil)
 	w := httptest.NewRecorder()
 
@@ -320,14 +308,12 @@ func Test_HandlePageContentView_DifferentPageIndices(t *testing.T) {
 	}
 }
 
-// Test pages view with column that has converter type
 func Test_HandlePagesView_WithConverterType(t *testing.T) {
 	svc := newFixtureService(t, "all-types.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupWebUIRoutes(router)
 
-	// Try different columns to cover converter type paths
 	for colIdx := 0; colIdx < 5; colIdx++ {
 		req := httptest.NewRequest("GET",
 			fmt.Sprintf("/ui/rowgroups/0/columns/%d/pages", colIdx), nil)
@@ -342,7 +328,6 @@ func Test_HandlePagesView_WithConverterType(t *testing.T) {
 	}
 }
 
-// Test handlePagesView all code paths
 func Test_HandlePagesView_AllCodePaths(t *testing.T) {
 	svc := newFixtureService(t, "all-types.parquet")
 
@@ -360,7 +345,6 @@ func Test_HandlePagesView_AllCodePaths(t *testing.T) {
 	require.Contains(t, body, "Size")
 }
 
-// Test handlePageContentView all code paths
 func Test_HandlePageContentView_AllCodePaths(t *testing.T) {
 	svc := newFixtureService(t, "all-types.parquet")
 
@@ -379,10 +363,7 @@ func Test_HandlePageContentView_AllCodePaths(t *testing.T) {
 	require.Contains(t, body, "Encoding")
 }
 
-// Test_HandlePagesView_ReaderError_RendersErrorPartial verifies that when the
-// pages handler hits a reader error (encrypted column, out-of-range index,
-// etc.) it responds with 200 + a modal partial that HTMX overlays on top of
-// the existing view, so the user can dismiss it without losing context.
+// A reader error renders a 200 modal partial over the current view, so it can be dismissed.
 func Test_HandlePagesView_ReaderError_RendersErrorPartial(t *testing.T) {
 	svc := newFixtureService(t, "all-types.parquet")
 
@@ -412,9 +393,7 @@ func Test_HandlePagesView_ReaderError_RendersErrorPartial(t *testing.T) {
 	require.Contains(t, body, `this.closest('.pb-modal-overlay').remove()`)
 }
 
-// Test_HandlePagesView_EncryptionError_FriendlyMessage tags the encryption
-// case explicitly by faking the underlying reader error via the helper used by
-// the handler.
+// Fakes the encryption error through the helper the handler uses.
 func Test_HandlePagesView_EncryptionError_FriendlyMessage(t *testing.T) {
 	title, message := describeReaderError(fmt.Errorf(
 		"resolve column key: %w for column schema.double_field",
@@ -426,9 +405,7 @@ func Test_HandlePagesView_EncryptionError_FriendlyMessage(t *testing.T) {
 	require.Contains(t, message, "--key-file=")
 }
 
-// Test_HandlePageContentView_ReaderError_RendersErrorPartial verifies the
-// same recovery behavior on the page-content endpoint, which has its own set
-// of error branches.
+// The page-content endpoint has its own error branches, with the same recovery.
 func Test_HandlePageContentView_ReaderError_RendersErrorPartial(t *testing.T) {
 	svc := newFixtureService(t, "all-types.parquet")
 
