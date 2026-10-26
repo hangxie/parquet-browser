@@ -85,13 +85,18 @@ docker-build:  ## Build docker image for local test
 	@docker build . -f package/container/Dockerfile -t parquet-browser:local
 
 # Test files to download from parquet-tools repository
-PARQUET_TOOLS_TAG := v1.46.2
+PARQUET_TOOLS_TAG := v1.56.4
 PARQUET_TOOLS_BASE := https://github.com/hangxie/parquet-tools/raw/refs/tags/$(PARQUET_TOOLS_TAG)/testdata
 TEST_FILES := \
 	all-types.parquet \
-	empty.parquet \
+	bad-footer-magic.parquet \
 	csv-good.parquet \
-	list-of-list.parquet
+	empty.parquet \
+	list-map-layout.parquet \
+	list-of-list.parquet \
+	negative-num-rows.parquet \
+	nested-array.parquet \
+	zero-column.parquet
 
 .PHONY: pre-test
 pre-test:
