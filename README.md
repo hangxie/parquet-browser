@@ -254,6 +254,14 @@ Opening an encrypted column without its key surfaces a dismissible popup; closin
 
 <img src="docs/screenshots/encrypted-column-error.png" width="800" />
 
+### Malformed and Non-Standard Files
+
+The reader validates the footer before anything is shown. Files with an invalid footer magic or a negative `num_rows` fail to open (the TUI shows the error, `serve` and `web-ui` exit with it) instead of being browsed with bogus metadata.
+
+Files whose schema has no leaf columns open normally: the file summary and row groups show their row counts, the column chunk list is empty, and requests for any column index return `404`.
+
+Legacy and non-standard LIST/MAP layouts (for example Athena/Hive `bag`/`array_element` wrappers, or groups annotated only by the `LIST`/`MAP` logical type) are normalized the way parquet-go reads them. Column paths use the standard `List.Element` names (e.g. `Athena.List.Element` rather than `Athena.Bag.Array_element`), and every schema format renders these fields as LIST or MAP. A repeated group without a LIST annotation is still shown as a repeated struct.
+
 ### Help
 
 ```bash
