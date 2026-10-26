@@ -1,7 +1,7 @@
 name: Check signed commits in PR
-on:
-  pull_request:
-  pull_request_target:
+# pull_request_target only: a pull_request run cannot get the comment permission and fails at
+# startup. Safe because the job never checks out or runs PR code.
+on: pull_request_target
 
 jobs:
   check-signed-commits:
