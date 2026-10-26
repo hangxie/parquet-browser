@@ -13,7 +13,7 @@ import (
 // while the lock is held by a slow operation stops waiting instead of queuing
 // behind it, where a plain mutex would block until the holder released.
 func Test_ReaderLock_ContextCancelsQueuedAcquire(t *testing.T) {
-	pf, err := pio.NewParquetFileReader(context.Background(), getTestParquetFilePath(), pio.ReadOption{})
+	pf, err := pio.NewParquetFileReader(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
 	require.NoError(t, err)
 	defer func() { _ = pf.ReadStopWithContext(context.Background()) }()
 	pr := NewParquetReader(pf)
@@ -51,7 +51,7 @@ func Test_ReaderLock_ContextCancelsQueuedAcquire(t *testing.T) {
 // invokes the callback for an already-cancelled context even with a free
 // semaphore. Repeated many times, since an unguarded select picks at random.
 func Test_WithLock_PreCancelledContextNeverRunsCallback(t *testing.T) {
-	pf, err := pio.NewParquetFileReader(context.Background(), getTestParquetFilePath(), pio.ReadOption{})
+	pf, err := pio.NewParquetFileReader(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
 	require.NoError(t, err)
 	defer func() { _ = pf.ReadStopWithContext(context.Background()) }()
 	pr := NewParquetReader(pf)
@@ -73,7 +73,7 @@ func Test_WithLock_PreCancelledContextNeverRunsCallback(t *testing.T) {
 // Test_WithLock_ContextCancelsQueuedAcquire is the same guarantee for the
 // WithLock path used by schema generation.
 func Test_WithLock_ContextCancelsQueuedAcquire(t *testing.T) {
-	pf, err := pio.NewParquetFileReader(context.Background(), getTestParquetFilePath(), pio.ReadOption{})
+	pf, err := pio.NewParquetFileReader(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
 	require.NoError(t, err)
 	defer func() { _ = pf.ReadStopWithContext(context.Background()) }()
 	pr := NewParquetReader(pf)
@@ -110,7 +110,7 @@ func Test_WithLock_ContextCancelsQueuedAcquire(t *testing.T) {
 // (not just the column buffers) and is idempotent.
 func Test_ParquetReader_Close(t *testing.T) {
 	t.Run("closes the primary handle and is idempotent", func(t *testing.T) {
-		pf, err := pio.NewParquetFileReader(context.Background(), getTestParquetFilePath(), pio.ReadOption{})
+		pf, err := pio.NewParquetFileReader(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
 		require.NoError(t, err)
 		pr := NewParquetReader(pf)
 

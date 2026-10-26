@@ -32,11 +32,6 @@ func Test_HandleSchemaView(t *testing.T) {
 	require.Contains(t, body, "Raw")
 }
 
-func Test_HandleSchemaFormats_InvalidService(t *testing.T) {
-	// Requires real parquet data - schema handlers need parquetReader
-	t.Skip("Requires real parquet file")
-}
-
 func Test_HandleSchemaView_URLPushUrl(t *testing.T) {
 	service := createTestService()
 	router := mux.NewRouter()
@@ -54,8 +49,20 @@ func Test_HandleSchemaView_URLPushUrl(t *testing.T) {
 }
 
 func Test_HandleSchemaFormats_ContentType(t *testing.T) {
-	// Requires real parquet data to test content type
-	t.Skip("Requires real parquet file")
+	svc := newFixtureService(t, "csv-good.parquet")
+	tests := map[string]string{
+		"/ui/schema/go":   "text/plain; charset=utf-8",
+		"/ui/schema/json": "application/json; charset=utf-8",
+		"/ui/schema/csv":  "text/plain; charset=utf-8",
+		"/ui/schema/raw":  "application/json; charset=utf-8",
+	}
+	for url, contentType := range tests {
+		t.Run(url, func(t *testing.T) {
+			w := serveFixtureRequest(t, svc, url)
+			require.Equal(t, http.StatusOK, w.Code)
+			require.Equal(t, contentType, w.Header().Get("Content-Type"))
+		})
+	}
 }
 
 func Test_HandleSchemaView_Response(t *testing.T) {
@@ -171,13 +178,7 @@ func Test_HandleSchemaView_DataAttributes(t *testing.T) {
 }
 
 func Test_HandleSchemaGoView_WithRealFile(t *testing.T) {
-	svc := createTestServiceWithFile(t, "all-types.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "all-types.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupWebUIRoutes(router)
@@ -198,13 +199,7 @@ func Test_HandleSchemaGoView_WithRealFile(t *testing.T) {
 }
 
 func Test_HandleSchemaJSONView_WithRealFile(t *testing.T) {
-	svc := createTestServiceWithFile(t, "all-types.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "all-types.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupWebUIRoutes(router)
@@ -228,13 +223,7 @@ func Test_HandleSchemaJSONView_WithRealFile(t *testing.T) {
 }
 
 func Test_HandleSchemaCSVView_WithRealFile(t *testing.T) {
-	svc := createTestServiceWithFile(t, "csv-good.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "csv-good.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupWebUIRoutes(router)
@@ -252,13 +241,7 @@ func Test_HandleSchemaCSVView_WithRealFile(t *testing.T) {
 }
 
 func Test_HandleSchemaRawView_WithRealFile(t *testing.T) {
-	svc := createTestServiceWithFile(t, "all-types.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "all-types.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupWebUIRoutes(router)
@@ -295,13 +278,7 @@ func Test_AllSchemaFormats_WithDifferentFiles(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			svc := createTestServiceWithFile(t, tc.file)
-			if svc == nil {
-				return
-			}
-			defer func() {
-				_ = svc.Close()
-			}()
+			svc := newFixtureService(t, tc.file)
 
 			router := mux.NewRouter()
 			svc.SetupWebUIRoutes(router)
@@ -319,13 +296,7 @@ func Test_AllSchemaFormats_WithDifferentFiles(t *testing.T) {
 
 // Test handleSchemaRawView JSON marshaling error path
 func Test_HandleSchemaRawView_WithComplexData(t *testing.T) {
-	svc := createTestServiceWithFile(t, "all-types.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "all-types.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupWebUIRoutes(router)
@@ -343,13 +314,7 @@ func Test_HandleSchemaRawView_WithComplexData(t *testing.T) {
 
 // Test handleSchemaJSONView JSON unmarshaling error path (malformed JSON)
 func Test_HandleSchemaJSONView_ValidResponse(t *testing.T) {
-	svc := createTestServiceWithFile(t, "all-types.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "all-types.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupWebUIRoutes(router)
@@ -368,13 +333,7 @@ func Test_HandleSchemaJSONView_ValidResponse(t *testing.T) {
 
 // Test all schema views to ensure we cover all paths
 func Test_AllSchemaViews_Coverage(t *testing.T) {
-	svc := createTestServiceWithFile(t, "all-types.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "all-types.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupWebUIRoutes(router)
@@ -402,7 +361,7 @@ func Test_AllSchemaViews_Coverage(t *testing.T) {
 	}
 
 	// Test CSV schema with a CSV-compatible file
-	csvSvc := createTestServiceWithFile(t, "csv-good.parquet")
+	csvSvc := newFixtureService(t, "csv-good.parquet")
 	if csvSvc != nil {
 		defer func() {
 			_ = csvSvc.Close()
@@ -424,13 +383,7 @@ func Test_AllSchemaViews_Coverage(t *testing.T) {
 
 // Test handleSchemaGoView error handling
 func Test_HandleSchemaGoView_ErrorHandling(t *testing.T) {
-	svc := createTestServiceWithFile(t, "all-types.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "all-types.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupWebUIRoutes(router)
@@ -448,13 +401,7 @@ func Test_HandleSchemaGoView_ErrorHandling(t *testing.T) {
 
 // Test handleSchemaJSONView with empty file
 func Test_HandleSchemaJSONView_EmptyFile(t *testing.T) {
-	svc := createTestServiceWithFile(t, "empty.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "empty.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupWebUIRoutes(router)
@@ -471,13 +418,7 @@ func Test_HandleSchemaJSONView_EmptyFile(t *testing.T) {
 
 // Test handleSchemaCSVView error path
 func Test_HandleSchemaCSVView_ErrorPath(t *testing.T) {
-	svc := createTestServiceWithFile(t, "csv-good.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "csv-good.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupWebUIRoutes(router)
@@ -494,13 +435,7 @@ func Test_HandleSchemaCSVView_ErrorPath(t *testing.T) {
 
 // Test handleSchemaRawView error path (fallback case)
 func Test_HandleSchemaRawView_FallbackPath(t *testing.T) {
-	svc := createTestServiceWithFile(t, "all-types.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "all-types.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupWebUIRoutes(router)
@@ -526,13 +461,7 @@ func Test_WebUI_AllSchemaHandlers_Comprehensive(t *testing.T) {
 
 	for _, filename := range testFiles {
 		t.Run("File_"+filename, func(t *testing.T) {
-			svc := createTestServiceWithFile(t, filename)
-			if svc == nil {
-				return
-			}
-			defer func() {
-				_ = svc.Close()
-			}()
+			svc := newFixtureService(t, filename)
 
 			router := mux.NewRouter()
 			svc.SetupWebUIRoutes(router)
@@ -566,13 +495,7 @@ func Test_WebUI_AllSchemaHandlers_Comprehensive(t *testing.T) {
 
 // Test webui schema CSV with different files
 func Test_HandleSchemaCSVView_WithDifferentFiles(t *testing.T) {
-	svc := createTestServiceWithFile(t, "csv-good.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "csv-good.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupWebUIRoutes(router)
@@ -588,13 +511,7 @@ func Test_HandleSchemaCSVView_WithDifferentFiles(t *testing.T) {
 
 // Test handleSchemaGoView error path - list-of-list not supported
 func Test_HandleSchemaGoView_ErrorPath_ListOfList(t *testing.T) {
-	svc := createTestServiceWithFile(t, "list-of-list.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "list-of-list.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupWebUIRoutes(router)
@@ -611,13 +528,7 @@ func Test_HandleSchemaGoView_ErrorPath_ListOfList(t *testing.T) {
 
 // Test handleSchemaCSVView error path - list-of-list not supported
 func Test_HandleSchemaCSVView_ErrorPath_ListOfList(t *testing.T) {
-	svc := createTestServiceWithFile(t, "list-of-list.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "list-of-list.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupWebUIRoutes(router)
@@ -634,13 +545,7 @@ func Test_HandleSchemaCSVView_ErrorPath_ListOfList(t *testing.T) {
 
 // Test handleSchemaRawView success path
 func Test_HandleSchemaRawView_Success(t *testing.T) {
-	svc := createTestServiceWithFile(t, "all-types.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "all-types.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupWebUIRoutes(router)

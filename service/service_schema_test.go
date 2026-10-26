@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
 
@@ -63,16 +62,10 @@ func Test_SchemaEndpoints(t *testing.T) {
 
 // Test handleSchemaJSON basic functionality
 func Test_HandleSchemaJSON_JSONUnmarshalError(t *testing.T) {
-	parquetFile := createMinimalParquetFile(t)
-	if parquetFile == "" {
-		t.Skip("Cannot create test parquet file")
-	}
-	defer func() { _ = os.Remove(parquetFile) }()
+	parquetFile := fixturePath(t, "csv-good.parquet")
 
 	service, err := NewParquetService(context.Background(), parquetFile, pio.ReadOption{})
-	if err != nil {
-		t.Skipf("Failed to create service: %v", err)
-	}
+	require.NoError(t, err)
 	defer func() { _ = service.Close() }()
 
 	router := mux.NewRouter()
@@ -86,25 +79,12 @@ func Test_HandleSchemaJSON_JSONUnmarshalError(t *testing.T) {
 	require.Equal(t, http.StatusOK, w.Code)
 }
 
-// Test handleGoCode with formatting failure fallback
-func Test_HandleSchemaGo_FormattingError(t *testing.T) {
-	// This is hard to trigger since schema generation should produce valid Go
-	// But we've covered the error path in FormatGoCode tests
-	t.Skip("Formatting error path tested via FormatGoCode tests")
-}
-
 // Test schema endpoints return appropriate content types
 func Test_SchemaEndpoints_ContentTypes(t *testing.T) {
-	parquetFile := createMinimalParquetFile(t)
-	if parquetFile == "" {
-		t.Skip("Cannot create test parquet file")
-	}
-	defer func() { _ = os.Remove(parquetFile) }()
+	parquetFile := fixturePath(t, "csv-good.parquet")
 
 	service, err := NewParquetService(context.Background(), parquetFile, pio.ReadOption{})
-	if err != nil {
-		t.Skipf("Failed to create service: %v", err)
-	}
+	require.NoError(t, err)
 	defer func() { _ = service.Close() }()
 
 	router := mux.NewRouter()
@@ -137,10 +117,8 @@ func Test_SchemaEndpoints_ContentTypes(t *testing.T) {
 
 // Test handleSchemaGo returns Go struct format
 func Test_HandleSchemaGo_Success(t *testing.T) {
-	service, err := NewParquetService(context.Background(), getTestParquetFile(), pio.ReadOption{})
-	if err != nil {
-		t.Skipf("Failed to create service: %v", err)
-	}
+	service, err := NewParquetService(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
+	require.NoError(t, err)
 	defer func() { _ = service.Close() }()
 
 	router := mux.NewRouter()
@@ -169,10 +147,8 @@ func Test_HandleSchemaGo_Success(t *testing.T) {
 
 // Test handleSchemaJSON returns JSON format
 func Test_HandleSchemaJSON_Success(t *testing.T) {
-	service, err := NewParquetService(context.Background(), getTestParquetFile(), pio.ReadOption{})
-	if err != nil {
-		t.Skipf("Failed to create service: %v", err)
-	}
+	service, err := NewParquetService(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
+	require.NoError(t, err)
 	defer func() { _ = service.Close() }()
 
 	router := mux.NewRouter()
@@ -195,10 +171,8 @@ func Test_HandleSchemaJSON_Success(t *testing.T) {
 
 // Test handleSchemaRaw returns raw schema tree
 func Test_HandleSchemaRaw_Success(t *testing.T) {
-	service, err := NewParquetService(context.Background(), getTestParquetFile(), pio.ReadOption{})
-	if err != nil {
-		t.Skipf("Failed to create service: %v", err)
-	}
+	service, err := NewParquetService(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
+	require.NoError(t, err)
 	defer func() { _ = service.Close() }()
 
 	router := mux.NewRouter()
@@ -223,10 +197,8 @@ func Test_HandleSchemaRaw_Success(t *testing.T) {
 
 // Test handleSchemaCSV returns CSV format or error
 func Test_HandleSchemaCSV_Success(t *testing.T) {
-	service, err := NewParquetService(context.Background(), getTestParquetFile(), pio.ReadOption{})
-	if err != nil {
-		t.Skipf("Failed to create service: %v", err)
-	}
+	service, err := NewParquetService(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
+	require.NoError(t, err)
 	defer func() { _ = service.Close() }()
 
 	router := mux.NewRouter()
@@ -259,10 +231,8 @@ func Test_HandleSchemaCSV_Success(t *testing.T) {
 
 // Test all schema handlers together
 func Test_AllSchemaHandlers_Integration(t *testing.T) {
-	service, err := NewParquetService(context.Background(), getTestParquetFile(), pio.ReadOption{})
-	if err != nil {
-		t.Skipf("Failed to create service: %v", err)
-	}
+	service, err := NewParquetService(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
+	require.NoError(t, err)
 	defer func() { _ = service.Close() }()
 
 	router := mux.NewRouter()
@@ -307,13 +277,7 @@ func Test_AllSchemaHandlers_Integration(t *testing.T) {
 
 // Test handleSchemaGo with real file
 func Test_HandleSchemaGo_WithRealFile(t *testing.T) {
-	svc := createTestServiceWithRealFile(t, "all-types.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "all-types.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupRoutes(router)
@@ -332,13 +296,7 @@ func Test_HandleSchemaGo_WithRealFile(t *testing.T) {
 
 // Test handleSchemaCSV with CSV file
 func Test_HandleSchemaCSV_WithRealCSVFile(t *testing.T) {
-	svc := createTestServiceWithRealFile(t, "csv-good.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "csv-good.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupRoutes(router)
@@ -355,13 +313,7 @@ func Test_HandleSchemaCSV_WithRealCSVFile(t *testing.T) {
 
 // Test JSON marshaling in handleSchemaJSON with edge cases
 func Test_HandleSchemaJSON_EdgeCases(t *testing.T) {
-	svc := createTestServiceWithRealFile(t, "empty.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "empty.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupRoutes(router)
@@ -378,13 +330,7 @@ func Test_HandleSchemaJSON_EdgeCases(t *testing.T) {
 
 // Test handleSchemaRaw JSON marshaling paths
 func Test_HandleSchemaRaw_EdgeCases(t *testing.T) {
-	svc := createTestServiceWithRealFile(t, "all-types.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "all-types.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupRoutes(router)
@@ -401,13 +347,7 @@ func Test_HandleSchemaRaw_EdgeCases(t *testing.T) {
 
 // Test all schema endpoints together
 func Test_AllSchemaEndpoints_Comprehensive(t *testing.T) {
-	svc := createTestServiceWithRealFile(t, "all-types.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "all-types.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupRoutes(router)
@@ -433,13 +373,7 @@ func Test_AllSchemaEndpoints_Comprehensive(t *testing.T) {
 
 // Test CSV schema with proper CSV file
 func Test_HandleSchemaCSV_WithCSVFile(t *testing.T) {
-	svc := createTestServiceWithRealFile(t, "csv-good.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "csv-good.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupRoutes(router)
@@ -464,13 +398,7 @@ func Test_SchemaHandlers_AllPaths(t *testing.T) {
 
 	for _, filename := range testFiles {
 		t.Run("File_"+filename, func(t *testing.T) {
-			svc := createTestServiceWithRealFile(t, filename)
-			if svc == nil {
-				return
-			}
-			defer func() {
-				_ = svc.Close()
-			}()
+			svc := newFixtureService(t, filename)
 
 			router := mux.NewRouter()
 			svc.SetupRoutes(router)
@@ -502,13 +430,7 @@ func Test_SchemaHandlers_AllPaths(t *testing.T) {
 
 // Test handleSchemaGo formatting fallback path (when formatting fails)
 func Test_HandleSchemaGo_FormattingPaths(t *testing.T) {
-	svc := createTestServiceWithRealFile(t, "all-types.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "all-types.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupRoutes(router)
@@ -526,13 +448,7 @@ func Test_HandleSchemaGo_FormattingPaths(t *testing.T) {
 
 // Test handleSchemaGo error path - list-of-list not supported for Go struct generation
 func Test_HandleSchemaGo_ErrorPath_ListOfList(t *testing.T) {
-	svc := createTestServiceWithRealFile(t, "list-of-list.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "list-of-list.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupRoutes(router)
@@ -549,13 +465,7 @@ func Test_HandleSchemaGo_ErrorPath_ListOfList(t *testing.T) {
 
 // Test handleSchemaCSV error path - list-of-list not supported for CSV schema
 func Test_HandleSchemaCSV_ErrorPath_ListOfList(t *testing.T) {
-	svc := createTestServiceWithRealFile(t, "list-of-list.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "list-of-list.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupRoutes(router)
@@ -572,13 +482,7 @@ func Test_HandleSchemaCSV_ErrorPath_ListOfList(t *testing.T) {
 
 // Test handleSchemaJSON success with complex schema (list-of-list)
 func Test_HandleSchemaJSON_SuccessPath_ComplexSchema(t *testing.T) {
-	svc := createTestServiceWithRealFile(t, "list-of-list.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "list-of-list.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupRoutes(router)
@@ -600,13 +504,7 @@ func Test_HandleSchemaJSON_SuccessPath_ComplexSchema(t *testing.T) {
 
 // Test handleSchemaRaw success with complex schema (list-of-list)
 func Test_HandleSchemaRaw_SuccessPath_ComplexSchema(t *testing.T) {
-	svc := createTestServiceWithRealFile(t, "list-of-list.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "list-of-list.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupRoutes(router)
@@ -632,13 +530,7 @@ func Test_HandleSchemaGo_DifferentFileTypes(t *testing.T) {
 
 	for _, filename := range files {
 		t.Run(filename, func(t *testing.T) {
-			svc := createTestServiceWithRealFile(t, filename)
-			if svc == nil {
-				return
-			}
-			defer func() {
-				_ = svc.Close()
-			}()
+			svc := newFixtureService(t, filename)
 
 			router := mux.NewRouter()
 			svc.SetupRoutes(router)
@@ -661,13 +553,7 @@ func Test_HandleSchemaJSON_DifferentFileTypes(t *testing.T) {
 
 	for _, filename := range files {
 		t.Run(filename, func(t *testing.T) {
-			svc := createTestServiceWithRealFile(t, filename)
-			if svc == nil {
-				return
-			}
-			defer func() {
-				_ = svc.Close()
-			}()
+			svc := newFixtureService(t, filename)
 
 			router := mux.NewRouter()
 			svc.SetupRoutes(router)
@@ -694,13 +580,7 @@ func Test_HandleSchemaRaw_DifferentFileTypes(t *testing.T) {
 
 	for _, filename := range files {
 		t.Run(filename, func(t *testing.T) {
-			svc := createTestServiceWithRealFile(t, filename)
-			if svc == nil {
-				return
-			}
-			defer func() {
-				_ = svc.Close()
-			}()
+			svc := newFixtureService(t, filename)
 
 			router := mux.NewRouter()
 			svc.SetupRoutes(router)
@@ -727,13 +607,7 @@ func Test_HandleSchemaCSV_DifferentFileTypes(t *testing.T) {
 
 	for _, filename := range files {
 		t.Run(filename, func(t *testing.T) {
-			svc := createTestServiceWithRealFile(t, filename)
-			if svc == nil {
-				return
-			}
-			defer func() {
-				_ = svc.Close()
-			}()
+			svc := newFixtureService(t, filename)
 
 			router := mux.NewRouter()
 			svc.SetupRoutes(router)
@@ -748,4 +622,18 @@ func Test_HandleSchemaCSV_DifferentFileTypes(t *testing.T) {
 			require.NotEmpty(t, w.Body.String())
 		})
 	}
+}
+
+// A two-level array without a LIST annotation is not a list: it stays a
+// repeated group in the schema views.
+func Test_NestedArrayFile_Schema(t *testing.T) {
+	svc := newFixtureService(t, "nested-array.parquet")
+
+	w := serveFixtureRequest(t, svc, "/schema/go")
+	require.Equal(t, http.StatusOK, w.Code)
+
+	body := w.Body.String()
+	require.Contains(t, body, "Array []struct {")
+	require.Contains(t, body, "name=array, type=STRUCT, repetitiontype=REPEATED")
+	require.NotContains(t, body, "type=LIST")
 }

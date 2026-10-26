@@ -148,3 +148,33 @@ func Test_TUIApp_showColumnChunksView_Error(t *testing.T) {
 		})
 	}
 }
+
+func Test_TUIApp_ZeroColumnFile(t *testing.T) {
+	app := newFixtureTUIApp(t, "zero-column.parquet")
+
+	app.createRowGroupList()
+	require.Equal(t, 2, app.rowGroupList.GetRowCount())
+	assert.Equal(t, "3", app.rowGroupList.GetCell(1, 1).Text)
+
+	// Only the header row: no column chunks to select.
+	table := app.createColumnChunksList(0)
+	assert.Equal(t, 1, table.GetRowCount())
+	assert.Equal(t, "Name", table.GetCell(0, 1).Text)
+
+	app.showColumnChunksView(0)
+	assert.True(t, app.pages.HasPage("columnsview"))
+	assert.False(t, app.pages.HasPage("error"))
+}
+
+func Test_TUIApp_ListMapLayoutFile(t *testing.T) {
+	app := newFixtureTUIApp(t, "list-map-layout.parquet")
+
+	table := app.createColumnChunksList(0)
+	require.Equal(t, 11, table.GetRowCount())
+	assert.Equal(t, "Athena.List.Element", table.GetCell(1, 1).Text)
+	assert.Equal(t, "Legacy.List.Element", table.GetCell(6, 1).Text)
+
+	values, err := app.readPageContent(0, 0, 0)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"a", "", "b"}, values)
+}

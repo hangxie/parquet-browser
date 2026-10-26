@@ -46,7 +46,7 @@ func Test_FormatColumnName(t *testing.T) {
 
 // Test GetColumnChunkInfo with valid indices
 func Test_GetColumnChunkInfo_ValidIndices(t *testing.T) {
-	parquetReader, err := pio.NewParquetFileReader(context.Background(), getTestParquetFilePath(), pio.ReadOption{})
+	parquetReader, err := pio.NewParquetFileReader(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
 	require.NoError(t, err)
 	defer func() { _ = parquetReader.ReadStopWithContext(context.Background()) }()
 
@@ -66,7 +66,7 @@ func Test_GetColumnChunkInfo_ValidIndices(t *testing.T) {
 
 // Test GetColumnChunkInfo with invalid indices
 func Test_GetColumnChunkInfo_InvalidIndices(t *testing.T) {
-	parquetReader, err := pio.NewParquetFileReader(context.Background(), getTestParquetFilePath(), pio.ReadOption{})
+	parquetReader, err := pio.NewParquetFileReader(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
 	require.NoError(t, err)
 	defer func() { _ = parquetReader.ReadStopWithContext(context.Background()) }()
 
@@ -95,7 +95,7 @@ func Test_GetColumnChunkInfo_InvalidIndices(t *testing.T) {
 
 // Test GetAllColumnChunksInfo
 func Test_GetAllColumnChunksInfo_ValidIndex(t *testing.T) {
-	parquetReader, err := pio.NewParquetFileReader(context.Background(), getTestParquetFilePath(), pio.ReadOption{})
+	parquetReader, err := pio.NewParquetFileReader(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
 	require.NoError(t, err)
 	defer func() { _ = parquetReader.ReadStopWithContext(context.Background()) }()
 
@@ -114,7 +114,7 @@ func Test_GetAllColumnChunksInfo_ValidIndex(t *testing.T) {
 
 // Test GetAllColumnChunksInfo with invalid index
 func Test_GetAllColumnChunksInfo_InvalidIndex(t *testing.T) {
-	parquetReader, err := pio.NewParquetFileReader(context.Background(), getTestParquetFilePath(), pio.ReadOption{})
+	parquetReader, err := pio.NewParquetFileReader(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
 	require.NoError(t, err)
 	defer func() { _ = parquetReader.ReadStopWithContext(context.Background()) }()
 
@@ -135,4 +135,66 @@ func Test_GetAllColumnChunksInfo_InvalidIndex(t *testing.T) {
 			require.ErrorIs(t, err, ErrInvalidRowGroupIndex)
 		})
 	}
+}
+
+// Legacy and logical-type-only LIST/MAP layouts are normalized by the reader:
+// LIST wrappers become List.Element, while the schema elements are renamed in
+// step so type lookups and value formatting keep working.
+func Test_ListMapLayoutFile_Columns(t *testing.T) {
+	pr := openFixture(t, "list-map-layout.parquet")
+
+	tests := []struct {
+		name          string
+		path          []string
+		physicalType  string
+		logicalType   string
+		convertedType string
+		firstPage     []string
+	}{
+		{"Athena.List.Element", []string{"Athena", "List", "Element"}, "BYTE_ARRAY", "STRING", "UTF8", []string{"a", "", "b"}},
+		{"Athena_logical.List.Element", []string{"Athena_logical", "List", "Element"}, "BYTE_ARRAY", "STRING", "UTF8", []string{"c"}},
+		{"Logical_list.List.Element", []string{"Logical_list", "List", "Element"}, "INT32", "-", "-", []string{"1", "2", "3"}},
+		{"Logical_map.Key_value.Key", []string{"Logical_map", "Key_value", "Key"}, "BYTE_ARRAY", "STRING", "UTF8", []string{"x"}},
+		{"Logical_map.Key_value.Value", []string{"Logical_map", "Key_value", "Value"}, "INT32", "-", "-", []string{"1"}},
+		{"Legacy.List.Element", []string{"Legacy", "List", "Element"}, "INT32", "-", "-", []string{"1", "2", "3"}},
+		{"Entries_map.Entries.Key", []string{"Entries_map", "Entries", "Key"}, "BYTE_ARRAY", "STRING", "UTF8", []string{"x"}},
+		{"Entries_map.Entries.Value", []string{"Entries_map", "Entries", "Value"}, "INT32", "-", "-", []string{"42"}},
+		{"Entries_logical.Entries.Key", []string{"Entries_logical", "Entries", "Key"}, "BYTE_ARRAY", "STRING", "UTF8", []string{"x"}},
+		{"Entries_logical.Entries.Value", []string{"Entries_logical", "Entries", "Value"}, "INT32", "-", "-", []string{"42"}},
+	}
+
+	columns, err := pr.GetAllColumnChunksInfo(0)
+	require.NoError(t, err)
+	require.Len(t, columns, len(tests))
+
+	for i, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			col := columns[i]
+			require.Equal(t, tt.name, col.Name)
+			require.Equal(t, tt.path, col.PathInSchema)
+			require.Equal(t, tt.physicalType, col.PhysicalType)
+			require.Equal(t, tt.logicalType, col.LogicalType)
+			require.Equal(t, tt.convertedType, col.ConvertedType)
+
+			values, err := pr.GetPageContentFormatted(context.Background(), 0, i, 0)
+			require.NoError(t, err)
+			require.Equal(t, tt.firstPage, values)
+		})
+	}
+}
+
+// A two-level list without a LIST annotation is a plain repeated group, so its
+// leaf path keeps the original field names.
+func Test_NestedArrayFile_Columns(t *testing.T) {
+	pr := openFixture(t, "nested-array.parquet")
+
+	columns, err := pr.GetAllColumnChunksInfo(0)
+	require.NoError(t, err)
+	require.Len(t, columns, 1)
+	require.Equal(t, "Array.Array", columns[0].Name)
+	require.Equal(t, "INT32", columns[0].PhysicalType)
+
+	values, err := pr.GetPageContentFormatted(context.Background(), 0, 0, 0)
+	require.NoError(t, err)
+	require.Equal(t, []string{"1", "2", "3", "4"}, values)
 }

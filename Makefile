@@ -89,7 +89,10 @@ TEST_FILES := \
 	all-types.parquet \
 	bad-footer-magic.parquet \
 	csv-good.parquet \
+	csv-nested.parquet \
+	csv-optional.parquet \
 	empty.parquet \
+	good.parquet \
 	list-map-layout.parquet \
 	list-of-list.parquet \
 	negative-num-rows.parquet \

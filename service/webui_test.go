@@ -7,13 +7,10 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/gorilla/mux"
-	pio "github.com/hangxie/parquet-tools/io"
 	"github.com/stretchr/testify/require"
 )
 
@@ -215,39 +212,6 @@ func Test_NotFoundHandler_ContentType(t *testing.T) {
 	// NotFoundHandler should not set content type (just returns 404)
 }
 
-// Helper function to get test parquet file path
-func getTestParquetPath(filename string) string {
-	// Try build/testdata first (where make test downloads files)
-	buildPath := filepath.Join("../build/testdata", filename)
-	if _, err := os.Stat(buildPath); err == nil {
-		return buildPath
-	}
-
-	// Try relative path for when tests run from different locations
-	relPath := filepath.Join("../../build/testdata", filename)
-	if _, err := os.Stat(relPath); err == nil {
-		return relPath
-	}
-
-	return ""
-}
-
-// Helper to create service with real parquet file
-func createTestServiceWithFile(t *testing.T, filename string) *ParquetService {
-	t.Helper()
-
-	path := getTestParquetPath(filename)
-	if path == "" {
-		t.Skipf("Test file %s not found - run 'make test' to download test files", filename)
-		return nil
-	}
-
-	svc, err := NewParquetService(context.Background(), path, pio.ReadOption{})
-	require.NoError(t, err)
-
-	return svc
-}
-
 // Test openBrowser on current platform
 func Test_OpenBrowser_CurrentPlatform(t *testing.T) {
 	err := openBrowser("http://localhost:8080")
@@ -258,13 +222,7 @@ func Test_OpenBrowser_CurrentPlatform(t *testing.T) {
 
 // Test all webUI handlers to maximize coverage
 func Test_WebUI_MaximizeCoverage(t *testing.T) {
-	svc := createTestServiceWithFile(t, "all-types.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "all-types.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupWebUIRoutes(router)
@@ -297,13 +255,7 @@ func Test_WebUI_MaximizeCoverage(t *testing.T) {
 
 // Test StartWebUIServer - successful server startup
 func Test_StartWebUIServer_Success(t *testing.T) {
-	svc := createTestServiceWithFile(t, "all-types.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "all-types.parquet")
 
 	// Find a free port
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
@@ -339,13 +291,7 @@ func Test_StartWebUIServer_Success(t *testing.T) {
 
 // Test StartWebUIServer - server address format
 func Test_StartWebUIServer_AddressFormat(t *testing.T) {
-	svc := createTestServiceWithFile(t, "all-types.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "all-types.parquet")
 
 	tests := []struct {
 		name string
@@ -389,13 +335,7 @@ func Test_StartWebUIServer_AddressFormat(t *testing.T) {
 
 // Test StartWebUIServer - router setup
 func Test_StartWebUIServer_RouterSetup(t *testing.T) {
-	svc := createTestServiceWithFile(t, "all-types.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "all-types.parquet")
 
 	// Find a free port
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
@@ -438,13 +378,7 @@ func Test_StartWebUIServer_RouterSetup(t *testing.T) {
 
 // Test StartWebUIServer - CORS headers
 func Test_StartWebUIServer_CORSHeaders(t *testing.T) {
-	svc := createTestServiceWithFile(t, "all-types.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "all-types.parquet")
 
 	// Find a free port
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
@@ -474,13 +408,7 @@ func Test_StartWebUIServer_CORSHeaders(t *testing.T) {
 
 // Test StartWebUIServer - error on invalid address
 func Test_StartWebUIServer_InvalidAddress(t *testing.T) {
-	svc := createTestServiceWithFile(t, "all-types.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "all-types.parquet")
 
 	// Use an invalid address format
 	invalidAddr := "invalid:address:format"
@@ -491,13 +419,7 @@ func Test_StartWebUIServer_InvalidAddress(t *testing.T) {
 
 // Test StartWebUIServer - port already in use
 func Test_StartWebUIServer_PortInUse(t *testing.T) {
-	svc := createTestServiceWithFile(t, "all-types.parquet")
-	if svc == nil {
-		return
-	}
-	defer func() {
-		_ = svc.Close()
-	}()
+	svc := newFixtureService(t, "all-types.parquet")
 
 	// Start a listener to occupy the port
 	listener, err := net.Listen("tcp", "127.0.0.1:0")

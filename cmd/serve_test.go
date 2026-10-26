@@ -106,3 +106,12 @@ func Test_ServeCmd_Run_RealFile(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 }
+
+func Test_ServeCmd_Run_CorruptFooter(t *testing.T) {
+	cmd := ServeCmd{URI: fixturePath(t, "bad-footer-magic.parquet"), Addr: "127.0.0.1:0"}
+
+	err := cmd.Run()
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "failed to create service")
+	require.Contains(t, err.Error(), "invalid footer magic")
+}

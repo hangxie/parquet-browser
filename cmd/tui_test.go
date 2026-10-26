@@ -5,6 +5,8 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -12,6 +14,8 @@ import (
 	pio "github.com/hangxie/parquet-tools/io"
 	"github.com/rivo/tview"
 	"github.com/stretchr/testify/require"
+
+	"github.com/hangxie/parquet-browser/service"
 )
 
 func Test_startHTTPServer_InvalidFile(t *testing.T) {
@@ -331,5 +335,58 @@ func waitForTUIPage(t *testing.T, app *TUIApp, name string) tview.Primitive {
 				return primitive
 			}
 		}
+	}
+}
+
+// fixturePath returns a fixture downloaded by `make test`, failing the test when it is missing.
+func fixturePath(t *testing.T, name string) string {
+	t.Helper()
+	path := filepath.Join("..", "build", "testdata", name)
+	_, err := os.Stat(path)
+	require.NoError(t, err, "missing fixture; run `make test` to download it")
+	return path
+}
+
+// newFixtureTUIApp wires a TUIApp to a real embedded service backed by a fixture.
+func newFixtureTUIApp(t *testing.T, name string) *TUIApp {
+	t.Helper()
+
+	svc, err := service.NewParquetService(context.Background(), fixturePath(t, name), pio.ReadOption{})
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = svc.Close() })
+
+	server := httptest.NewServer(service.CreateRouter(svc, true))
+	t.Cleanup(server.Close)
+
+	app := NewTUIApp()
+	app.httpClient = newParquetClient(server.URL)
+	return app
+}
+
+func Test_startHTTPServer_CorruptFooter(t *testing.T) {
+	tests := []struct {
+		file    string
+		wantErr string
+	}{
+		{file: "bad-footer-magic.parquet", wantErr: `invalid footer magic "XXXX"`},
+		{file: "negative-num-rows.parquet", wantErr: "num_rows -1 is negative"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.file, func(t *testing.T) {
+			path := fixturePath(t, tt.file)
+			resultChan := make(chan serverResult, 1)
+			go startHTTPServer(context.Background(), path, pio.ReadOption{}, resultChan)
+
+			select {
+			case result := <-resultChan:
+				require.Error(t, result.err)
+				require.Contains(t, result.err.Error(), tt.wantErr)
+				require.Nil(t, result.server)
+				require.Nil(t, result.svc)
+			case <-time.After(5 * time.Second):
+				t.Fatal("Timeout waiting for server result")
+			}
+		})
 	}
 }

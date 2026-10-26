@@ -146,7 +146,7 @@ func Test_ConvertPageHeaderInfoToMetadataWithStatistics(t *testing.T) {
 
 // Helper to get the path to test parquet file
 func Test_GetPageMetadataList_ValidIndices(t *testing.T) {
-	parquetReader, err := pio.NewParquetFileReader(context.Background(), getTestParquetFilePath(), pio.ReadOption{})
+	parquetReader, err := pio.NewParquetFileReader(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
 	require.NoError(t, err)
 	defer func() { _ = parquetReader.ReadStopWithContext(context.Background()) }()
 
@@ -166,7 +166,7 @@ func Test_GetPageMetadataList_ValidIndices(t *testing.T) {
 
 // Test GetPageMetadataList with invalid indices
 func Test_GetPageMetadataList_InvalidIndices(t *testing.T) {
-	parquetReader, err := pio.NewParquetFileReader(context.Background(), getTestParquetFilePath(), pio.ReadOption{})
+	parquetReader, err := pio.NewParquetFileReader(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
 	require.NoError(t, err)
 	defer func() { _ = parquetReader.ReadStopWithContext(context.Background()) }()
 
@@ -195,7 +195,7 @@ func Test_GetPageMetadataList_InvalidIndices(t *testing.T) {
 
 // Test GetPageMetadata
 func Test_GetPageMetadata_ValidIndices(t *testing.T) {
-	parquetReader, err := pio.NewParquetFileReader(context.Background(), getTestParquetFilePath(), pio.ReadOption{})
+	parquetReader, err := pio.NewParquetFileReader(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
 	require.NoError(t, err)
 	defer func() { _ = parquetReader.ReadStopWithContext(context.Background()) }()
 
@@ -210,7 +210,7 @@ func Test_GetPageMetadata_ValidIndices(t *testing.T) {
 
 // Test GetPageMetadata with invalid indices
 func Test_GetPageMetadata_InvalidIndices(t *testing.T) {
-	parquetReader, err := pio.NewParquetFileReader(context.Background(), getTestParquetFilePath(), pio.ReadOption{})
+	parquetReader, err := pio.NewParquetFileReader(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
 	require.NoError(t, err)
 	defer func() { _ = parquetReader.ReadStopWithContext(context.Background()) }()
 
