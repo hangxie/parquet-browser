@@ -49,7 +49,6 @@ func init() {
 
 // SetupWebUIRoutes configures all web UI routes
 func (s *ParquetService) SetupWebUIRoutes(r *mux.Router) {
-	// Main UI routes
 	r.HandleFunc("/", s.handleIndexPage).Methods("GET")
 	r.HandleFunc("/ui/main", s.handleMainView).Methods("GET")
 	r.HandleFunc("/ui/schema", s.handleSchemaView).Methods("GET")
@@ -64,7 +63,6 @@ func (s *ParquetService) SetupWebUIRoutes(r *mux.Router) {
 
 	// Catch-all for static files and other resources (favicon, service worker, etc.)
 	r.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Silently return 404 for common browser requests
 		w.WriteHeader(http.StatusNotFound)
 	})
 }
@@ -105,9 +103,7 @@ func openBrowser(url string) error {
 func StartWebUIServer(ctx context.Context, service *ParquetService, addr string) error {
 	r := CreateWebUIRouter(service)
 
-	// Construct the full URL
-	// If addr already contains host (e.g., "127.0.0.1:8080"), use it directly
-	// Otherwise prepend localhost (e.g., ":8080" -> "localhost:8080")
+	// A bare ":port" addr has no host to open, so use localhost.
 	url := ""
 	if strings.HasPrefix(addr, ":") {
 		url = fmt.Sprintf("http://localhost%s", addr)
@@ -119,9 +115,7 @@ func StartWebUIServer(ctx context.Context, service *ParquetService, addr string)
 	fmt.Printf("Opening browser to: %s\n", url)
 	fmt.Println()
 
-	// Open browser in a goroutine with a small delay to ensure server is ready.
-	// Skip it if the context is already cancelled (e.g. shutdown before the
-	// delay elapses) so we do not launch a browser at a URL that never came up.
+	// Give the server a moment to start, and skip the browser if shutdown came first.
 	go func() {
 		select {
 		case <-ctx.Done():

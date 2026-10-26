@@ -7,11 +7,10 @@ import (
 	"syscall"
 )
 
-// notifyContext returns a context cancelled on SIGINT/SIGTERM plus a stop to
-// defer. The trap is also released on the first signal, so a second Ctrl-C hits
-// the default handler instead of being swallowed for the whole grace period.
+// notifyContext returns a context cancelled on SIGINT/SIGTERM, plus its stop func.
 func notifyContext() (context.Context, context.CancelFunc) {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	// Release the trap on the first signal so a second Ctrl-C is not swallowed during shutdown.
 	go func() {
 		<-ctx.Done()
 		stop()

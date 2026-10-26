@@ -77,7 +77,6 @@ func (s *ParquetService) handleSchemaRawView(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// Convert to compact JSON
 	rawJSON, err := json.Marshal(*schemaRoot)
 	if err != nil {
 		// Fallback to Go's %+v format if JSON marshaling fails

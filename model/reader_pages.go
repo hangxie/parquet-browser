@@ -24,16 +24,12 @@ type PageMetadata struct {
 	MinValue         string // Formatted for display
 	MaxValue         string // Formatted for display
 	NullCount        *int64
-	// Formatted fields for display (kept for backward compatibility)
+	// Pre-formatted copies kept for existing API clients.
 	CompressedSizeFormatted   string `json:"compressedSizeFormatted,omitempty"`
 	UncompressedSizeFormatted string `json:"uncompressedSizeFormatted,omitempty"`
 	MinValueFormatted         string `json:"minValueFormatted,omitempty"`
 	MaxValueFormatted         string `json:"maxValueFormatted,omitempty"`
 }
-
-// This file holds the page-level read methods of ParquetReader (metadata,
-// content, and dictionary decoding). The exported methods acquire the reader
-// lock and delegate to non-locking cores; see reader_lock.go.
 
 func convertPageHeaderInfoToMetadata(headerInfo reader.PageHeaderInfo, columnMeta *parquet.ColumnMetaData, schemaElem *parquet.SchemaElement) PageMetadata {
 	pageInfo := PageMetadata{
@@ -46,7 +42,6 @@ func convertPageHeaderInfoToMetadata(headerInfo reader.PageHeaderInfo, columnMet
 		HasCRC:           headerInfo.HasCRC,
 	}
 
-	// Set encoding information based on page type
 	switch headerInfo.PageType {
 	case parquet.PageType_DATA_PAGE, parquet.PageType_DATA_PAGE_V2:
 		pageInfo.Encoding = headerInfo.Encoding.String()
@@ -54,12 +49,11 @@ func convertPageHeaderInfoToMetadata(headerInfo reader.PageHeaderInfo, columnMet
 		pageInfo.RepLevelEncoding = headerInfo.RepLevelEncoding.String()
 		pageInfo.HasStatistics = headerInfo.HasStatistics
 
-		// Extract statistics if available
 		if headerInfo.HasStatistics && headerInfo.Statistics != nil {
 			stats := headerInfo.Statistics
 			pageInfo.NullCount = stats.NullCount
 
-			// Prefer MinValue/MaxValue over deprecated Min/Max
+			// Prefer MinValue/MaxValue over the deprecated Min/Max.
 			minValueBytes := stats.MinValue
 			if len(minValueBytes) == 0 {
 				minValueBytes = stats.Min
@@ -69,7 +63,6 @@ func convertPageHeaderInfoToMetadata(headerInfo reader.PageHeaderInfo, columnMet
 				maxValueBytes = stats.Max
 			}
 
-			// Format the values for display
 			if len(minValueBytes) > 0 && columnMeta != nil {
 				pageInfo.MinValue = FormatStatValue(minValueBytes, columnMeta, schemaElem)
 			}
@@ -81,11 +74,10 @@ func convertPageHeaderInfoToMetadata(headerInfo reader.PageHeaderInfo, columnMet
 		pageInfo.Encoding = headerInfo.Encoding.String()
 	}
 
-	// Format sizes for display
 	pageInfo.CompressedSizeFormatted = FormatBytes(int64(pageInfo.CompressedSize))
 	pageInfo.UncompressedSizeFormatted = FormatBytes(int64(pageInfo.UncompressedSize))
 
-	// Keep the formatted fields for backward compatibility
+	// Pre-formatted copies kept for existing API clients.
 	pageInfo.MinValueFormatted = pageInfo.MinValue
 	pageInfo.MaxValueFormatted = pageInfo.MaxValue
 
@@ -104,8 +96,7 @@ func (pr *ParquetReader) GetPageMetadataList(ctx context.Context, rgIndex, colIn
 	return pr.pageMetadataList(ctx, rgIndex, colIndex)
 }
 
-// pageMetadataList is the non-locking core of GetPageMetadataList; callers must
-// already hold the reader lock (see acquire in reader_lock.go).
+// pageMetadataList is GetPageMetadataList without locking; callers hold the reader lock.
 func (pr *ParquetReader) pageMetadataList(ctx context.Context, rgIndex, colIndex int) ([]PageMetadata, error) {
 	if pr == nil || pr.metadata == nil {
 		return nil, ErrInvalidRowGroupIndex
@@ -126,7 +117,6 @@ func (pr *ParquetReader) pageMetadataList(ctx context.Context, rgIndex, colIndex
 
 	meta := rg.Columns[colIndex].MetaData
 
-	// Get schema element for formatting
 	schemaElem := findSchemaElement(pr.metadata.Schema, meta.PathInSchema)
 
 	pageHeaders, err := pr.Reader.GetAllPageHeadersWithContext(ctx, rgIndex, colIndex)
@@ -134,7 +124,6 @@ func (pr *ParquetReader) pageMetadataList(ctx context.Context, rgIndex, colIndex
 		return nil, err
 	}
 
-	// Convert PageHeaderInfo to PageMetadata
 	pages := make([]PageMetadata, len(pageHeaders))
 	for i, headerInfo := range pageHeaders {
 		pages[i] = convertPageHeaderInfoToMetadata(headerInfo, meta, schemaElem)

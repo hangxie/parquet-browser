@@ -11,10 +11,8 @@ import (
 )
 
 func (app *TUIApp) showColumnChunksView(rgIndex int) {
-	// Get row group info from HTTP client
 	rowGroup, err := app.httpClient.getRowGroupInfo(rgIndex)
 	if err != nil {
-		// Show error modal
 		errorModal := tview.NewModal().
 			SetText(fmt.Sprintf("Error loading row group:\n%v\n\nPress ESC to go back", err)).
 			SetTextColor(tcell.ColorRed).
@@ -26,10 +24,8 @@ func (app *TUIApp) showColumnChunksView(rgIndex int) {
 		return
 	}
 
-	// Get column chunks info to calculate totals
 	columns, err := app.httpClient.getAllColumnChunksInfo(rgIndex)
 	if err != nil {
-		// Show error modal
 		errorModal := tview.NewModal().
 			SetText(fmt.Sprintf("Error loading columns:\n%v\n\nPress ESC to go back", err)).
 			SetTextColor(tcell.ColorRed).
@@ -41,7 +37,6 @@ func (app *TUIApp) showColumnChunksView(rgIndex int) {
 		return
 	}
 
-	// Calculate total values and nulls
 	var totalValues int64
 	var totalNulls int64
 	for _, col := range columns {
@@ -51,7 +46,6 @@ func (app *TUIApp) showColumnChunksView(rgIndex int) {
 		}
 	}
 
-	// Create row group info header
 	headerView := tview.NewTextView().
 		SetDynamicColors(true).
 		SetWrap(true).
@@ -59,17 +53,14 @@ func (app *TUIApp) showColumnChunksView(rgIndex int) {
 
 	var info strings.Builder
 
-	// Line 1: Row Group number, Rows, Columns
 	_, _ = fmt.Fprintf(&info, "[yellow]Row Group:[-] %d  ", rowGroup.Index)
 	_, _ = fmt.Fprintf(&info, "[yellow]Rows:[-] %d  ", rowGroup.NumRows)
 	_, _ = fmt.Fprintf(&info, "[yellow]Columns:[-] %d", rowGroup.NumColumns)
 
-	// Line 2: Total Values and Total Nulls
 	info.WriteString("\n")
 	_, _ = fmt.Fprintf(&info, "[yellow]Total Values:[-] %d  ", totalValues)
 	_, _ = fmt.Fprintf(&info, "[yellow]Total Nulls:[-] %d", totalNulls)
 
-	// Line 3: Size info
 	info.WriteString("\n")
 	_, _ = fmt.Fprintf(&info, "[yellow]Size:[-] %s → %s (%.2fx)",
 		model.FormatBytes(rowGroup.CompressedSize),
@@ -79,14 +70,12 @@ func (app *TUIApp) showColumnChunksView(rgIndex int) {
 	headerView.SetText(info.String())
 	headerView.SetBorder(true).SetTitle(" Row Group Info ")
 
-	// Create column chunks list
 	columnList := app.createColumnChunksList(rgIndex)
 
 	columnList.SetBorder(true).
 		SetTitle(" Column Chunks (↑↓ to navigate, Enter=view pages) ").
 		SetTitleAlign(tview.AlignLeft)
 
-	// Create status line (keys only)
 	statusLine := tview.NewTextView().
 		SetDynamicColors(true).
 		SetTextAlign(tview.AlignLeft)
@@ -97,8 +86,7 @@ func (app *TUIApp) showColumnChunksView(rgIndex int) {
 	}
 	statusLine.SetText(status)
 
-	// Create flex layout - same structure as main view: header, table, status
-	// Calculate dynamic height for header
+	// Same layout as the main view: header, table, status line.
 	headerText := headerView.GetText(false)
 	headerLines := strings.Count(headerText, "\n") + 1
 	headerHeight := headerLines + 2 // +2 for borders
@@ -134,10 +122,8 @@ func (app *TUIApp) createColumnChunksList(rgIndex int) *tview.Table {
 
 	table.SetBorder(false)
 
-	// Get column chunks from HTTP client
 	columns, err := app.httpClient.getAllColumnChunksInfo(rgIndex)
 	if err != nil {
-		// Show error in table
 		cell := tview.NewTableCell(fmt.Sprintf("[red]Error loading columns: %v[-]", err)).
 			SetTextColor(tcell.ColorRed).
 			SetAlign(tview.AlignLeft).
@@ -146,7 +132,6 @@ func (app *TUIApp) createColumnChunksList(rgIndex int) *tview.Table {
 		return table
 	}
 
-	// Set header row
 	headers := []string{"#", "Name", "Type", "Codec", "Size", "Min", "Max"}
 	for colIdx, header := range headers {
 		cell := tview.NewTableCell(header).
@@ -160,40 +145,33 @@ func (app *TUIApp) createColumnChunksList(rgIndex int) *tview.Table {
 		table.SetCell(0, colIdx, cell)
 	}
 
-	// Populate rows
 	for rowIdx, col := range columns {
-		// Column index
 		cell := tview.NewTableCell(fmt.Sprintf("%d", col.Index)).
 			SetTextColor(tcell.ColorWhite).
 			SetAlign(tview.AlignRight)
 		table.SetCell(rowIdx+1, 0, cell)
 
-		// Column name
 		cell = tview.NewTableCell(col.Name).
 			SetTextColor(tcell.ColorWhite).
 			SetAlign(tview.AlignLeft).
 			SetMaxWidth(30)
 		table.SetCell(rowIdx+1, 1, cell)
 
-		// Type
 		cell = tview.NewTableCell(col.PhysicalType).
 			SetTextColor(tcell.ColorWhite).
 			SetAlign(tview.AlignLeft)
 		table.SetCell(rowIdx+1, 2, cell)
 
-		// Codec
 		cell = tview.NewTableCell(col.Codec).
 			SetTextColor(tcell.ColorWhite).
 			SetAlign(tview.AlignLeft)
 		table.SetCell(rowIdx+1, 3, cell)
 
-		// Size
 		cell = tview.NewTableCell(model.FormatBytes(col.CompressedSize)).
 			SetTextColor(tcell.ColorWhite).
 			SetAlign(tview.AlignRight)
 		table.SetCell(rowIdx+1, 4, cell)
 
-		// Min value - base64 encoded
 		minStr := "-"
 		if len(col.MinValue) > 0 {
 			minStr = string(col.MinValue)
@@ -206,7 +184,6 @@ func (app *TUIApp) createColumnChunksList(rgIndex int) *tview.Table {
 			SetAlign(tview.AlignLeft)
 		table.SetCell(rowIdx+1, 5, cell)
 
-		// Max value - base64 encoded
 		maxStr := "-"
 		if len(col.MaxValue) > 0 {
 			maxStr = string(col.MaxValue)
@@ -220,7 +197,6 @@ func (app *TUIApp) createColumnChunksList(rgIndex int) *tview.Table {
 		table.SetCell(rowIdx+1, 6, cell)
 	}
 
-	// Add selection handler
 	table.SetSelectedFunc(func(row, column int) {
 		if row == 0 {
 			return // Skip header

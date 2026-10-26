@@ -154,14 +154,12 @@ func (s *ParquetService) handlePageContent(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	// Get pre-formatted values ready for display
 	values, err := s.reader.GetPageContentFormatted(r.Context(), rgIndex, colIndex, pageIndex)
 	if err != nil {
 		WriteError(w, contextErrorStatus(err, http.StatusNotFound), err.Error())
 		return
 	}
 
-	// Return the formatted values as JSON
 	response := map[string]interface{}{
 		"values": values,
 		"count":  len(values),

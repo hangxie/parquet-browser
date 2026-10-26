@@ -32,18 +32,15 @@ func NewTUIApp() *TUIApp {
 
 // readPageHeaders reads all page headers from a column chunk via HTTP API
 func (app *TUIApp) readPageHeaders(rgIndex, colIndex int) ([]model.PageMetadata, error) {
-	// Use HTTP client to get page metadata
 	return app.httpClient.getAllPagesInfo(rgIndex, colIndex)
 }
 
 // readPageContent reads and decodes the content of a specific page via HTTP API
 func (app *TUIApp) readPageContent(rgIndex, colIndex, pageIndex int) ([]string, error) {
-	// Use HTTP client to get pre-formatted page content
 	return app.httpClient.getPageContent(rgIndex, colIndex, pageIndex)
 }
 
 func (app *TUIApp) showSchema() {
-	// Inline schema viewer creation
 	viewer := &schemaViewer{
 		app:           app,
 		schemaFormats: []string{"json", "raw", "go", "csv"},

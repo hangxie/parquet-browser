@@ -7,11 +7,10 @@ import (
 	"github.com/hangxie/parquet-go/v3/parquet"
 )
 
-// countLeafColumns counts only leaf columns (columns with Type field) in the schema
+// countLeafColumns counts the schema elements that carry a physical type
 func countLeafColumns(schema []*parquet.SchemaElement) int {
 	count := 0
 	for _, elem := range schema {
-		// Only count elements with Type field set (leaf columns)
 		if elem.IsSetType() {
 			count++
 		}
@@ -27,10 +26,7 @@ func findSchemaElement(schema []*parquet.SchemaElement, pathInSchema []string) *
 		return nil
 	}
 
-	// The schema is stored as a flat list in depth-first pre-order traversal
-	// We need to reconstruct paths to find the correct element
-
-	// Build a stack-based traversal to match the full path
+	// The schema is a flat depth-first list, so rebuild each element's path with a stack.
 	type stackEntry struct {
 		path       []string
 		childCount int
@@ -40,12 +36,10 @@ func findSchemaElement(schema []*parquet.SchemaElement, pathInSchema []string) *
 	var candidates []*parquet.SchemaElement
 
 	for _, elem := range schema {
-		// Skip root element
 		if elem.Name == "Parquet_go_root" || elem.Name == "" {
 			continue
 		}
 
-		// Pop completed parent nodes from stack
 		for len(stack) > 0 {
 			top := &stack[len(stack)-1]
 			if top.childCount > 0 {
@@ -55,18 +49,16 @@ func findSchemaElement(schema []*parquet.SchemaElement, pathInSchema []string) *
 			stack = stack[:len(stack)-1]
 		}
 
-		// Build current path
 		currentPath := make([]string, 0, len(stack)+1)
 		for _, entry := range stack {
 			currentPath = append(currentPath, entry.path[len(entry.path)-1])
 		}
 		currentPath = append(currentPath, elem.Name)
 
-		// Check if this matches our target path
 		if len(currentPath) == len(pathInSchema) {
 			match := true
 			for i := range pathInSchema {
-				// Case-insensitive match to handle Key_value vs key_value
+				// Case-insensitive to match Key_value against key_value.
 				if !strings.EqualFold(pathInSchema[i], currentPath[i]) {
 					match = false
 					break
@@ -77,7 +69,6 @@ func findSchemaElement(schema []*parquet.SchemaElement, pathInSchema []string) *
 			}
 		}
 
-		// Push current element to stack if it has children
 		childCount := 0
 		if elem.NumChildren != nil {
 			childCount = int(*elem.NumChildren)
@@ -90,12 +81,11 @@ func findSchemaElement(schema []*parquet.SchemaElement, pathInSchema []string) *
 		}
 	}
 
-	// Return the first matching candidate
 	if len(candidates) > 0 {
 		return candidates[0]
 	}
 
-	// Fallback: match just the leaf name (for backward compatibility with simple schemas)
+	// Fall back to matching just the leaf name.
 	leafName := pathInSchema[len(pathInSchema)-1]
 	for _, elem := range schema {
 		if strings.EqualFold(elem.Name, leafName) {
@@ -112,7 +102,7 @@ func formatLogicalType(logicalType *parquet.LogicalType) string {
 		return "-"
 	}
 
-	// LogicalType is a union type, check which field is set
+	// LogicalType is a union; report whichever member is set.
 	if logicalType.IsSetSTRING() {
 		return "STRING"
 	}

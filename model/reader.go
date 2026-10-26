@@ -18,9 +18,7 @@ type FileInfo struct {
 	TotalUncompressedSize int64
 	CompressionRatio      float64
 	CreatedBy             string
-	// Encryption is "" when the file is not encrypted, otherwise one of
-	// "FOOTER_KEY", "COLUMN_KEY", or "MIXED" (some columns use the footer
-	// key, some use per-column keys).
+	// "" when unencrypted, otherwise "FOOTER_KEY", "COLUMN_KEY", or "MIXED".
 	Encryption string
 }
 
@@ -34,9 +32,7 @@ type RowGroupInfo struct {
 	CompressionRatio float64
 }
 
-// ParquetReader wraps the parquet-go reader with utility methods. That reader is
-// not goroutine-safe, so sem (a 1-slot semaphore, see reader_lock.go) serializes
-// every access to it; metadata-only accessors need no lock.
+// ParquetReader wraps the parquet-go reader; sem serializes every use of it, metadata reads need no lock.
 type ParquetReader struct {
 	Reader    *reader.ParquetReader
 	metadata  *parquet.FileMetaData
@@ -54,9 +50,6 @@ func NewParquetReader(r *reader.ParquetReader) *ParquetReader {
 	}
 }
 
-// The reader-lock methods (acquire, release, WithLock) and Close live in
-// reader_lock.go.
-
 // GetFileInfo extracts file-level information
 func (pr *ParquetReader) GetFileInfo() FileInfo {
 	info := FileInfo{
@@ -65,10 +58,8 @@ func (pr *ParquetReader) GetFileInfo() FileInfo {
 		NumRows:      pr.metadata.NumRows,
 	}
 
-	// Count leaf columns
 	info.NumLeafColumns = countLeafColumns(pr.metadata.Schema)
 
-	// Calculate total sizes
 	for _, rg := range pr.metadata.RowGroups {
 		info.TotalUncompressedSize += rg.TotalByteSize
 		if rg.IsSetTotalCompressedSize() {
@@ -76,7 +67,7 @@ func (pr *ParquetReader) GetFileInfo() FileInfo {
 			continue
 		}
 
-		// Sum up compressed sizes from all columns
+		// total_compressed_size is optional; fall back to the column sums.
 		var total int64
 		for _, col := range rg.Columns {
 			total += col.MetaData.TotalCompressedSize
@@ -84,12 +75,10 @@ func (pr *ParquetReader) GetFileInfo() FileInfo {
 		info.TotalCompressedSize += total
 	}
 
-	// Calculate compression ratio
 	if info.TotalCompressedSize > 0 {
 		info.CompressionRatio = float64(info.TotalUncompressedSize) / float64(info.TotalCompressedSize)
 	}
 
-	// Get created by
 	if pr.metadata.CreatedBy != nil {
 		info.CreatedBy = *pr.metadata.CreatedBy
 	}
@@ -99,11 +88,7 @@ func (pr *ParquetReader) GetFileInfo() FileInfo {
 	return info
 }
 
-// detectEncryptionMode inspects file-level crypto metadata and per-column
-// crypto metadata to classify the file's encryption mode after parquet-go has
-// opened the footer. Plaintext-footer files with encrypted columns can be
-// classified without column keys, but encrypted-footer files require the footer
-// key before NewParquetReader is constructed.
+// detectEncryptionMode classifies the file's encryption from its file and column crypto metadata.
 func (pr *ParquetReader) detectEncryptionMode() string {
 	encrypted := (pr.Reader != nil && pr.Reader.FileCrypto != nil) ||
 		(pr.metadata != nil && pr.metadata.IsSetEncryptionAlgorithm())
@@ -132,8 +117,7 @@ func (pr *ParquetReader) detectEncryptionMode() string {
 	case sawFooter:
 		return "FOOTER_KEY"
 	case encrypted:
-		// File-level encryption present but no per-column metadata: this is
-		// uniform footer-key encryption.
+		// File-level encryption without column metadata means uniform footer-key encryption.
 		return "FOOTER_KEY"
 	}
 	return ""
@@ -160,17 +144,15 @@ func (pr *ParquetReader) GetRowGroupInfo(rgIndex int) (RowGroupInfo, error) {
 		UncompressedSize: rg.TotalByteSize,
 	}
 
-	// Get compressed size
 	if rg.IsSetTotalCompressedSize() {
 		info.CompressedSize = rg.GetTotalCompressedSize()
 	} else {
-		// Sum up compressed sizes from all columns
+		// total_compressed_size is optional; fall back to the column sums.
 		for _, col := range rg.Columns {
 			info.CompressedSize += col.MetaData.TotalCompressedSize
 		}
 	}
 
-	// Calculate compression ratio
 	if info.CompressedSize > 0 {
 		info.CompressionRatio = float64(info.UncompressedSize) / float64(info.CompressedSize)
 	}

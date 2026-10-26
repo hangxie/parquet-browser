@@ -19,8 +19,7 @@ func (pr *ParquetReader) GetPageContent(ctx context.Context, rgIndex, colIndex, 
 	return pr.pageContent(ctx, rgIndex, colIndex, pageIndex)
 }
 
-// pageContent is the non-locking core of GetPageContent; callers must already
-// hold the reader lock (see acquire in reader_lock.go).
+// pageContent is GetPageContent without locking; callers hold the reader lock.
 func (pr *ParquetReader) pageContent(ctx context.Context, rgIndex, colIndex, pageIndex int) ([]interface{}, error) {
 	if pr == nil || pr.metadata == nil {
 		return nil, ErrInvalidRowGroupIndex
@@ -41,7 +40,6 @@ func (pr *ParquetReader) pageContent(ctx context.Context, rgIndex, colIndex, pag
 
 	meta := rg.Columns[colIndex].MetaData
 
-	// Get all page metadata to understand page boundaries
 	pages, err := pr.pageMetadataList(ctx, rgIndex, colIndex)
 	if err != nil {
 		return nil, err
@@ -55,33 +53,27 @@ func (pr *ParquetReader) pageContent(ctx context.Context, rgIndex, colIndex, pag
 
 	pageInfo := pages[pageIndex]
 
-	// Handle different page types
 	switch pageInfo.PageType {
 	case "DATA_PAGE", "DATA_PAGE_V2":
-		// Continue with normal data page reading
+		// Decoded below.
 	case "DICTIONARY_PAGE":
-		// For dictionary pages, we need to read and decode the dictionary
 		return pr.readDictionaryPageContent(ctx, rgIndex, colIndex, pageIndex, pages)
 	default:
-		// For other page types (INDEX_PAGE, etc.), return empty
-		// These pages don't contain user data
+		// Other page types (INDEX_PAGE, ...) carry no user data.
 		return []interface{}{}, nil
 	}
 
-	// Calculate rows before this row group
 	var rowsBeforeThisRG int64 = 0
 	for i := 0; i < rgIndex; i++ {
 		rowsBeforeThisRG += pr.metadata.RowGroups[i].NumRows
 	}
 
-	// Create a fresh column reader
 	freshReader, err := reader.NewParquetColumnReaderWithContext(ctx, pr.Reader.PFile, reader.WithNP(4))
 	if err != nil {
 		return nil, err
 	}
 	defer func() { _ = freshReader.ReadStopWithContext(ctx) }()
 
-	// Skip to the beginning of the current row group
 	if rowsBeforeThisRG > 0 {
 		err = freshReader.SkipRowsWithContext(ctx, rowsBeforeThisRG)
 		if err != nil {
@@ -89,13 +81,12 @@ func (pr *ParquetReader) pageContent(ctx context.Context, rgIndex, colIndex, pag
 		}
 	}
 
-	// Read ALL values from this column chunk
+	// Values are read per column chunk, then sliced down to this page.
 	allValues, _, _, err := freshReader.ReadColumnByIndexWithContext(ctx, int64(colIndex), meta.NumValues)
 	if err != nil {
 		return nil, err
 	}
 
-	// Calculate the start index for this page
 	var startIdx int64 = 0
 	for i := 0; i < pageIndex; i++ {
 		if pages[i].PageType == "DATA_PAGE" || pages[i].PageType == "DATA_PAGE_V2" {
@@ -103,7 +94,6 @@ func (pr *ParquetReader) pageContent(ctx context.Context, rgIndex, colIndex, pag
 		}
 	}
 
-	// Extract values for just this page
 	endIdx := startIdx + int64(pageInfo.NumValues)
 	if endIdx > int64(len(allValues)) {
 		endIdx = int64(len(allValues))
@@ -126,8 +116,7 @@ func (pr *ParquetReader) readDictionaryPageContent(ctx context.Context, rgIndex,
 	return values, nil
 }
 
-// GetPageContentFormatted returns pre-formatted string values for display
-// This is the preferred method for frontends to use
+// GetPageContentFormatted returns the page's values formatted for display
 func (pr *ParquetReader) GetPageContentFormatted(ctx context.Context, rgIndex, colIndex, pageIndex int) ([]string, error) {
 	if pr == nil {
 		return nil, ErrInvalidRowGroupIndex
@@ -137,22 +126,18 @@ func (pr *ParquetReader) GetPageContentFormatted(ctx context.Context, rgIndex, c
 	}
 	defer pr.release()
 
-	// Get raw values
 	rawValues, err := pr.pageContent(ctx, rgIndex, colIndex, pageIndex)
 	if err != nil {
 		return nil, err
 	}
 
-	// Get column metadata and schema element for formatting
 	rg := pr.metadata.RowGroups[rgIndex]
 	meta := rg.Columns[colIndex].MetaData
 	schemaElem := findSchemaElement(pr.metadata.Schema, meta.PathInSchema)
 
-	// Format each value
 	formattedValues := make([]string, len(rawValues))
 	for i, rawVal := range rawValues {
-		// Handle special case: nil values for STRING logical type should be treated as empty strings
-		// This is because parquet readers may return nil for zero-length BYTE_ARRAY values
+		// Readers may return nil for zero-length BYTE_ARRAY values; show STRING ones as empty.
 		if rawVal == nil && schemaElem != nil && schemaElem.LogicalType != nil && schemaElem.LogicalType.IsSetSTRING() {
 			formattedValues[i] = ""
 			continue
