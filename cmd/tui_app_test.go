@@ -17,8 +17,6 @@ func Test_NewTUIApp(t *testing.T) {
 	require.NotNil(t, app)
 	assert.NotNil(t, app.tviewApp)
 	assert.NotNil(t, app.pages)
-	assert.Equal(t, -1, app.lastRGIndex)
-	assert.Equal(t, int64(0), app.lastRGPosition)
 }
 
 func Test_TUIApp_readPageHeaders(t *testing.T) {

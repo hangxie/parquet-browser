@@ -133,31 +133,7 @@ func (app *TUIApp) showPageView(rgIndex, colIndex int) {
 			return
 		}
 
-		// Convert model.PageMetadata to model.PageMetadata for compatibility with existing UI code
-		pageInfos := make([]model.PageMetadata, len(pages))
-		for i, p := range pages {
-			pageInfos[i] = model.PageMetadata{
-				Offset:                    p.Offset,
-				PageType:                  p.PageType,
-				CompressedSize:            p.CompressedSize,
-				UncompressedSize:          p.UncompressedSize,
-				NumValues:                 p.NumValues,
-				Encoding:                  p.Encoding,
-				DefLevelEncoding:          p.DefLevelEncoding,
-				RepLevelEncoding:          p.RepLevelEncoding,
-				HasStatistics:             p.HasStatistics,
-				HasCRC:                    p.HasCRC,
-				MinValue:                  p.MinValue,
-				MaxValue:                  p.MaxValue,
-				NullCount:                 p.NullCount,
-				CompressedSizeFormatted:   p.CompressedSizeFormatted,
-				UncompressedSizeFormatted: p.UncompressedSizeFormatted,
-				MinValueFormatted:         p.MinValueFormatted,
-				MaxValueFormatted:         p.MaxValueFormatted,
-			}
-		}
-
-		infoView := app.buildColumnChunkInfoViewFromHTTP(colInfo, len(pageInfos))
+		infoView := app.buildColumnChunkInfoViewFromHTTP(colInfo, len(pages))
 
 		// The page table builder takes parquet ColumnMetaData, so rebuild one from the API data.
 		physicalType := parsePhysicalType(colInfo.PhysicalType)
@@ -190,10 +166,7 @@ func (app *TUIApp) showPageView(rgIndex, colIndex int) {
 			colIndex:       colIndex,
 			meta:           meta,
 			table:          pageTable,
-			pages:          pageInfos, // Use fetched pages
-			batchSize:      50,        // Load 50 pages at a time
-			loadedPages:    0,
-			isLoading:      false,
+			pages:          pages,
 			statusTextView: statusText,
 		}
 

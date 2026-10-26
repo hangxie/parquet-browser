@@ -31,9 +31,6 @@ type pageContentBuilder struct {
 	meta           *parquet.ColumnMetaData
 	table          *tview.Table
 	allValues      []string // Pre-formatted values from API/model layer
-	loadedValues   int
-	isLoading      bool
-	batchSize      int
 	statusTextView *tview.TextView
 	headerView     *tview.TextView
 	ctx            context.Context
@@ -84,9 +81,6 @@ func (app *TUIApp) showPageContent(rgIndex, colIndex, pageIndex int, allPages []
 			allPages:       allPages,
 			meta:           meta,
 			table:          contentTable,
-			batchSize:      100, // Load 100 values at a time
-			loadedValues:   0,
-			isLoading:      false,
 			statusTextView: statusText,
 			headerView:     headerView,
 			ctx:            ctx,
@@ -167,8 +161,6 @@ func (b *pageContentBuilder) build() (*tview.Table, error) {
 			SetExpansion(1)
 		b.table.SetCell(tableRowIdx, 1, cell)
 	}
-
-	b.loadedValues = totalValues
 
 	b.updateHeaderInfo()
 
