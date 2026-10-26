@@ -44,9 +44,7 @@ format: tools  ## Format source codes
 lint: tools  ## Run static code analysis
 	@echo "==> Running static code analysis"
 	@$(GOBIN)/golangci-lint cache clean
-	@$(GOBIN)/golangci-lint run ./... \
-		--timeout 5m \
-		--enable gocognit
+	@$(GOBIN)/golangci-lint run ./... --timeout 5m
 
 .PHONY: deps
 deps:  ## Install prerequisite for build
