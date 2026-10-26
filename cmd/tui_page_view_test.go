@@ -196,7 +196,6 @@ func Test_TUIApp_buildColumnChunkInfoViewFromHTTP(t *testing.T) {
 
 	require.NotNil(t, infoView)
 
-	// Verify info view contains column information
 	text := infoView.GetText(false)
 	assert.Contains(t, text, "test_column")
 	assert.Contains(t, text, "INT32")

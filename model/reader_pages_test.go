@@ -144,7 +144,6 @@ func Test_ConvertPageHeaderInfoToMetadataWithStatistics(t *testing.T) {
 	})
 }
 
-// Helper to get the path to test parquet file
 func Test_GetPageMetadataList_ValidIndices(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
 	require.NoError(t, err)
@@ -156,7 +155,6 @@ func Test_GetPageMetadataList_ValidIndices(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, pages)
 
-	// Verify page metadata
 	for i, page := range pages {
 		require.Equal(t, i, page.Index)
 		require.NotEmpty(t, page.PageType)
@@ -164,7 +162,6 @@ func Test_GetPageMetadataList_ValidIndices(t *testing.T) {
 	}
 }
 
-// Test GetPageMetadataList with invalid indices
 func Test_GetPageMetadataList_InvalidIndices(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
 	require.NoError(t, err)
@@ -193,7 +190,6 @@ func Test_GetPageMetadataList_InvalidIndices(t *testing.T) {
 	}
 }
 
-// Test GetPageMetadata
 func Test_GetPageMetadata_ValidIndices(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
 	require.NoError(t, err)
@@ -208,7 +204,6 @@ func Test_GetPageMetadata_ValidIndices(t *testing.T) {
 	require.NotEmpty(t, page.PageType)
 }
 
-// Test GetPageMetadata with invalid indices
 func Test_GetPageMetadata_InvalidIndices(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
 	require.NoError(t, err)

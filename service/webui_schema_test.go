@@ -44,7 +44,6 @@ func Test_HandleSchemaView_URLPushUrl(t *testing.T) {
 
 	body := w.Body.String()
 
-	// Verify that schema format buttons have hx-push-url
 	require.Contains(t, body, `hx-push-url="true"`)
 }
 
@@ -95,7 +94,6 @@ func Test_HandleSchemaView_ButtonOrder(t *testing.T) {
 
 	body := w.Body.String()
 
-	// Verify button order: JSON, Raw, Go Struct, CSV
 	jsonIndex := strings.Index(body, "JSON</button>")
 	rawIndex := strings.Index(body, "Raw</button>")
 	goIndex := strings.Index(body, "Go Struct</button>")
@@ -106,7 +104,6 @@ func Test_HandleSchemaView_ButtonOrder(t *testing.T) {
 	require.NotEqual(t, -1, goIndex)
 	require.NotEqual(t, -1, csvIndex)
 
-	// Verify order
 	require.Less(t, jsonIndex, rawIndex)
 	require.Less(t, rawIndex, goIndex)
 	require.Less(t, goIndex, csvIndex)
@@ -124,7 +121,6 @@ func Test_HandleSchemaView_ActiveButton(t *testing.T) {
 
 	body := w.Body.String()
 
-	// Verify that JSON button has "active" class
 	require.Contains(t, body, `class="schema-btn active"`)
 }
 
@@ -154,7 +150,6 @@ func Test_HandleSchemaView_IIFE(t *testing.T) {
 
 	body := w.Body.String()
 
-	// Verify IIFE pattern is present
 	require.Contains(t, body, "(function()")
 	require.Contains(t, body, "loadSchema")
 	require.Contains(t, body, "escapeHtml")
@@ -172,7 +167,6 @@ func Test_HandleSchemaView_DataAttributes(t *testing.T) {
 
 	body := w.Body.String()
 
-	// Verify data-format attributes are present
 	require.Contains(t, body, `data-format="json"`)
 	require.Contains(t, body, `data-format="text"`)
 }
@@ -194,7 +188,6 @@ func Test_HandleSchemaGoView_WithRealFile(t *testing.T) {
 	body := w.Body.String()
 	require.Contains(t, body, "type")
 	require.Contains(t, body, "struct")
-	// Should contain Go code
 	require.NotEmpty(t, body)
 }
 
@@ -213,10 +206,8 @@ func Test_HandleSchemaJSONView_WithRealFile(t *testing.T) {
 	require.Equal(t, "application/json; charset=utf-8", w.Header().Get("Content-Type"))
 
 	body := w.Body.String()
-	// Should be valid JSON
 	require.Contains(t, body, "{")
 	require.Contains(t, body, "}")
-	// Verify it's valid JSON by unmarshaling
 	var jsonData interface{}
 	err := json.Unmarshal(w.Body.Bytes(), &jsonData)
 	require.NoError(t, err)
@@ -255,10 +246,8 @@ func Test_HandleSchemaRawView_WithRealFile(t *testing.T) {
 	require.Equal(t, "application/json; charset=utf-8", w.Header().Get("Content-Type"))
 
 	body := w.Body.String()
-	// Should be JSON
 	require.Contains(t, body, "{")
 	require.Contains(t, body, "}")
-	// Verify it's valid JSON by unmarshaling
 	var jsonData interface{}
 	err := json.Unmarshal(w.Body.Bytes(), &jsonData)
 	require.NoError(t, err)
@@ -294,7 +283,6 @@ func Test_AllSchemaFormats_WithDifferentFiles(t *testing.T) {
 	}
 }
 
-// Test handleSchemaRawView JSON marshaling error path
 func Test_HandleSchemaRawView_WithComplexData(t *testing.T) {
 	svc := newFixtureService(t, "all-types.parquet")
 
@@ -308,11 +296,9 @@ func Test_HandleSchemaRawView_WithComplexData(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, w.Code)
 	body := w.Body.String()
-	// Should return JSON data
 	require.Contains(t, body, "{")
 }
 
-// Test handleSchemaJSONView JSON unmarshaling error path (malformed JSON)
 func Test_HandleSchemaJSONView_ValidResponse(t *testing.T) {
 	svc := newFixtureService(t, "all-types.parquet")
 
@@ -331,7 +317,6 @@ func Test_HandleSchemaJSONView_ValidResponse(t *testing.T) {
 	require.Contains(t, body, "}")
 }
 
-// Test all schema views to ensure we cover all paths
 func Test_AllSchemaViews_Coverage(t *testing.T) {
 	svc := newFixtureService(t, "all-types.parquet")
 
@@ -360,7 +345,6 @@ func Test_AllSchemaViews_Coverage(t *testing.T) {
 		})
 	}
 
-	// Test CSV schema with a CSV-compatible file
 	csvSvc := newFixtureService(t, "csv-good.parquet")
 	if csvSvc != nil {
 		defer func() {
@@ -381,25 +365,21 @@ func Test_AllSchemaViews_Coverage(t *testing.T) {
 	}
 }
 
-// Test handleSchemaGoView error handling
 func Test_HandleSchemaGoView_ErrorHandling(t *testing.T) {
 	svc := newFixtureService(t, "all-types.parquet")
 
 	router := mux.NewRouter()
 	svc.SetupWebUIRoutes(router)
 
-	// Test successful case
 	req := httptest.NewRequest("GET", "/ui/schema/go", nil)
 	w := httptest.NewRecorder()
 
 	router.ServeHTTP(w, req)
 
-	// Should return OK
 	require.Equal(t, http.StatusOK, w.Code)
 	require.NotEmpty(t, w.Body.String())
 }
 
-// Test handleSchemaJSONView with empty file
 func Test_HandleSchemaJSONView_EmptyFile(t *testing.T) {
 	svc := newFixtureService(t, "empty.parquet")
 
@@ -411,12 +391,10 @@ func Test_HandleSchemaJSONView_EmptyFile(t *testing.T) {
 
 	router.ServeHTTP(w, req)
 
-	// Should return OK even for empty file
 	require.Equal(t, http.StatusOK, w.Code)
 	require.NotEmpty(t, w.Body.String())
 }
 
-// Test handleSchemaCSVView error path
 func Test_HandleSchemaCSVView_ErrorPath(t *testing.T) {
 	svc := newFixtureService(t, "csv-good.parquet")
 
@@ -428,12 +406,10 @@ func Test_HandleSchemaCSVView_ErrorPath(t *testing.T) {
 
 	router.ServeHTTP(w, req)
 
-	// Should handle CSV schema
 	require.Equal(t, http.StatusOK, w.Code)
 	require.NotEmpty(t, w.Body.String())
 }
 
-// Test handleSchemaRawView error path (fallback case)
 func Test_HandleSchemaRawView_FallbackPath(t *testing.T) {
 	svc := newFixtureService(t, "all-types.parquet")
 
@@ -445,13 +421,11 @@ func Test_HandleSchemaRawView_FallbackPath(t *testing.T) {
 
 	router.ServeHTTP(w, req)
 
-	// Should return raw schema
 	require.Equal(t, http.StatusOK, w.Code)
 	body := w.Body.String()
 	require.NotEmpty(t, body)
 }
 
-// Test all webui schema handlers comprehensively to reach 100%
 func Test_WebUI_AllSchemaHandlers_Comprehensive(t *testing.T) {
 	testFiles := []string{
 		"all-types.parquet",
@@ -466,7 +440,6 @@ func Test_WebUI_AllSchemaHandlers_Comprehensive(t *testing.T) {
 			router := mux.NewRouter()
 			svc.SetupWebUIRoutes(router)
 
-			// Test all schema view endpoints
 			endpoints := []string{
 				"/ui/schema",
 				"/ui/schema/go",
@@ -493,7 +466,6 @@ func Test_WebUI_AllSchemaHandlers_Comprehensive(t *testing.T) {
 	}
 }
 
-// Test webui schema CSV with different files
 func Test_HandleSchemaCSVView_WithDifferentFiles(t *testing.T) {
 	svc := newFixtureService(t, "csv-good.parquet")
 
@@ -509,7 +481,6 @@ func Test_HandleSchemaCSVView_WithDifferentFiles(t *testing.T) {
 	require.Contains(t, w.Header().Get("Content-Type"), "text/plain")
 }
 
-// Test handleSchemaGoView error path - list-of-list not supported
 func Test_HandleSchemaGoView_ErrorPath_ListOfList(t *testing.T) {
 	svc := newFixtureService(t, "list-of-list.parquet")
 
@@ -526,7 +497,6 @@ func Test_HandleSchemaGoView_ErrorPath_ListOfList(t *testing.T) {
 	require.Contains(t, w.Body.String(), "Failed to format Go schema")
 }
 
-// Test handleSchemaCSVView error path - list-of-list not supported
 func Test_HandleSchemaCSVView_ErrorPath_ListOfList(t *testing.T) {
 	svc := newFixtureService(t, "list-of-list.parquet")
 
@@ -543,7 +513,6 @@ func Test_HandleSchemaCSVView_ErrorPath_ListOfList(t *testing.T) {
 	require.Contains(t, w.Body.String(), "Failed to format CSV schema")
 }
 
-// Test handleSchemaRawView success path
 func Test_HandleSchemaRawView_Success(t *testing.T) {
 	svc := newFixtureService(t, "all-types.parquet")
 

@@ -44,7 +44,6 @@ func Test_FormatColumnName(t *testing.T) {
 	}
 }
 
-// Test GetColumnChunkInfo with valid indices
 func Test_GetColumnChunkInfo_ValidIndices(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
 	require.NoError(t, err)
@@ -52,7 +51,6 @@ func Test_GetColumnChunkInfo_ValidIndices(t *testing.T) {
 
 	pr := NewParquetReader(parquetReader)
 
-	// Test first column of first row group
 	info, err := pr.GetColumnChunkInfo(0, 0)
 	require.NoError(t, err)
 
@@ -64,7 +62,6 @@ func Test_GetColumnChunkInfo_ValidIndices(t *testing.T) {
 	require.GreaterOrEqual(t, info.NumValues, int64(0))
 }
 
-// Test GetColumnChunkInfo with invalid indices
 func Test_GetColumnChunkInfo_InvalidIndices(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
 	require.NoError(t, err)
@@ -93,7 +90,6 @@ func Test_GetColumnChunkInfo_InvalidIndices(t *testing.T) {
 	}
 }
 
-// Test GetAllColumnChunksInfo
 func Test_GetAllColumnChunksInfo_ValidIndex(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
 	require.NoError(t, err)
@@ -105,14 +101,12 @@ func Test_GetAllColumnChunksInfo_ValidIndex(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, infos)
 
-	// Verify each column info is populated
 	for i, info := range infos {
 		require.Equal(t, i, info.Index)
 		require.NotEmpty(t, info.Name)
 	}
 }
 
-// Test GetAllColumnChunksInfo with invalid index
 func Test_GetAllColumnChunksInfo_InvalidIndex(t *testing.T) {
 	parquetReader, err := pio.NewParquetFileReader(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
 	require.NoError(t, err)
@@ -137,9 +131,7 @@ func Test_GetAllColumnChunksInfo_InvalidIndex(t *testing.T) {
 	}
 }
 
-// Legacy and logical-type-only LIST/MAP layouts are normalized by the reader:
-// LIST wrappers become List.Element, while the schema elements are renamed in
-// step so type lookups and value formatting keep working.
+// Legacy LIST/MAP layouts are normalized to List.Element, with schema lookups renamed in step.
 func Test_ListMapLayoutFile_Columns(t *testing.T) {
 	pr := openFixture(t, "list-map-layout.parquet")
 
@@ -183,8 +175,7 @@ func Test_ListMapLayoutFile_Columns(t *testing.T) {
 	}
 }
 
-// A two-level list without a LIST annotation is a plain repeated group, so its
-// leaf path keeps the original field names.
+// A two-level list without a LIST annotation is a plain repeated group and keeps its names.
 func Test_NestedArrayFile_Columns(t *testing.T) {
 	pr := openFixture(t, "nested-array.parquet")
 

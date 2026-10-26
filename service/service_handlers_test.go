@@ -97,7 +97,6 @@ func Test_HandleColumnChunkInfo_InvalidIndices(t *testing.T) {
 
 			router.ServeHTTP(w, req)
 
-			// Check that we get an error status
 			require.True(t, w.Code == tt.expectedStatus || w.Code == http.StatusNotFound)
 		})
 	}
@@ -143,7 +142,6 @@ func Test_HandlePageInfo_InvalidIndices(t *testing.T) {
 
 			router.ServeHTTP(w, req)
 
-			// Should get BadRequest or NotFound
 			require.True(t, w.Code == http.StatusBadRequest || w.Code == http.StatusNotFound)
 		})
 	}
@@ -242,16 +240,11 @@ func Test_HandlePageContent_InvalidIndices(t *testing.T) {
 	}
 }
 
-// Helper function - reuse from http_helpers_test.go
-// (already defined in that file)
-
-// Test error responses contain proper JSON structure
 func Test_ErrorResponseStructure(t *testing.T) {
 	service := createTestService()
 	router := mux.NewRouter()
 	service.SetupRoutes(router)
 
-	// Test with invalid row group index
 	req := httptest.NewRequest("GET", "/rowgroups/invalid", nil)
 	w := httptest.NewRecorder()
 
@@ -268,7 +261,6 @@ func Test_ErrorResponseStructure(t *testing.T) {
 	}
 }
 
-// Test invalid parameter handling
 func Test_Handlers_InvalidParameters(t *testing.T) {
 	svc := &ParquetService{}
 	router := mux.NewRouter()
@@ -290,7 +282,6 @@ func Test_Handlers_InvalidParameters(t *testing.T) {
 
 			router.ServeHTTP(w, req)
 
-			// Should get BadRequest (400) or NotFound (404)
 			if w.Code != http.StatusBadRequest && w.Code != http.StatusNotFound {
 				t.Logf("Got status %d for %s", w.Code, tt.path)
 			}
@@ -308,7 +299,6 @@ func Test_Handlers_InvalidParameters(t *testing.T) {
 	}
 }
 
-// Test all handler functions with a real service
 func Test_AllHandlers_WithRealService(t *testing.T) {
 	parquetFile := fixturePath(t, "csv-good.parquet")
 
@@ -349,13 +339,11 @@ func Test_AllHandlers_WithRealService(t *testing.T) {
 			body, _ := io.ReadAll(w.Body)
 			require.Equal(t, tt.status, w.Code)
 
-			// Verify response is not empty
 			require.NotZero(t, len(body))
 		})
 	}
 }
 
-// Test handler error responses
 func Test_Handlers_ErrorResponses(t *testing.T) {
 	parquetFile := fixturePath(t, "csv-good.parquet")
 
@@ -382,7 +370,6 @@ func Test_Handlers_ErrorResponses(t *testing.T) {
 
 			router.ServeHTTP(w, req)
 
-			// Should get an error (400, 404, or 500)
 			if w.Code == http.StatusOK {
 				t.Logf("Warning: Expected error for %s but got OK", tt.path)
 			}
@@ -390,7 +377,6 @@ func Test_Handlers_ErrorResponses(t *testing.T) {
 	}
 }
 
-// Test coverage for all partial handler functions
 func Test_Handler_CoveragePaths(t *testing.T) {
 	parquetFile := fixturePath(t, "csv-good.parquet")
 
@@ -401,7 +387,6 @@ func Test_Handler_CoveragePaths(t *testing.T) {
 	router := mux.NewRouter()
 	service.SetupRoutes(router)
 
-	// Test all success and error paths
 	tests := []struct {
 		name   string
 		path   string
@@ -440,7 +425,6 @@ func Test_Handler_CoveragePaths(t *testing.T) {
 	}
 }
 
-// Test page content response structure
 func Test_HandlePageContent_ResponseStructure(t *testing.T) {
 	parquetFile := fixturePath(t, "csv-good.parquet")
 
@@ -469,7 +453,6 @@ func Test_HandlePageContent_ResponseStructure(t *testing.T) {
 	}
 }
 
-// Test concurrent requests to handlers
 func Test_Handlers_Concurrent(t *testing.T) {
 	parquetFile := fixturePath(t, "csv-good.parquet")
 
@@ -480,7 +463,6 @@ func Test_Handlers_Concurrent(t *testing.T) {
 	server := httptest.NewServer(CreateRouter(service, true))
 	defer server.Close()
 
-	// Make concurrent requests
 	done := make(chan bool, 10)
 	for i := 0; i < 10; i++ {
 		go func(i int) {
@@ -495,13 +477,11 @@ func Test_Handlers_Concurrent(t *testing.T) {
 		}(i)
 	}
 
-	// Wait for all requests
 	for i := 0; i < 10; i++ {
 		<-done
 	}
 }
 
-// Test handleFileInfo returns file metadata
 func Test_HandleFileInfo_Success(t *testing.T) {
 	service, err := NewParquetService(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
 	require.NoError(t, err)
@@ -517,7 +497,6 @@ func Test_HandleFileInfo_Success(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, w.Code)
 
-	// Verify response is valid JSON
 	var info map[string]interface{}
 	err = json.Unmarshal(w.Body.Bytes(), &info)
 	require.NoError(t, err)
@@ -529,7 +508,6 @@ func Test_HandleFileInfo_Success(t *testing.T) {
 	require.NotEmpty(t, info)
 }
 
-// Test handleRowGroups returns all row groups
 func Test_HandleRowGroups_Success(t *testing.T) {
 	service, err := NewParquetService(context.Background(), fixturePath(t, "all-types.parquet"), pio.ReadOption{})
 	require.NoError(t, err)
@@ -545,7 +523,6 @@ func Test_HandleRowGroups_Success(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, w.Code)
 
-	// Verify response is valid JSON array
 	var rowGroups []interface{}
 	err = json.Unmarshal(w.Body.Bytes(), &rowGroups)
 	require.NoError(t, err)
@@ -553,7 +530,6 @@ func Test_HandleRowGroups_Success(t *testing.T) {
 	require.NotEmpty(t, rowGroups)
 }
 
-// Test all API handlers with real files for full coverage
 func Test_AllAPIHandlers_WithRealFile(t *testing.T) {
 	svc := newFixtureService(t, "all-types.parquet")
 
@@ -589,7 +565,6 @@ func Test_AllAPIHandlers_WithRealFile(t *testing.T) {
 	}
 }
 
-// Test error paths for out of range indices
 func Test_APIHandlers_OutOfRangeIndices(t *testing.T) {
 	svc := newFixtureService(t, "all-types.parquet")
 
@@ -696,9 +671,7 @@ func Test_ZeroColumnFile_API(t *testing.T) {
 	})
 }
 
-// Legacy (Athena/parquet-mr style) and logical-type-only LIST/MAP layouts are
-// normalized by the reader, so column names use List.Element and every schema
-// format renders them as LIST/MAP instead of failing or falling back to groups.
+// Legacy LIST/MAP layouts get List.Element names and render as LIST/MAP in every schema format.
 func Test_ListMapLayoutFile_API(t *testing.T) {
 	svc := newFixtureService(t, "list-map-layout.parquet")
 

@@ -24,9 +24,7 @@ func Test_ServeCmd_Run_InvalidFile(t *testing.T) {
 	require.Contains(t, err.Error(), "failed to create service")
 }
 
-// A cancelled context (e.g. Ctrl-C during a slow open) makes run exit cleanly
-// with nil rather than as a command failure — unlike Test_ServeCmd_Run_InvalidFile,
-// where the same bad URI with a live context returns an error.
+// A cancelled context (Ctrl-C during a slow open) exits cleanly, unlike a bad URI with a live one.
 func Test_ServeCmd_run_CleanExitOnCancelledContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()

@@ -90,7 +90,6 @@ func Test_FormatRatio_EdgeCases(t *testing.T) {
 	}
 }
 
-// Test formatNullCount function
 func Test_formatNullCount(t *testing.T) {
 	t.Run("Nil value", func(t *testing.T) {
 		result := formatNullCount(nil)

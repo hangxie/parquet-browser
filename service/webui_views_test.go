@@ -94,7 +94,6 @@ func Test_HandleIndexPage_HTMXIncluded(t *testing.T) {
 
 	body := w.Body.String()
 
-	// Verify HTMX is included from CDN
 	require.Contains(t, body, "unpkg.com/htmx.org")
 }
 
@@ -110,10 +109,8 @@ func Test_HandleIndexPage_ContentArea(t *testing.T) {
 
 	body := w.Body.String()
 
-	// Verify content area exists for HTMX target
 	require.Contains(t, body, `id="content-area"`)
 
-	// Verify it loads main view on page load
 	require.Contains(t, body, `hx-get="/ui/main"`)
 	require.Contains(t, body, `hx-trigger="load"`)
 }
@@ -121,7 +118,6 @@ func Test_HandleIndexPage_ContentArea(t *testing.T) {
 func Test_HandleIndexPage_ErrorHandling(t *testing.T) {
 	service := createTestService()
 
-	// Test with a broken template (this is hard to simulate, but we can test the handler)
 	req := httptest.NewRequest("GET", "/", nil)
 	w := httptest.NewRecorder()
 
@@ -142,7 +138,6 @@ func Test_HandleIndexPage_IIFEScript(t *testing.T) {
 
 	body := w.Body.String()
 
-	// Verify the index page exists and has basic structure
 	require.Contains(t, body, "<!DOCTYPE html>")
 	require.Contains(t, body, "Parquet Browser")
 }
@@ -173,7 +168,6 @@ func Test_HandleIndexPage_Structure(t *testing.T) {
 
 	body := w.Body.String()
 
-	// Check for essential HTML elements
 	require.Contains(t, body, "<html")
 	require.Contains(t, body, "<head>")
 	require.Contains(t, body, "<body>")
@@ -265,12 +259,10 @@ func Test_HandleColumnsView_WithRealFile(t *testing.T) {
 	require.Contains(t, body, "Total Values")
 	require.Contains(t, body, "Total Size")
 	require.Contains(t, body, "/ui/rowgroups/0/columns/0/pages")
-	// Verify Min and Max columns are present
 	require.Contains(t, body, "<th>Min</th>")
 	require.Contains(t, body, "<th>Max</th>")
 }
 
-// Test handleColumnsView with invalid row group index
 func Test_HandleColumnsView_InvalidRowGroupIndex(t *testing.T) {
 	svc := newFixtureService(t, "all-types.parquet")
 
@@ -285,7 +277,6 @@ func Test_HandleColumnsView_InvalidRowGroupIndex(t *testing.T) {
 	require.Equal(t, http.StatusNotFound, w.Code)
 }
 
-// Test formatRatio with division by zero case
 func Test_HandleRowGroupsView_WithZeroCompression(t *testing.T) {
 	// This tests the division by zero case in handleRowGroupsView
 	// when totalCompressed is 0
@@ -300,12 +291,10 @@ func Test_HandleRowGroupsView_WithZeroCompression(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	require.Equal(t, http.StatusOK, w.Code)
-	// Should handle zero compression gracefully
 	body := w.Body.String()
 	require.Contains(t, body, "Row Groups")
 }
 
-// Test handleColumnsView with division by zero
 func Test_HandleColumnsView_CompressionRatio(t *testing.T) {
 	svc := newFixtureService(t, "all-types.parquet")
 
@@ -319,11 +308,9 @@ func Test_HandleColumnsView_CompressionRatio(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, w.Code)
 	body := w.Body.String()
-	// Should display compression ratio in Total Size field
 	require.Contains(t, body, "Total Size")
 }
 
-// Test columns view with null count
 func Test_HandleColumnsView_NullCount(t *testing.T) {
 	svc := newFixtureService(t, "all-types.parquet")
 
@@ -337,11 +324,9 @@ func Test_HandleColumnsView_NullCount(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, w.Code)
 	body := w.Body.String()
-	// Should display null count
 	require.Contains(t, body, "Null")
 }
 
-// Test ConvertedType display in columns view
 func Test_HandleColumnsView_ConvertedType(t *testing.T) {
 	svc := newFixtureService(t, "all-types.parquet")
 
@@ -355,11 +340,9 @@ func Test_HandleColumnsView_ConvertedType(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, w.Code)
 	body := w.Body.String()
-	// Should have ConvertedType column header
 	require.Contains(t, body, "Converted Type")
 }
 
-// Test handleMainView with empty file
 func Test_HandleMainView_EmptyFile(t *testing.T) {
 	svc := newFixtureService(t, "empty.parquet")
 
@@ -376,7 +359,6 @@ func Test_HandleMainView_EmptyFile(t *testing.T) {
 	require.Contains(t, body, "File Information")
 }
 
-// Test handleRowGroupsView compression ratio with zero values
 func Test_HandleRowGroupsView_DivisionByZero(t *testing.T) {
 	svc := newFixtureService(t, "empty.parquet")
 
@@ -389,12 +371,10 @@ func Test_HandleRowGroupsView_DivisionByZero(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	require.Equal(t, http.StatusOK, w.Code)
-	// Should not panic on division by zero
 	body := w.Body.String()
 	require.Contains(t, body, "Row Groups")
 }
 
-// Test handleColumnsView with column that has null values
 func Test_HandleColumnsView_WithNulls(t *testing.T) {
 	svc := newFixtureService(t, "all-types.parquet")
 
@@ -408,11 +388,9 @@ func Test_HandleColumnsView_WithNulls(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, w.Code)
 	body := w.Body.String()
-	// Should display columns with or without nulls
 	require.Contains(t, body, "Column Chunks")
 }
 
-// Test handleRowGroupsView division paths
 func Test_HandleRowGroupsView_AllPaths(t *testing.T) {
 	svc := newFixtureService(t, "all-types.parquet")
 
@@ -427,11 +405,9 @@ func Test_HandleRowGroupsView_AllPaths(t *testing.T) {
 	require.Equal(t, http.StatusOK, w.Code)
 	body := w.Body.String()
 	require.Contains(t, body, "Row Groups")
-	// Should have compression ratio calculated
 	require.Contains(t, body, "Compression")
 }
 
-// Test handleColumnsView all paths with real data
 func Test_HandleColumnsView_AllCodePaths(t *testing.T) {
 	svc := newFixtureService(t, "all-types.parquet")
 

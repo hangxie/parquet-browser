@@ -20,7 +20,6 @@ func Test_NewTUIApp(t *testing.T) {
 }
 
 func Test_TUIApp_readPageHeaders(t *testing.T) {
-	// Create a mock HTTP server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "/pages") {
 			w.Header().Set("Content-Type", "application/json")
@@ -52,7 +51,6 @@ func Test_TUIApp_readPageHeaders(t *testing.T) {
 }
 
 func Test_TUIApp_readPageHeaders_Error(t *testing.T) {
-	// Create a mock HTTP server that returns error
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 		_, _ = w.Write([]byte(`{"error":"not found"}`))
@@ -67,7 +65,6 @@ func Test_TUIApp_readPageHeaders_Error(t *testing.T) {
 }
 
 func Test_TUIApp_readPageContent(t *testing.T) {
-	// Create a mock HTTP server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "/content") {
 			w.Header().Set("Content-Type", "application/json")
@@ -90,7 +87,6 @@ func Test_TUIApp_readPageContent(t *testing.T) {
 }
 
 func Test_TUIApp_showSchema(t *testing.T) {
-	// Create a mock HTTP server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "/schema/raw") {
 			w.Header().Set("Content-Type", "text/plain")
@@ -103,7 +99,6 @@ func Test_TUIApp_showSchema(t *testing.T) {
 	app := NewTUIApp()
 	app.httpClient = newParquetClient(server.URL)
 
-	// Create a screen for the app
 	screen := tcell.NewSimulationScreen("UTF-8")
 	err := screen.Init()
 	require.NoError(t, err)

@@ -8,8 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// A cancelled context (e.g. Ctrl-C during a slow open) makes run exit cleanly
-// with nil rather than surfacing the cancellation as a command failure.
+// A cancelled context (Ctrl-C during a slow open) exits cleanly instead of failing the command.
 func Test_WebUICmd_run_CleanExitOnCancelledContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()

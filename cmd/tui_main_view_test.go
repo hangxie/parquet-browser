@@ -74,14 +74,12 @@ func Test_TUIApp_createStatusLine(t *testing.T) {
 
 	require.NotNil(t, app.statusLine)
 
-	// Verify status line text contains key bindings
 	text := app.statusLine.GetText(false)
 	assert.Contains(t, text, "ESC=quit")
 	assert.Contains(t, text, "s=schema")
 }
 
 func Test_TUIApp_createHeaderView(t *testing.T) {
-	// Create a mock HTTP server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasSuffix(r.URL.Path, "/info") {
 			w.Header().Set("Content-Type", "application/json")
@@ -106,14 +104,12 @@ func Test_TUIApp_createHeaderView(t *testing.T) {
 
 	require.NotNil(t, app.headerView)
 
-	// Verify header contains file info
 	text := app.headerView.GetText(false)
 	assert.Contains(t, text, "Version:")
 	assert.Contains(t, text, "Rows:")
 }
 
 func Test_TUIApp_createRowGroupList(t *testing.T) {
-	// Create a mock HTTP server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasSuffix(r.URL.Path, "/rowgroups") {
 			w.Header().Set("Content-Type", "application/json")
@@ -138,7 +134,6 @@ func Test_TUIApp_createRowGroupList(t *testing.T) {
 
 	require.NotNil(t, app.rowGroupList)
 
-	// Verify table has been populated (at least header row)
 	assert.Greater(t, app.rowGroupList.GetRowCount(), 0)
 }
 
