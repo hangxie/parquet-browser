@@ -4,12 +4,15 @@ on:
   workflow_call:
 
 jobs:
-  build:
+  # Lint runs in its own job so it overlaps with the tests instead of preceding them.
+  lint:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version: "1.26"
           cache-dependency-path: go.sum
@@ -19,8 +22,6 @@ jobs:
         run: make format
       - name: Running lint
         run: make lint
-      - name: Running tests
-        run: make test
       - name: Checking uncommitted changes
         run: |
           git status -s > /tmp/git-status.log
@@ -29,5 +30,43 @@ jobs:
             cat /tmp/git-status.log
             false
           fi
+
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: "1.26"
+          cache-dependency-path: go.sum
+      - name: Installing Dependencies
+        run: make deps
+      - name: Running tests
+        run: make test
       - name: Ensure build
         run: make build
+      - name: Checking uncommitted changes
+        run: |
+          git status -s > /tmp/git-status.log
+          if [ -s /tmp/git-status.log ] ; then
+            echo There are uncommitted changes
+            cat /tmp/git-status.log
+            false
+          fi
+
+  build-complete:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    needs: [lint, build]
+    if: always()
+    steps:
+      - name: Check job results
+        run: |
+          if [ "${{ needs.lint.result }}" != "success" ] || [ "${{ needs.build.result }}" != "success" ]; then
+            echo "::error::One or more jobs failed"
+            exit 1
+          fi

@@ -111,7 +111,7 @@ pre-test:
 	done
 
 .PHONY: test
-test: deps tools pre-test  ## Run unit tests
+test: deps pre-test  ## Run unit tests
 	@echo "==> Running unit tests"
 	@mkdir -p $(BUILD_DIR)/test
 	@set -euo pipefail ; \
